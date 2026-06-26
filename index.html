@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recarregue — Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0812;
+    --card: #13101f;
+    --card2: #1c1830;
+    --accent: #8B5CF6;
+    --accent-lt: #A78BFA;
+    --accent-bg: rgba(139,92,246,.12);
+    --border: rgba(139,92,246,.18);
+    --text: #F0EDF8;
+    --text2: #C4B8E8;
+    --muted: #7C6FA0;
+    --green: #34d399;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --blue: #60a5fa;
+  }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+
+  /* ── LOGIN ── */
+  #login {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+  }
+  .login-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 380px; text-align: center;
+  }
+  .login-icon { font-size: 48px; margin-bottom: 16px; }
+  .login-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .login-sub { font-size: 14px; color: var(--muted); margin-bottom: 28px; }
+  .login-input {
+    width: 100%; padding: 14px 16px; background: var(--card2);
+    border: 1px solid var(--border); border-radius: 12px;
+    font-size: 16px; color: var(--text); outline: none; margin-bottom: 14px;
+    font-family: monospace; letter-spacing: 2px;
+  }
+  .login-input:focus { border-color: var(--accent); }
+  .login-btn {
+    width: 100%; padding: 14px; background: var(--accent);
+    border: none; border-radius: 12px; font-size: 15px; font-weight: 600;
+    color: white; cursor: pointer;
+  }
+  .login-btn:hover { background: var(--accent-lt); }
+  .login-err { color: var(--red); font-size: 13px; margin-top: 10px; }
+
+  /* ── DASHBOARD ── */
+  #dash { display: none; }
+  .top-bar {
+    background: var(--card); border-bottom: 1px solid var(--border);
+    padding: 16px 24px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .top-logo { display: flex; align-items: center; gap: 10px; }
+  .top-logo-icon { font-size: 22px; }
+  .top-logo-name { font-size: 18px; font-weight: 700; }
+  .top-logo-badge {
+    font-size: 10px; background: var(--accent-bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 2px 8px; color: var(--accent-lt); font-weight: 600; letter-spacing: .5px;
+  }
+  .top-right { display: flex; align-items: center; gap: 12px; }
+  .last-update { font-size: 12px; color: var(--muted); }
+  .refresh-btn {
+    background: var(--accent-bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 14px; color: var(--accent-lt);
+    font-size: 13px; cursor: pointer; font-weight: 600;
+  }
+  .refresh-btn:hover { background: var(--accent); color: white; }
+  .refresh-btn.loading { opacity: .5; pointer-events: none; }
+
+  .content { padding: 24px; max-width: 1200px; margin: 0 auto; }
+
+  /* ── SECTION TITLES ── */
+  .section-title {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    letter-spacing: 1px; text-transform: uppercase; margin: 28px 0 14px;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  /* ── KPI CARDS ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+  .kpi {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px 18px;
+  }
+  .kpi-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; font-weight: 500; }
+  .kpi-value { font-size: 36px; font-weight: 800; line-height: 1; color: var(--text); }
+  .kpi-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .kpi-value.accent { color: var(--accent-lt); }
+  .kpi-value.green { color: var(--green); }
+  .kpi-value.amber { color: var(--amber); }
+  .kpi-value.blue { color: var(--blue); }
+
+  /* ── CHART CARDS ── */
+  .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+  .chart-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px;
+  }
+  .chart-title { font-size: 14px; font-weight: 600; color: var(--text2); margin-bottom: 16px; }
+  .chart-wrap { position: relative; }
+
+  /* ── ACTIVITY FEED ── */
+  .feed-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px; margin-top: 14px;
+  }
+  .feed-title { font-size: 14px; font-weight: 600; color: var(--text2); margin-bottom: 14px; }
+  .feed-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid rgba(139,92,246,.08);
+  }
+  .feed-item:last-child { border-bottom: none; }
+  .feed-icon {
+    width: 32px; height: 32px; border-radius: 8px; background: var(--accent-bg);
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+    flex-shrink: 0;
+  }
+  .feed-body { flex: 1; min-width: 0; }
+  .feed-event { font-size: 13px; font-weight: 500; color: var(--text); }
+  .feed-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .feed-time { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+  /* ── PROGRESS BAR ── */
+  .progress-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .progress-label { font-size: 13px; color: var(--text2); width: 110px; flex-shrink: 0; }
+  .progress-bar-bg { flex: 1; height: 8px; background: var(--card2); border-radius: 4px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; border-radius: 4px; background: var(--accent); transition: width .6s ease; }
+  .progress-val { font-size: 12px; color: var(--muted); width: 36px; text-align: right; }
+
+  /* ── EMPTY STATE ── */
+  .empty { text-align: center; color: var(--muted); font-size: 13px; padding: 32px 0; }
+
+  /* ── LOADING ── */
+  .skeleton { background: var(--card2); border-radius: 8px; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.9} }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 600px) {
+    .content { padding: 16px; }
+    .kpi-value { font-size: 28px; }
+    .top-logo-badge { display: none; }
+    .last-update { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-card">
+    <div class="login-icon">⚡</div>
+    <div class="login-title">Recarregue</div>
+    <div class="login-sub">Dashboard interno — acesso restrito</div>
+    <input id="pwd" class="login-input" type="password" placeholder="Senha" onkeydown="if(event.key==='Enter')auth()">
+    <button class="login-btn" onclick="auth()">Entrar</button>
+    <div id="login-err" class="login-err"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dash">
+  <div class="top-bar">
+    <div class="top-logo">
+      <span class="top-logo-icon">⚡</span>
+      <span class="top-logo-name">Recarregue</span>
+      <span class="top-logo-badge">DASHBOARD</span>
+    </div>
+    <div class="top-right">
+      <span class="last-update" id="last-update">—</span>
+      <button class="refresh-btn" id="refresh-btn" onclick="loadAll()">↻ Atualizar</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <div class="section-title">Visão geral</div>
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi"><div class="kpi-label">Usuários únicos</div><div class="kpi-value accent" id="k-unique">—</div><div class="kpi-sub">total histórico</div></div>
+      <div class="kpi"><div class="kpi-label">Ativos (30 dias)</div><div class="kpi-value green" id="k-active">—</div><div class="kpi-sub">com ao menos 1 sessão</div></div>
+      <div class="kpi"><div class="kpi-label">Sessões hoje</div><div class="kpi-value blue" id="k-today">—</div><div class="kpi-sub" id="k-today-sub">—</div></div>
+      <div class="kpi"><div class="kpi-label">Check-ins totais</div><div class="kpi-value amber" id="k-checkins">—</div><div class="kpi-sub">todos os períodos</div></div>
+      <div class="kpi"><div class="kpi-label">Onboarding concluído</div><div class="kpi-value" id="k-onboard">—</div><div class="kpi-sub">de novos usuários</div></div>
+      <div class="kpi"><div class="kpi-label">Energia média</div><div class="kpi-value green" id="k-energy">—</div><div class="kpi-sub">nos check-ins /10</div></div>
+    </div>
+
+    <div class="section-title">Engajamento ao longo do tempo</div>
+    <div class="chart-card">
+      <div class="chart-title">Sessões por dia — últimos 30 dias</div>
+      <div class="chart-wrap"><canvas id="chart-sessions" height="90"></canvas></div>
+    </div>
+
+    <div class="section-title">Comportamento</div>
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="chart-title">Telas mais acessadas</div>
+        <div class="chart-wrap"><canvas id="chart-screens" height="160"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Tipos de registro</div>
+        <div class="chart-wrap" style="max-width:240px;margin:0 auto"><canvas id="chart-entries"></canvas></div>
+      </div>
+    </div>
+
+    <div class="section-title">Check-ins</div>
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="chart-title">Check-ins por dia — últimos 30 dias</div>
+        <div class="chart-wrap"><canvas id="chart-checkins" height="130"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Energia média por dia</div>
+        <div class="chart-wrap"><canvas id="chart-energy" height="130"></canvas></div>
+      </div>
+    </div>
+
+    <div class="section-title">Usuários</div>
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="chart-title">Novos vs. retornantes</div>
+        <div id="new-vs-ret"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Usuários totais vs. backups realizados</div>
+        <div id="users-vs-backup"></div>
+        <div id="backup-rate" style="margin-top:16px;text-align:center;font-size:13px;color:var(--muted)"></div>
+      </div>
+    </div>
+
+    <div class="section-title">Atividade recente</div>
+    <div class="feed-card">
+      <div class="feed-title">Últimos 30 eventos</div>
+      <div id="feed-list"><div class="empty">Carregando...</div></div>
+    </div>
+
+    <div style="text-align:center;padding:32px 0 16px;font-size:12px;color:var(--muted)">
+      Recarregue Dashboard · Dados em tempo real via Supabase
+    </div>
+
+  </div>
+</div>
+
+<script>
+const PASS = 'recarregue2026';
+const SUPABASE_URL = 'https://zlldecmwobbkfnjfbjew.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsbGRlY213b2Jia2ZuamZiamV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTQ3MjEsImV4cCI6MjA5ODA3MDcyMX0.V1Uj8MzLYO-AHfs6wxu5qWd-Lp7QvdbQYty2dqZfDt0';
+
+let charts = {};
+
+function auth(){
+  const v = document.getElementById('pwd').value;
+  if(v === PASS){
+    document.getElementById('login').style.display = 'none';
+    document.getElementById('dash').style.display = 'block';
+    loadAll();
+  } else {
+    document.getElementById('login-err').textContent = 'Senha incorreta.';
+  }
+}
+
+async function fetchEvents(){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/events?select=*&order=created_at.desc&limit=5000`, {
+    headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` }
+  });
+  return res.json();
+}
+
+function dateStr(iso){ return iso.slice(0,10); }
+function fmtDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'});
+}
+function fmtDateTime(iso){
+  const d = new Date(iso);
+  return d.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+function last30Days(){
+  const days = [];
+  for(let i=29; i>=0; i--){
+    const d = new Date(); d.setDate(d.getDate()-i);
+    days.push(d.toISOString().slice(0,10));
+  }
+  return days;
+}
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function ago30(){ const d=new Date();d.setDate(d.getDate()-30);return d.toISOString(); }
+
+const SCREEN_LABELS = { home:'Hoje', register:'Registrar', mapa:'Mapa', sos:'SOS', settings:'Config' };
+const EVENT_ICONS = {
+  session_started:'🚀', screen_viewed:'👁️', checkin_completed:'✅',
+  entry_registered:'📝', backup_created:'☁️', onboarding_completed:'🎉'
+};
+const EVENT_LABELS = {
+  session_started:'Sessão iniciada', screen_viewed:'Tela visualizada',
+  checkin_completed:'Check-in realizado', entry_registered:'Registro adicionado',
+  backup_created:'Backup criado', onboarding_completed:'Onboarding concluído'
+};
+const TYPE_LABELS = {
+  dreno:'Dreno', recuperacao:'Recuperação', social:'Social',
+  sensorial:'Sensorial', cognitivo:'Cognitivo', gatilho:'Gatilho', unknown:'Outro'
+};
+
+function destroyChart(id){ if(charts[id]){charts[id].destroy();delete charts[id];} }
+
+function buildChart(id, config){
+  destroyChart(id);
+  const ctx = document.getElementById(id)?.getContext('2d');
+  if(!ctx) return;
+  charts[id] = new Chart(ctx, config);
+}
+
+async function loadAll(){
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('loading'); btn.textContent = '↻ Carregando...';
+
+  try {
+    const events = await fetchEvents();
+    renderKPIs(events);
+    renderSessionsChart(events);
+    renderScreensChart(events);
+    renderEntriesChart(events);
+    renderCheckinsChart(events);
+    renderEnergyChart(events);
+    renderNewVsRet(events);
+    renderUsersVsBackup(events);
+    renderFeed(events);
+    document.getElementById('last-update').textContent =
+      'Atualizado: ' + new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+  } catch(e){
+    console.error(e);
+  }
+
+  btn.classList.remove('loading'); btn.textContent = '↻ Atualizar';
+}
+
+function renderKPIs(events){
+  const sessions = events.filter(e=>e.event_name==='session_started');
+  const unique = new Set(sessions.map(e=>e.device_id)).size;
+  const active = new Set(sessions.filter(e=>e.created_at>=ago30()).map(e=>e.device_id)).size;
+  const todaySessions = sessions.filter(e=>dateStr(e.created_at)===todayISO());
+  const checkins = events.filter(e=>e.event_name==='checkin_completed');
+  const newSessions = sessions.filter(e=>!e.metadata?.returning);
+  const completed = events.filter(e=>e.event_name==='onboarding_completed');
+  const onboardRate = newSessions.length ? Math.round(completed.length/newSessions.length*100) : 0;
+  const energies = checkins.map(e=>e.metadata?.energy).filter(v=>v!=null);
+  const avgEnergy = energies.length ? (energies.reduce((a,b)=>a+b,0)/energies.length).toFixed(1) : '—';
+
+  document.getElementById('k-unique').textContent = unique;
+  document.getElementById('k-active').textContent = active;
+  document.getElementById('k-today').textContent = todaySessions.length;
+  document.getElementById('k-today-sub').textContent = `${new Set(todaySessions.map(e=>e.device_id)).size} usuário(s)`;
+  document.getElementById('k-checkins').textContent = checkins.length;
+  document.getElementById('k-onboard').textContent = onboardRate + '%';
+  document.getElementById('k-energy').textContent = avgEnergy;
+}
+
+function renderSessionsChart(events){
+  const days = last30Days();
+  const sessions = events.filter(e=>e.event_name==='session_started');
+  const counts = days.map(d => sessions.filter(e=>dateStr(e.created_at)===d).length);
+
+  buildChart('chart-sessions', {
+    type: 'line',
+    data: {
+      labels: days.map(fmtDate),
+      datasets: [{
+        label: 'Sessões', data: counts,
+        borderColor: '#8B5CF6', backgroundColor: 'rgba(139,92,246,.15)',
+        fill: true, tension: .4, pointRadius: 3, pointBackgroundColor: '#8B5CF6'
+      }]
+    },
+    options: { plugins:{legend:{display:false}}, scales:{
+      x:{ticks:{color:'#7C6FA0',font:{size:10}},grid:{color:'rgba(139,92,246,.06)'}},
+      y:{ticks:{color:'#7C6FA0',font:{size:10},stepSize:1},grid:{color:'rgba(139,92,246,.06)'},min:0}
+    }}
+  });
+}
+
+function renderScreensChart(events){
+  const views = events.filter(e=>e.event_name==='screen_viewed');
+  const counts = {};
+  views.forEach(e=>{ const s=e.metadata?.screen||'?'; counts[s]=(counts[s]||0)+1; });
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const labels = sorted.map(([k])=>SCREEN_LABELS[k]||k);
+  const data = sorted.map(([,v])=>v);
+  const colors = ['#8B5CF6','#60a5fa','#34d399','#fbbf24','#f87171'];
+
+  buildChart('chart-screens', {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: colors.slice(0,labels.length), borderRadius: 8 }] },
+    options: {
+      indexAxis: 'y', plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#7C6FA0',font:{size:10}},grid:{color:'rgba(139,92,246,.06)'}},
+        y:{ticks:{color:'#C4B8E8',font:{size:12}},grid:{display:false}}
+      }
+    }
+  });
+}
+
+function renderEntriesChart(events){
+  const entries = events.filter(e=>e.event_name==='entry_registered');
+  const counts = {};
+  entries.forEach(e=>{ const t=e.metadata?.type||'unknown'; counts[t]=(counts[t]||0)+1; });
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  if(!sorted.length){ document.getElementById('chart-entries').parentElement.innerHTML='<div class="empty">Nenhum registro ainda</div>'; return; }
+  const colors = ['#8B5CF6','#60a5fa','#34d399','#fbbf24','#f87171','#a3e635','#fb923c'];
+
+  buildChart('chart-entries', {
+    type: 'doughnut',
+    data: {
+      labels: sorted.map(([k])=>TYPE_LABELS[k]||k),
+      datasets: [{ data: sorted.map(([,v])=>v), backgroundColor: colors, borderWidth: 0 }]
+    },
+    options: {
+      cutout: '65%',
+      plugins:{ legend:{ position:'bottom', labels:{ color:'#C4B8E8', font:{size:11}, padding:10 } } }
+    }
+  });
+}
+
+function renderCheckinsChart(events){
+  const days = last30Days();
+  const checkins = events.filter(e=>e.event_name==='checkin_completed');
+  const counts = days.map(d=>checkins.filter(e=>dateStr(e.created_at)===d).length);
+
+  buildChart('chart-checkins', {
+    type: 'bar',
+    data: {
+      labels: days.map(fmtDate),
+      datasets: [{ data: counts, backgroundColor: 'rgba(251,191,36,.7)', borderRadius: 6 }]
+    },
+    options: { plugins:{legend:{display:false}}, scales:{
+      x:{ticks:{color:'#7C6FA0',font:{size:9}},grid:{display:false}},
+      y:{ticks:{color:'#7C6FA0',font:{size:10},stepSize:1},grid:{color:'rgba(139,92,246,.06)'},min:0}
+    }}
+  });
+}
+
+function renderEnergyChart(events){
+  const days = last30Days();
+  const checkins = events.filter(e=>e.event_name==='checkin_completed'&&e.metadata?.energy!=null);
+  const avgs = days.map(d=>{
+    const day = checkins.filter(e=>dateStr(e.created_at)===d);
+    if(!day.length) return null;
+    return +(day.reduce((s,e)=>s+e.metadata.energy,0)/day.length).toFixed(1);
+  });
+
+  buildChart('chart-energy', {
+    type: 'line',
+    data: {
+      labels: days.map(fmtDate),
+      datasets: [{
+        label: 'Energia média', data: avgs,
+        borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,.1)',
+        fill: true, tension: .4, pointRadius: 3, pointBackgroundColor: '#34d399',
+        spanGaps: true
+      }]
+    },
+    options: {
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#7C6FA0',font:{size:9}},grid:{display:false}},
+        y:{ticks:{color:'#7C6FA0',font:{size:10}},grid:{color:'rgba(52,211,153,.06)'},min:0,max:10}
+      }
+    }
+  });
+}
+
+function renderNewVsRet(events){
+  const sessions = events.filter(e=>e.event_name==='session_started');
+  const newU = sessions.filter(e=>!e.metadata?.returning).length;
+  const ret = sessions.filter(e=>e.metadata?.returning).length;
+  const total = newU + ret || 1;
+  const el = document.getElementById('new-vs-ret');
+  el.innerHTML = `
+    <div class="progress-row">
+      <div class="progress-label">Novos usuários</div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${Math.round(newU/total*100)}%;background:#8B5CF6"></div></div>
+      <div class="progress-val">${newU}</div>
+    </div>
+    <div class="progress-row">
+      <div class="progress-label">Retornantes</div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${Math.round(ret/total*100)}%;background:#34d399"></div></div>
+      <div class="progress-val">${ret}</div>
+    </div>
+  `;
+}
+
+function renderUsersVsBackup(events){
+  const uniqueUsers = new Set(events.filter(e=>e.event_name==='session_started').map(e=>e.device_id)).size;
+  const usersWithBackup = new Set(events.filter(e=>e.event_name==='backup_created').map(e=>e.device_id)).size;
+  const pct = uniqueUsers ? Math.round(usersWithBackup/uniqueUsers*100) : 0;
+  const el = document.getElementById('users-vs-backup');
+  el.innerHTML = `
+    <div class="progress-row">
+      <div class="progress-label">Total de usuários</div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:100%;background:#8B5CF6"></div></div>
+      <div class="progress-val">${uniqueUsers}</div>
+    </div>
+    <div class="progress-row">
+      <div class="progress-label">Fizeram backup</div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%;background:#34d399"></div></div>
+      <div class="progress-val">${usersWithBackup}</div>
+    </div>
+  `;
+  document.getElementById('backup-rate').innerHTML =
+    `<span style="color:${pct>=50?'var(--green)':pct>=20?'var(--amber)':'var(--red)'};font-size:22px;font-weight:800">${pct}%</span> dos usuários já fizeram backup`;
+}
+
+function renderFeed(events){
+  const recent = events.slice(0, 30);
+  if(!recent.length){ document.getElementById('feed-list').innerHTML='<div class="empty">Nenhum evento ainda</div>'; return; }
+  document.getElementById('feed-list').innerHTML = recent.map(e=>{
+    const icon = EVENT_ICONS[e.event_name] || '•';
+    const label = EVENT_LABELS[e.event_name] || e.event_name;
+    let meta = `Dispositivo ${e.device_id.slice(0,8)}…`;
+    if(e.event_name==='screen_viewed' && e.metadata?.screen) meta += ` → ${SCREEN_LABELS[e.metadata.screen]||e.metadata.screen}`;
+    if(e.event_name==='checkin_completed' && e.metadata?.energy!=null) meta += ` · energia ${e.metadata.energy}/10`;
+    if(e.event_name==='entry_registered' && e.metadata?.type) meta += ` · ${TYPE_LABELS[e.metadata.type]||e.metadata.type}`;
+    if(e.event_name==='session_started') meta += e.metadata?.returning ? ' · retornante' : ' · novo';
+    return `
+      <div class="feed-item">
+        <div class="feed-icon">${icon}</div>
+        <div class="feed-body">
+          <div class="feed-event">${label}</div>
+          <div class="feed-meta">${meta}</div>
+        </div>
+        <div class="feed-time">${fmtDateTime(e.created_at)}</div>
+      </div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>
