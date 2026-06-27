@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recarregue ⚡ — Como foi sua experiência?</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --accent:#8B5CF6;--accent-lt:#A78BFA;--accent-dk:#7C3AED;
+  --accent-bg:rgba(139,92,246,.15);--border:rgba(139,92,246,.2);
+  --bg:#0e0a1f;--card:#1c1535;--card2:#251d42;
+  --text:#F0EDF8;--text2:#C4B8E8;--muted:#7C6FA0;
+  --green:#10B981;--amber:#F59E0B;--red:#F87171;
+  --r:16px;
+}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+  padding:32px 20px 48px;
+}
+.wrap{width:100%;max-width:480px;}
+
+.hero{text-align:center;margin-bottom:32px;}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 14px;border-radius:99px;
+  background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);
+  font-size:11px;font-weight:700;color:var(--green);letter-spacing:.6px;
+  text-transform:uppercase;margin-bottom:18px;
+}
+.hero-icon{font-size:52px;margin-bottom:12px;}
+.hero-title{font-size:28px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.2;}
+.hero-sub{font-size:15px;color:var(--accent-lt);font-weight:600;margin-bottom:14px;}
+.hero-body{font-size:14px;color:var(--text2);line-height:1.8;}
+
+.card{
+  background:var(--card);border-radius:var(--r);
+  padding:24px;border:1px solid var(--border);
+  box-shadow:0 4px 24px rgba(0,0,0,.5);margin-bottom:14px;
+}
+.card-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-bottom:6px;}
+.card-desc{font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.6;}
+
+/* NPS */
+.nps-wrap{margin-top:4px;}
+.nps-scale{
+  display:grid;grid-template-columns:repeat(11,1fr);gap:4px;margin-bottom:10px;
+}
+.nps-btn{
+  aspect-ratio:1;border-radius:10px;border:1.5px solid var(--border);
+  background:var(--card2);cursor:pointer;font-size:13px;font-weight:800;
+  color:var(--muted);transition:all .15s;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;
+}
+.nps-btn:hover{border-color:var(--accent);color:var(--text);}
+.nps-btn.sel{color:#fff;}
+.nps-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);padding:0 2px;}
+.nps-selected{text-align:center;margin-top:14px;font-size:14px;color:var(--text2);min-height:20px;}
+.nps-selected strong{color:var(--accent-lt);}
+
+/* campos */
+.field{margin-bottom:18px;}
+label{display:block;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px;}
+.req{color:var(--accent-lt);}
+textarea,input{
+  width:100%;border:1.5px solid var(--border);border-radius:10px;
+  padding:13px 14px;font-size:15px;font-family:inherit;
+  color:var(--text);background:var(--card2);outline:none;transition:border-color .15s;
+}
+textarea::placeholder,input::placeholder{color:var(--muted);}
+textarea:focus,input:focus{border-color:var(--accent);}
+textarea{resize:none;line-height:1.6;}
+.hint{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.5;}
+
+/* chips de aspecto */
+.aspect-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px;}
+.aspect-chip{
+  padding:7px 13px;border:1.5px solid var(--border);border-radius:99px;
+  font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;
+  transition:all .15s;background:var(--card2);user-select:none;
+}
+.aspect-chip.sel{border-color:var(--accent);color:var(--accent-lt);background:var(--accent-bg);}
+
+.btn{
+  width:100%;padding:16px;border:none;border-radius:12px;
+  font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;
+  background:linear-gradient(135deg,var(--accent-dk),var(--accent-lt));
+  color:#fff;transition:opacity .15s,transform .1s;margin-top:4px;
+}
+.btn:hover{opacity:.92;}
+.btn:active{transform:scale(.98);}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+
+.privacy-note{
+  display:flex;align-items:flex-start;gap:10px;
+  background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);
+  border-radius:12px;padding:14px;font-size:13px;color:var(--text2);line-height:1.6;
+  margin-bottom:14px;
+}
+.privacy-note .pi{font-size:20px;flex-shrink:0;margin-top:1px;}
+
+.err-msg{
+  background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);
+  border-radius:10px;padding:12px 14px;font-size:13px;color:#FCA5A5;
+  margin-top:12px;display:none;
+}
+
+/* success */
+.success{text-align:center;padding:48px 20px;}
+.success-icon{font-size:64px;margin-bottom:16px;}
+.success-title{font-size:24px;font-weight:800;margin-bottom:10px;}
+.success-sub{font-size:15px;color:var(--text2);line-height:1.7;}
+
+footer{text-align:center;margin-top:32px;font-size:12px;color:var(--muted);line-height:1.8;}
+
+/* admin */
+.admin-toggle{
+  background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;
+  font-family:inherit;text-decoration:underline;display:block;margin:24px auto 0;
+}
+.admin-panel{display:none;margin-top:16px;}
+.admin-panel.open{display:block;}
+.pwd-row{display:flex;gap:8px;margin-bottom:20px;}
+.pwd-row input{flex:1;}
+.pwd-btn{
+  padding:0 18px;border:none;border-radius:10px;
+  background:var(--accent-bg);color:var(--accent-lt);
+  font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;
+  border:1.5px solid var(--border);white-space:nowrap;
+}
+.table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{background:var(--card2);color:var(--muted);font-weight:700;font-size:11px;
+   text-transform:uppercase;letter-spacing:.5px;padding:10px 12px;text-align:left;}
+td{padding:10px 12px;border-top:1px solid var(--border);color:var(--text2);vertical-align:top;}
+tr:hover td{background:rgba(139,92,246,.05);}
+.nps-pill{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:28px;height:28px;border-radius:8px;font-weight:800;font-size:13px;
+}
+.count-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--accent-bg);border:1px solid var(--border);
+  border-radius:99px;padding:4px 12px;font-size:12px;color:var(--accent-lt);
+  font-weight:700;margin-bottom:16px;
+}
+.kpi-row{display:flex;gap:10px;margin-bottom:16px;}
+.kpi{
+  flex:1;background:var(--card2);border:1px solid var(--border);
+  border-radius:12px;padding:12px;text-align:center;
+}
+.kpi-val{font-size:24px;font-weight:800;color:var(--accent-lt);}
+.kpi-lbl{font-size:11px;color:var(--muted);margin-top:2px;}
+.empty-table{text-align:center;padding:32px;color:var(--muted);font-size:14px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="hero-badge">✨ Beta — sua opinião importa</div>
+    <div class="hero-icon">💜</div>
+    <h1 class="hero-title">Como foi sua experiência?</h1>
+    <div class="hero-sub">Leva menos de 3 minutos</div>
+    <p class="hero-body">Você testou o Recarregue por 20 dias — isso é muito! Conta pra gente o que achou. Seu feedback vai moldar as próximas versões.</p>
+  </div>
+
+  <div id="form-section">
+
+    <!-- NPS -->
+    <div class="card">
+      <div class="card-title">Pergunta principal</div>
+      <div class="card-desc">Em uma escala de 0 a 10, o quanto você recomendaria o Recarregue para alguém com TEA, TDAH ou TAG? <span class="req">*</span></div>
+      <div class="nps-wrap">
+        <div class="nps-scale" id="nps-scale">
+          <!-- gerado pelo JS -->
+        </div>
+        <div class="nps-labels">
+          <span>0 — Nunca indicaria</span>
+          <span>10 — Com certeza!</span>
+        </div>
+        <div class="nps-selected" id="nps-selected"></div>
+      </div>
+    </div>
+
+    <!-- O que mais gostou -->
+    <div class="card">
+      <div class="card-title">Sua experiência</div>
+
+      <div class="field">
+        <label>O que mais te ajudou no app? <span class="req">*</span></label>
+        <div class="aspect-chips" id="chips-positivo">
+          <div class="aspect-chip" data-val="checkin" onclick="toggleChip(this,'positivo')">📊 Check-ins de energia</div>
+          <div class="aspect-chip" data-val="registro" onclick="toggleChip(this,'positivo')">➕ Registrar eventos</div>
+          <div class="aspect-chip" data-val="sos" onclick="toggleChip(this,'positivo')">⚠️ Módulo SOS</div>
+          <div class="aspect-chip" data-val="historico" onclick="toggleChip(this,'positivo')">📈 Ver meu histórico</div>
+          <div class="aspect-chip" data-val="colheres" onclick="toggleChip(this,'positivo')">🥄 Teoria das colheres</div>
+          <div class="aspect-chip" data-val="privacidade" onclick="toggleChip(this,'positivo')">🔒 Privacidade</div>
+          <div class="aspect-chip" data-val="design" onclick="toggleChip(this,'positivo')">🎨 Visual / design</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="motivo_nota">Por que você deu essa nota? <span class="req">*</span></label>
+        <textarea id="motivo_nota" rows="3" placeholder="Pode ser direto — o que te fez escolher esse número?"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="melhoraria">O que você mudaria ou adicionaria?</label>
+        <textarea id="melhoraria" rows="3" placeholder="Funcionalidade que faltou, algo confuso, o que você queria que existisse..."></textarea>
+      </div>
+
+      <div class="field">
+        <label for="momento">Em que momento do dia você mais usou?</label>
+        <div class="aspect-chips" id="chips-momento">
+          <div class="aspect-chip" data-val="manha" onclick="toggleChip(this,'momento')">🌅 Manhã</div>
+          <div class="aspect-chip" data-val="tarde" onclick="toggleChip(this,'momento')">☀️ Tarde</div>
+          <div class="aspect-chip" data-val="noite" onclick="toggleChip(this,'momento')">🌙 Noite</div>
+          <div class="aspect-chip" data-val="crise" onclick="toggleChip(this,'momento')">⚠️ Momentos de crise</div>
+          <div class="aspect-chip" data-val="irregular" onclick="toggleChip(this,'momento')">🔄 Irregular</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="livre">Algo mais que queira dizer?</label>
+        <textarea id="livre" rows="2" placeholder="Espaço livre — pode ser qualquer coisa 💜"></textarea>
+      </div>
+    </div>
+
+    <div class="privacy-note">
+      <span class="pi">🔒</span>
+      <span>Suas respostas são anônimas. Não precisamos saber quem você é — só o que você sentiu.</span>
+    </div>
+
+    <div class="err-msg" id="err-msg"></div>
+
+    <button class="btn" id="submit-btn" onclick="submitForm()">
+      Enviar feedback 💜
+    </button>
+  </div>
+
+  <!-- SUCESSO -->
+  <div id="success-section" style="display:none">
+    <div class="success">
+      <div class="success-icon">🥄</div>
+      <div class="success-title">Obrigada de verdade!</div>
+      <div class="success-sub">
+        Seu feedback vai direto para quem criou o Recarregue.<br>
+        Cada resposta faz o app ficar melhor para pessoas como você.<br><br>
+        <strong style="color:var(--accent-lt)">Cuide da sua energia. 💜</strong>
+      </div>
+    </div>
+  </div>
+
+  <footer>Recarregue &nbsp;·&nbsp; Beta fechado &nbsp;·&nbsp; Privacidade total</footer>
+
+  <!-- ADMIN -->
+  <div style="margin-top:48px">
+    <button class="admin-toggle" onclick="toggleAdmin()">· · ·</button>
+    <div class="admin-panel" id="admin-panel">
+      <div class="card">
+        <div class="card-title">Admin — Respostas NPS</div>
+        <div class="pwd-row">
+          <input type="password" id="admin-pwd" placeholder="Senha" onkeydown="if(event.key==='Enter')checkAdmin()">
+          <button class="pwd-btn" onclick="checkAdmin()">Entrar</button>
+        </div>
+        <div id="admin-content" style="display:none">
+          <div id="admin-kpis" class="kpi-row"></div>
+          <div id="admin-count" class="count-badge"></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>NPS</th>
+                  <th>Motivo da nota</th>
+                  <th>Melhoraria</th>
+                  <th>O que ajudou</th>
+                  <th>Momento</th>
+                  <th>Livre</th>
+                  <th>Data</th>
+                </tr>
+              </thead>
+              <tbody id="admin-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const SUPABASE_URL  = 'https://zlldecmwobbkfnjfbjew.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsbGRlY213b2Jia2ZuamZiamV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTQ3MjEsImV4cCI6MjA5ODA3MDcyMX0.V1Uj8MzLYO-AHfs6wxu5qWd-Lp7QvdbQYty2dqZfDt0';
+const ADMIN_PWD     = 'recarregue2026';
+const TABLE         = 'nps_responses';
+
+// NPS
+let npsScore = null;
+const NPS_LABELS = {
+  0:'😟 Nunca',1:'😟',2:'😟',3:'😕',4:'😕',5:'😐 Talvez',
+  6:'😐',7:'🙂',8:'🙂',9:'😊',10:'🤩 Com certeza!'
+};
+const NPS_COLORS = {
+  0:'#F87171',1:'#F87171',2:'#F87171',3:'#F87171',4:'#F87171',5:'#F87171',
+  6:'#F87171',7:'#F59E0B',8:'#F59E0B',9:'#10B981',10:'#10B981'
+};
+
+(function buildNPS(){
+  const wrap = document.getElementById('nps-scale');
+  for(let i=0;i<=10;i++){
+    const btn = document.createElement('button');
+    btn.className='nps-btn';btn.textContent=i;btn.dataset.val=i;
+    btn.onclick=()=>selectNPS(i);
+    wrap.appendChild(btn);
+  }
+})();
+
+function selectNPS(v){
+  npsScore=v;
+  const col=NPS_COLORS[v];
+  document.querySelectorAll('.nps-btn').forEach(b=>{
+    const bv=parseInt(b.dataset.val);
+    b.classList.toggle('sel',bv===v);
+    b.style.background=bv===v?col:'';
+    b.style.borderColor=bv===v?col:'';
+    b.style.color=bv===v?'#fff':'';
+  });
+  const sel=document.getElementById('nps-selected');
+  sel.innerHTML=`Você escolheu <strong style="color:${col}">${v}</strong> — ${NPS_LABELS[v]}`;
+}
+
+// chips
+const chipState={positivo:[],momento:[]};
+function toggleChip(el,group){
+  const val=el.dataset.val;
+  const idx=chipState[group].indexOf(val);
+  if(idx>=0){chipState[group].splice(idx,1);el.classList.remove('sel');}
+  else{chipState[group].push(val);el.classList.add('sel');}
+}
+
+function showErr(msg){
+  const el=document.getElementById('err-msg');
+  el.textContent=msg;el.style.display='block';
+  el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function hideErr(){document.getElementById('err-msg').style.display='none';}
+
+async function submitForm(){
+  hideErr();
+  const motivo_nota = document.getElementById('motivo_nota').value.trim();
+  const melhoraria  = document.getElementById('melhoraria').value.trim();
+  const livre       = document.getElementById('livre').value.trim();
+  const positivo    = chipState.positivo.join(', ');
+  const momento     = chipState.momento.join(', ');
+
+  if(npsScore===null){showErr('Por favor, escolha uma nota de 0 a 10.');return;}
+  if(!motivo_nota){showErr('Conta pra gente por que você deu essa nota 💜');return;}
+  if(!positivo){showErr('Selecione pelo menos uma opção do que te ajudou.');return;}
+
+  const btn=document.getElementById('submit-btn');
+  btn.disabled=true;btn.textContent='Enviando…';
+
+  try{
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`,{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'apikey':SUPABASE_ANON,
+        'Authorization':`Bearer ${SUPABASE_ANON}`,
+        'Prefer':'return=minimal'
+      },
+      body:JSON.stringify({nps_score:npsScore,motivo_nota,melhoraria,livre,positivo,momento})
+    });
+    if(!res.ok)throw new Error();
+    document.getElementById('form-section').style.display='none';
+    document.getElementById('success-section').style.display='block';
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(_){
+    btn.disabled=false;btn.textContent='Enviar feedback 💜';
+    showErr('Erro ao enviar. Verifique sua conexão e tente novamente.');
+  }
+}
+
+// ADMIN
+function toggleAdmin(){document.getElementById('admin-panel').classList.toggle('open');}
+function checkAdmin(){
+  if(document.getElementById('admin-pwd').value!==ADMIN_PWD){alert('Senha incorreta.');return;}
+  document.getElementById('admin-content').style.display='block';
+  loadAdmin();
+}
+async function loadAdmin(){
+  try{
+    const res=await fetch(
+      `${SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=created_at.desc`,
+      {headers:{'apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`}}
+    );
+    const rows=await res.json();
+    const count=document.getElementById('admin-count');
+    count.textContent=`${rows.length} resposta${rows.length!==1?'s':''}`;
+
+    // KPIs
+    if(rows.length){
+      const avg=(rows.reduce((s,r)=>s+r.nps_score,0)/rows.length).toFixed(1);
+      const prom=rows.filter(r=>r.nps_score>=9).length;
+      const det=rows.filter(r=>r.nps_score<=6).length;
+      const nps=Math.round((prom-det)/rows.length*100);
+      document.getElementById('admin-kpis').innerHTML=`
+        <div class="kpi"><div class="kpi-val">${avg}</div><div class="kpi-lbl">Média NPS</div></div>
+        <div class="kpi"><div class="kpi-val" style="color:#10B981">${prom}</div><div class="kpi-lbl">Promotores (9-10)</div></div>
+        <div class="kpi"><div class="kpi-val" style="color:#F87171">${det}</div><div class="kpi-lbl">Detratores (0-6)</div></div>
+        <div class="kpi"><div class="kpi-val" style="color:${nps>=0?'#10B981':'#F87171'}">${nps}%</div><div class="kpi-lbl">Score NPS</div></div>
+      `;
+    }
+
+    const tbody=document.getElementById('admin-tbody');
+    if(!rows.length){tbody.innerHTML='<tr><td colspan="7" class="empty-table">Nenhuma resposta ainda.</td></tr>';return;}
+    const NPS_C={0:'#F87171',1:'#F87171',2:'#F87171',3:'#F87171',4:'#F87171',5:'#F87171',6:'#F87171',7:'#F59E0B',8:'#F59E0B',9:'#10B981',10:'#10B981'};
+    tbody.innerHTML=rows.map(r=>`
+      <tr>
+        <td><span class="nps-pill" style="background:${NPS_C[r.nps_score]}22;color:${NPS_C[r.nps_score]}">${r.nps_score}</span></td>
+        <td style="max-width:180px;white-space:pre-wrap">${esc(r.motivo_nota||'')}</td>
+        <td style="max-width:180px;white-space:pre-wrap">${esc(r.melhoraria||'—')}</td>
+        <td>${esc(r.positivo||'')}</td>
+        <td>${esc(r.momento||'')}</td>
+        <td style="max-width:140px;white-space:pre-wrap">${esc(r.livre||'—')}</td>
+        <td style="white-space:nowrap;color:var(--muted)">${new Date(r.created_at).toLocaleDateString('pt-BR')}</td>
+      </tr>
+    `).join('');
+  }catch(_){
+    document.getElementById('admin-tbody').innerHTML='<tr><td colspan="7" class="empty-table">Erro ao carregar.</td></tr>';
+  }
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+</script>
+</body>
+</html>
