@@ -232,36 +232,6 @@ tr:hover td{background:rgba(139,92,246,.05);}
     Recarregue &nbsp;·&nbsp; Beta fechado &nbsp;·&nbsp; Privacidade total
   </footer>
 
-  <!-- ADMIN OCULTO -->
-  <div class="admin-section" style="margin-top:48px">
-    <button class="admin-toggle" onclick="toggleAdmin()">· · ·</button>
-    <div class="admin-panel" id="admin-panel">
-      <div class="card">
-        <div class="card-title">Acesso admin</div>
-        <div class="pwd-row">
-          <input type="password" id="admin-pwd" placeholder="Senha" onkeydown="if(event.key==='Enter')checkAdmin()">
-          <button class="pwd-btn" onclick="checkAdmin()">Entrar</button>
-        </div>
-        <div id="admin-content" style="display:none">
-          <div id="admin-count" class="count-badge" style="margin-bottom:16px"></div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>Contato</th>
-                  <th>Contexto</th>
-                  <th>Motivo</th>
-                  <th>Data</th>
-                </tr>
-              </thead>
-              <tbody id="admin-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>
 
 <script>
@@ -269,7 +239,6 @@ tr:hover td{background:rgba(139,92,246,.05);}
 
 const SUPABASE_URL = 'https://zlldecmwobbkfnjfbjew.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsbGRlY213b2Jia2ZuamZiamV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTQ3MjEsImV4cCI6MjA5ODA3MDcyMX0.V1Uj8MzLYO-AHfs6wxu5qWd-Lp7QvdbQYty2dqZfDt0';
-const ADMIN_PWD = 'recarregue2026';
 const TABLE = 'interested_testers';
 
 // chips — múltipla seleção
@@ -324,45 +293,6 @@ async function submitForm() {
   }
 }
 
-// ADMIN
-function toggleAdmin() {
-  const p = document.getElementById('admin-panel');
-  p.classList.toggle('open');
-}
-function checkAdmin() {
-  const pwd = document.getElementById('admin-pwd').value;
-  if (pwd !== ADMIN_PWD) { alert('Senha incorreta.'); return; }
-  document.getElementById('admin-content').style.display = 'block';
-  loadAdmin();
-}
-async function loadAdmin() {
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=created_at.desc`,
-      { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
-    );
-    const rows = await res.json();
-    const count = document.getElementById('admin-count');
-    count.textContent = `${rows.length} inscrição${rows.length !== 1 ? 'ões' : ''}`;
-    const tbody = document.getElementById('admin-tbody');
-    if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="empty-table">Nenhuma inscrição ainda.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = rows.map(r => `
-      <tr>
-        <td><strong>${esc(r.nome)}</strong></td>
-        <td>${esc(r.contato)}</td>
-        <td>${esc(r.contexto)}</td>
-        <td style="max-width:200px;white-space:pre-wrap">${esc(r.motivo||'')}</td>
-        <td style="white-space:nowrap;color:var(--muted)">${new Date(r.created_at).toLocaleDateString('pt-BR')}</td>
-      </tr>
-    `).join('');
-  } catch(_) {
-    document.getElementById('admin-tbody').innerHTML =
-      '<tr><td colspan="5" class="empty-table">Erro ao carregar.</td></tr>';
-  }
-}
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 </script>
 </body>

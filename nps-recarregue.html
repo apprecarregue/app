@@ -255,39 +255,6 @@ tr:hover td{background:rgba(139,92,246,.05);}
 
   <footer>Recarregue &nbsp;·&nbsp; Beta fechado &nbsp;·&nbsp; Privacidade total</footer>
 
-  <!-- ADMIN -->
-  <div style="margin-top:48px">
-    <button class="admin-toggle" onclick="toggleAdmin()">· · ·</button>
-    <div class="admin-panel" id="admin-panel">
-      <div class="card">
-        <div class="card-title">Admin — Respostas NPS</div>
-        <div class="pwd-row">
-          <input type="password" id="admin-pwd" placeholder="Senha" onkeydown="if(event.key==='Enter')checkAdmin()">
-          <button class="pwd-btn" onclick="checkAdmin()">Entrar</button>
-        </div>
-        <div id="admin-content" style="display:none">
-          <div id="admin-kpis" class="kpi-row"></div>
-          <div id="admin-count" class="count-badge"></div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>NPS</th>
-                  <th>Motivo da nota</th>
-                  <th>Melhoraria</th>
-                  <th>O que ajudou</th>
-                  <th>Momento</th>
-                  <th>Livre</th>
-                  <th>Data</th>
-                </tr>
-              </thead>
-              <tbody id="admin-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>
 
 <script>
@@ -295,7 +262,6 @@ tr:hover td{background:rgba(139,92,246,.05);}
 
 const SUPABASE_URL  = 'https://zlldecmwobbkfnjfbjew.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsbGRlY213b2Jia2ZuamZiamV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTQ3MjEsImV4cCI6MjA5ODA3MDcyMX0.V1Uj8MzLYO-AHfs6wxu5qWd-Lp7QvdbQYty2dqZfDt0';
-const ADMIN_PWD     = 'recarregue2026';
 const TABLE         = 'nps_responses';
 
 // NPS
@@ -385,55 +351,6 @@ async function submitForm(){
   }
 }
 
-// ADMIN
-function toggleAdmin(){document.getElementById('admin-panel').classList.toggle('open');}
-function checkAdmin(){
-  if(document.getElementById('admin-pwd').value!==ADMIN_PWD){alert('Senha incorreta.');return;}
-  document.getElementById('admin-content').style.display='block';
-  loadAdmin();
-}
-async function loadAdmin(){
-  try{
-    const res=await fetch(
-      `${SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=created_at.desc`,
-      {headers:{'apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`}}
-    );
-    const rows=await res.json();
-    const count=document.getElementById('admin-count');
-    count.textContent=`${rows.length} resposta${rows.length!==1?'s':''}`;
-
-    // KPIs
-    if(rows.length){
-      const avg=(rows.reduce((s,r)=>s+r.nps_score,0)/rows.length).toFixed(1);
-      const prom=rows.filter(r=>r.nps_score>=9).length;
-      const det=rows.filter(r=>r.nps_score<=6).length;
-      const nps=Math.round((prom-det)/rows.length*100);
-      document.getElementById('admin-kpis').innerHTML=`
-        <div class="kpi"><div class="kpi-val">${avg}</div><div class="kpi-lbl">Média NPS</div></div>
-        <div class="kpi"><div class="kpi-val" style="color:#10B981">${prom}</div><div class="kpi-lbl">Promotores (9-10)</div></div>
-        <div class="kpi"><div class="kpi-val" style="color:#F87171">${det}</div><div class="kpi-lbl">Detratores (0-6)</div></div>
-        <div class="kpi"><div class="kpi-val" style="color:${nps>=0?'#10B981':'#F87171'}">${nps}%</div><div class="kpi-lbl">Score NPS</div></div>
-      `;
-    }
-
-    const tbody=document.getElementById('admin-tbody');
-    if(!rows.length){tbody.innerHTML='<tr><td colspan="7" class="empty-table">Nenhuma resposta ainda.</td></tr>';return;}
-    const NPS_C={0:'#F87171',1:'#F87171',2:'#F87171',3:'#F87171',4:'#F87171',5:'#F87171',6:'#F87171',7:'#F59E0B',8:'#F59E0B',9:'#10B981',10:'#10B981'};
-    tbody.innerHTML=rows.map(r=>`
-      <tr>
-        <td><span class="nps-pill" style="background:${NPS_C[r.nps_score]}22;color:${NPS_C[r.nps_score]}">${r.nps_score}</span></td>
-        <td style="max-width:180px;white-space:pre-wrap">${esc(r.motivo_nota||'')}</td>
-        <td style="max-width:180px;white-space:pre-wrap">${esc(r.melhoraria||'—')}</td>
-        <td>${esc(r.positivo||'')}</td>
-        <td>${esc(r.momento||'')}</td>
-        <td style="max-width:140px;white-space:pre-wrap">${esc(r.livre||'—')}</td>
-        <td style="white-space:nowrap;color:var(--muted)">${new Date(r.created_at).toLocaleDateString('pt-BR')}</td>
-      </tr>
-    `).join('');
-  }catch(_){
-    document.getElementById('admin-tbody').innerHTML='<tr><td colspan="7" class="empty-table">Erro ao carregar.</td></tr>';
-  }
-}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 </script>
 </body>
