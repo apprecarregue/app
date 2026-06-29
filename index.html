@@ -1818,7 +1818,6 @@ function registerHTML(){
           <span class="ci-icon">${c.icon}</span>
           <span class="cl">${c.label}</span>
           <span class="cc">${c.cost<0?'Devolve '+Math.abs(c.cost)+' pts':'Custa '+c.cost+' pts'}</span>
-          ${CAT_INFO[c.id]?`<span class="cat-info-btn" onclick="showCatInfo('${c.id}',event)" title="O que é isso?">ⓘ</span>`:''}
         </button>`).join('')}
     </div>`;
   }).join('');
@@ -2475,6 +2474,7 @@ function categorySheetHTML(){
           </div>
         </div>
         <div class="cat-sh-body">
+          ${CAT_INFO[c.id]?.desc?`<p style="font-size:13px;color:var(--muted);line-height:1.5;margin:0 0 16px;padding-bottom:14px;border-bottom:1px solid var(--border)">${CAT_INFO[c.id].desc}</p>`:''}
           <div class="sec">Intensidade</div>
           <div class="int-row">
             ${Object.entries(INTS).map(([k,v])=>`<button class="int-btn ${sheetState.intensity===k?'sel':''}" data-k="${k}" onclick="setSheetInt('${k}')">${v.label}</button>`).join('')}
