@@ -707,6 +707,8 @@ body {
 <script>
 'use strict';
 
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
 // ── ICONS ─────────────────────────────────────────────────────────────────────
 
 function ico(path) {
@@ -1605,15 +1607,15 @@ function homeHTML(){
         if(!isCustom&&!c)return'';
         const isR=!isCustom&&c.type==='recuperacao';
         const icon=isCustom?'🎯':c.icon;
-        const label=isCustom?e.triggerDesc:c.label;
+        const label=isCustom?esc(e.triggerDesc):c.label;
         const bg=isCustom?TYPE_BG.gatilho:(TYPE_BG[c.type]);
-        const meta=isCustom?(e.sensation?`Sensação: ${e.sensation} · `:'')+(INTS[e.intensity]?.label??''):(fmtTime(e.createdAt)+' · '+(INTS[e.intensity]?.label??''));
+        const meta=isCustom?(e.sensation?`Sensação: ${esc(e.sensation)} · `:'')+(INTS[e.intensity]?.label??''):(fmtTime(e.createdAt)+' · '+(INTS[e.intensity]?.label??''));
         return `<div class="entry">
           <div class="e-ico" style="background:${bg}">${icon}</div>
           <div class="e-txt">
             <div class="e-name">${label}</div>
             <div class="e-meta">${meta}</div>
-            ${e.note?`<div class="e-note">"${e.note}"</div>`:''}
+            ${e.note?`<div class="e-note">"${esc(e.note)}"</div>`:''}
           </div>
           <div class="e-right">
             <div class="e-cost ${isR?'r':'d'}">${isR?'−':'+'}${Math.abs(cost)}</div>
@@ -1622,7 +1624,7 @@ function homeHTML(){
         </div>`;
       }).join('');
 
-  const nameGreet=db.settings.name?`<div style="font-size:13px;color:var(--muted);margin-bottom:2px">Olá, <strong style="color:var(--accent-lt)">${db.settings.name}</strong> 👋</div>`:'';
+  const nameGreet=db.settings.name?`<div style="font-size:13px;color:var(--muted);margin-bottom:2px">Olá, <strong style="color:var(--accent-lt)">${esc(db.settings.name)}</strong> 👋</div>`:'';
   const backupBanner=needsBackupReminder()?`<div class="backup-remind-banner" onclick="backupToCloud()">☁️ Seus dados não têm backup recente — toque para salvar na nuvem</div>`:'';
 
   // Agendamentos de hoje (pendentes)
@@ -1912,7 +1914,7 @@ function sosHTML(){
             <div class="cl-item" style="display:flex;align-items:center;gap:0">
               <div onclick="toggleComfortItem(${i})" style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer">
                 <div class="cl-check ${item.done?'checked':''}">${item.done?'✓':''}</div>
-                <div class="cl-text ${item.done?'checked':''}">${item.text}</div>
+                <div class="cl-text ${item.done?'checked':''}">${esc(item.text)}</div>
               </div>
               <button onclick="delComfortItem(${i})" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:4px 8px;flex-shrink:0">✕</button>
             </div>`).join('')
@@ -1944,7 +1946,7 @@ function settingsHTML(){
       <div class="sec" style="display:flex;align-items:center;gap:6px">Personalização <button class="info-btn" onclick="openHelp('personalizacao')">ⓘ</button></div>
       <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:8px">
         <div class="s-lbl">Como prefere ser chamad@?</div>
-        <input type="text" value="${name||''}" placeholder="Seu nome ou apelido..." autocomplete="off"
+        <input type="text" value="${esc(name)||''}" placeholder="Seu nome ou apelido..." autocomplete="off"
           style="width:100%;padding:11px 14px;background:var(--card2);border:1px solid var(--border);border-radius:10px;font-size:15px;color:var(--text);font-family:inherit;outline:none"
           onchange="db.settings.name=this.value.trim();save();render()"
         >
@@ -2093,7 +2095,7 @@ function onboardingHTML(){
     // Tela 5 — nome
     {icon:'✨', title:'Última coisa...', sub:'Quero te chamar pelo seu nome.', body:`
       <p>Como você gostaria de ser chamada(o) aqui dentro?</p>
-      <input id="onboard-name" type="text" value="${db.settings.name||''}" placeholder="Como me chamam..." autocomplete="off"
+      <input id="onboard-name" type="text" value="${esc(db.settings.name)||''}" placeholder="Como me chamam..." autocomplete="off"
         style="width:100%;margin-top:16px;padding:14px 16px;background:var(--card2);border:1px solid var(--border);border-radius:12px;font-size:16px;color:var(--text);font-family:inherit;outline:none"
         oninput="this.style.borderColor='var(--accent)'"
       >
@@ -2294,7 +2296,7 @@ function categorySheetHTML(){
           </div>
           <div class="cost-prev">${isR?'Devolve':'Custa'}: <strong><span id="sh-cost">${Math.abs(cost)}</span> pontos</strong></div>
           <div class="sec">Nota (opcional)</div>
-          <textarea class="note" rows="3" placeholder="O que aconteceu? Como você está?" oninput="updateSheetNote(this.value)">${sheetState.note}</textarea>
+          <textarea class="note" rows="3" placeholder="O que aconteceu? Como você está?" oninput="updateSheetNote(this.value)">${esc(sheetState.note)}</textarea>
           <button class="btn btn-p" onclick="submitSheet()">Registrar agora</button>
           ${c.type!=='recuperacao'?`
           <button class="btn" style="margin-top:8px;border:1px solid rgba(245,158,11,.3);color:var(--amber);background:rgba(245,158,11,.06);display:flex;align-items:center;justify-content:center;gap:8px" onclick="openSchedPicker('${c.id}','${sheetState.intensity}')">
@@ -2329,16 +2331,16 @@ function triggerSheetHTML(){
         </div>
         <div class="cat-sh-body">
           <div class="sec">O que aconteceu?</div>
-          <input type="text" class="text-input" placeholder="Descreva o gatilho..." oninput="updateTriggerField('description',this.value)" value="${triggerSheetState.description}">
+          <input type="text" class="text-input" placeholder="Descreva o gatilho..." oninput="updateTriggerField('description',this.value)" value="${esc(triggerSheetState.description)}">
           <div class="sec">Sensação / emoção sentida</div>
-          <input type="text" class="text-input" placeholder="Ex: aperto no peito, calor, irritação..." oninput="updateTriggerField('sensation',this.value)" value="${triggerSheetState.sensation}">
+          <input type="text" class="text-input" placeholder="Ex: aperto no peito, calor, irritação..." oninput="updateTriggerField('sensation',this.value)" value="${esc(triggerSheetState.sensation)}">
           <div class="sec">Intensidade</div>
           <div class="int-row">
             ${Object.entries(INTS).map(([k,v])=>`<button class="int-btn trig-int-btn ${triggerSheetState.intensity===k?'sel':''}" data-k="${k}" onclick="setTriggerInt('${k}')">${v.label}</button>`).join('')}
           </div>
           <div class="cost-prev">Custa: <strong><span class="trig-cost-val">${Math.round(2*(INTS[triggerSheetState.intensity]?.mult??1)*10)/10} pontos</span></strong></div>
           <div class="sec">Nota (opcional)</div>
-          <textarea class="note" rows="2" placeholder="Contexto, o que ajudou..." oninput="updateTriggerField('note',this.value)">${triggerSheetState.note}</textarea>
+          <textarea class="note" rows="2" placeholder="Contexto, o que ajudou..." oninput="updateTriggerField('note',this.value)">${esc(triggerSheetState.note)}</textarea>
           <button class="btn btn-p" onclick="submitTrigger()">Registrar gatilho</button>
         </div>
       </div>
@@ -2356,7 +2358,7 @@ function reportSheetHTML(){
           <button class="ci-skip" onclick="closeReport()">Fechar</button>
         </div>
         <div style="padding:12px 16px">
-          <pre class="report-pre" id="report-text">${buildReportText()}</pre>
+          <pre class="report-pre" id="report-text">${esc(buildReportText())}</pre>
           <button class="btn btn-p" onclick="copyReport()">📋 Copiar relatório</button>
         </div>
       </div>
