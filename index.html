@@ -1010,7 +1010,10 @@ let viewDate = todayStr();
 function todayEntries(){return db.entries.filter(e=>e.date===viewDate);}
 function todayCheckins(){return db.checkins.filter(c=>c.date===viewDate);}
 function periodCheckin(p){return todayCheckins().find(c=>c.period===p);}
-function remaining(){return db.settings.dailyPts-todayEntries().reduce((s,e)=>s+entryCost(e),0);}
+function remaining(){
+  const raw=db.settings.dailyPts-todayEntries().reduce((s,e)=>s+entryCost(e),0);
+  return Math.min(db.settings.dailyPts, raw);
+}
 
 function navDay(delta){
   const d=new Date(viewDate+'T12:00:00');
