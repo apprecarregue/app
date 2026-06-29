@@ -281,13 +281,19 @@ body {
 .cat-btn {
   border: 1.5px solid var(--border); background: var(--card2); border-radius: 12px;
   padding: 11px 10px; cursor: pointer; text-align: left;
-  display: flex; flex-direction: column; gap: 4px;
+  display: flex; flex-direction: column; gap: 4px; position: relative;
   transition: border-color .15s, background .15s, transform .1s; font-family: inherit;
 }
 .cat-btn:active { transform: scale(.97); border-color: var(--purple); background: var(--purple-bg); }
 .ci-icon { font-size: 20px; }
 .cl { font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.2; }
 .cc { font-size: 11px; color: var(--muted); }
+.cat-info-btn {
+  position: absolute; top: 6px; right: 7px;
+  font-size: 13px; color: var(--muted); opacity: .6;
+  line-height: 1; padding: 2px;
+}
+.cat-info-btn:hover { opacity: 1; color: var(--accent-lt); }
 
 /* INTENSITY */
 .int-row { display: flex; gap: 8px; margin-bottom: 14px; }
@@ -773,6 +779,40 @@ const CATS = [
   {id:'natureza',     label:'Natureza/ar livre',     icon:'🌳', type:'recuperacao',cost:-2},
 ];
 
+const CAT_INFO = {
+  reuniao:      {desc:'Qualquer encontro com outras pessoas onde você precisa estar presente e interagir.',      ex:'Reunião de trabalho, consulta médica, chamada de vídeo em grupo.'},
+  tarefa_c:     {desc:'Tarefas que exigem muita concentração, planejamento ou raciocínio sustentado.',          ex:'Escrever um relatório, resolver um problema técnico, estudar um assunto novo.'},
+  email:        {desc:'Tempo gasto lendo, respondendo ou organizando comunicações digitais.',                   ex:'Responder e-mails, mensagens no WhatsApp ou Slack, notificações acumuladas.'},
+  decisao:      {desc:'Momentos de escolha que envolvem incerteza, consequências ou pressão.',                  ex:'Decidir aceitar um projeto, escolher entre opções, dar uma resposta importante.'},
+  deslocamento: {desc:'Qualquer trajeto fora de casa, especialmente em transporte público ou trânsito.',        ex:'Ir ao trabalho de ônibus, pegar metrô lotado, dirigir em congestionamento.'},
+  social:       {desc:'Interações one-a-one ou em grupo que exigem atenção social e presença.',                 ex:'Conversa casual no trabalho, almoço com colega, evento social.'},
+  multitarefa:  {desc:'Fazer várias coisas ao mesmo tempo ou ser interrompido frequentemente.',                 ex:'Responder mensagens enquanto trabalha, reunião com notificações, várias abas abertas.'},
+  prazo:        {desc:'Pressão de tempo real ou percebida — mesmo quando o prazo é autocriado.',               ex:'Entrega para amanhã, tarefa "urgente", sensação de estar atrasada.'},
+  barulho:      {desc:'Sons altos, inesperados ou constantes que tiram o foco ou causam desconforto.',         ex:'Obras, música alta, televisão ligada, escritório barulhento, criança chorando.'},
+  sobr_sens:    {desc:'Quando vários estímulos sensoriais ao mesmo tempo chegam ao limite.',                    ex:'Supermercado cheio: barulho + luz fluorescente + cheiro + gente perto ao mesmo tempo.'},
+  imprevisto:   {desc:'Algo que aconteceu fora do planejado e exigiu adaptação rápida.',                       ex:'Reunião cancelada de última hora, plano que mudou, notícia inesperada.'},
+  mud_rotina:   {desc:'Mudança em algo que fazia parte da sua rotina habitual.',                               ex:'Horário diferente, caminho novo, pessoa nova na equipe, rotina do dia quebrada.'},
+  luz:          {desc:'Luminosidade intensa, tela brilhante ou contraste que incomoda os olhos.',              ex:'Sol direto, luz fluorescente forte, tela sem modo escuro à noite.'},
+  cheiro:       {desc:'Odores intensos ou persistentes que causam desconforto ou enjoo.',                      ex:'Perfume forte de colega, comida com cheiro intenso, produto de limpeza, cigarro.'},
+  toque:        {desc:'Toque físico que aconteceu sem aviso ou em momento inadequado.',                        ex:'Abraço surpresa, encosto na fila, roupa com textura muito incômoda.'},
+  temperatura:  {desc:'Calor ou frio fora da sua zona de conforto.',                                           ex:'Sala muito quente, ar-condicionado gelado, mudança brusca de temperatura.'},
+  ansiedade:    {desc:'Sensação de preocupação, antecipação negativa ou tensão sem causa clara.',              ex:'Fica ruminando um e-mail que vai enviar, coração acelerado antes de uma reunião.'},
+  medo:         {desc:'Medo ou insegurança em relação a uma situação, pessoa ou resultado.',                   ex:'Medo de errar, de ser julgada, de não dar conta, de algo dar errado.'},
+  frustracao:   {desc:'Quando algo não saiu como esperado ou você foi impedida de fazer algo.',                ex:'Computador travou, plano não funcionou, não conseguiu explicar algo da forma certa.'},
+  sobr_emoc:    {desc:'Sensação de estar emocionalmente saturada — como se não tivesse mais espaço interno.',  ex:'Vontade de chorar sem saber por quê, tudo parece demais, dificuldade de processar qualquer coisa.'},
+  irritab:      {desc:'Estado de irritação maior que o habitual, onde pequenas coisas incomodam muito.',       ex:'Barulho que normalmente não incomoda passa a irritar, respostas mais curtas, menos paciência.'},
+  masking:      {desc:'Esforço de esconder ou disfarçar como você realmente está para se encaixar socialmente.',ex:'Fingir estar bem quando está esgotada, forçar contato visual, imitar comportamentos sociais esperados.'},
+  culpa:        {desc:'Autocrítica intensa ou sensação de que você falhou em algo.',                           ex:'Ruminação sobre erro do passado, comparação com outras pessoas, "devia ter feito diferente".'},
+  descanso:     {desc:'Tempo de pausa intencional — descanso físico ou mental sem obrigação.',                 ex:'Deitar sem tela, cochilar, ficar quieta sem fazer nada por alguns minutos.'},
+  sozinha:      {desc:'Tempo de qualidade consigo mesma, sem precisar interagir com ninguém.',                 ex:'Tarde em casa sozinha, passeio solo, período do dia sem compromissos sociais.'},
+  prazerosa:    {desc:'Atividade que você faz porque gosta, não por obrigação.',                               ex:'Hobby, leitura por prazer, culinária criativa, artesanato, jogar.'},
+  exercicio:    {desc:'Qualquer movimento físico intencional que ajuda a regular o corpo.',                    ex:'Caminhada, dança, yoga, alongamento, academia.'},
+  banho:        {desc:'Banho quente como ferramenta de regulação sensorial — ajuda a resetar o sistema nervoso.',ex:'Banho demorado após dia estressante, sensação de "lavar o dia".'},
+  fones:        {desc:'Usar fones de ouvido para criar um ambiente sonoro controlado.',                        ex:'Música calma, ruído branco, podcast favorito, silêncio com cancelamento de ruído.'},
+  serie:        {desc:'Assistir série, filme ou vídeo como forma de descanso passivo.',                        ex:'Episódio de série favorita, filme leve, documentário, YouTube.'},
+  natureza:     {desc:'Contato com ambiente natural ou ar livre como forma de recuperação.',                   ex:'Sentar no jardim, caminhar em parque, ver plantas, tomar ar fresco na varanda.'},
+};
+
 const TYPES = {
   tarefa:      {label:'Tarefas',             color:'#A78BFA'},
   gatilho:     {label:'Gatilhos sensoriais', color:'#F87171'},
@@ -855,6 +895,10 @@ function setTheme(t){db.settings.theme=t;save();applyTheme();render();}
 function setPalette(p){db.settings.palette=p;save();applyTheme();render();}
 function openHelp(key){helpSheet=key;renderOverlays();}
 function closeHelp(){helpSheet=null;renderOverlays();}
+
+let catInfoId=null;
+function showCatInfo(id,e){e.stopPropagation();catInfoId=id;renderOverlays();}
+function closeCatInfo(){catInfoId=null;renderOverlays();}
 function openPrivacy(){showPrivacy=true;renderOverlays();}
 function closePrivacy(){showPrivacy=false;renderOverlays();}
 function openFeedback(){showFeedback=true;feedbackSent=false;feedbackState={tipo:'sugestao',mensagem:''};renderOverlays();}
@@ -1774,6 +1818,7 @@ function registerHTML(){
           <span class="ci-icon">${c.icon}</span>
           <span class="cl">${c.label}</span>
           <span class="cc">${c.cost<0?'Devolve '+Math.abs(c.cost)+' pts':'Custa '+c.cost+' pts'}</span>
+          ${CAT_INFO[c.id]?`<span class="cat-info-btn" onclick="showCatInfo('${c.id}',event)" title="O que é isso?">ⓘ</span>`:''}
         </button>`).join('')}
     </div>`;
   }).join('');
@@ -2686,9 +2731,33 @@ const NAV=[
 const TITLES={home:'Recarregue',register:'Registrar',mapa:'Mapa de Energia',sos:'SOS',settings:'Configurações'};
 const CONTENT={home:homeHTML,register:registerHTML,mapa:mapaHTML,sos:sosHTML,settings:settingsHTML};
 
+function catInfoHTML(){
+  const c=cat(catInfoId);
+  const info=CAT_INFO[catInfoId]||{desc:'',ex:''};
+  const typeMeta=TYPES[c?.type]||{color:'#A78BFA'};
+  return `<div class="overlay" onclick="closeCatInfo()" style="display:flex;align-items:flex-end">
+    <div class="sheet" onclick="event.stopPropagation()" style="padding:20px 20px 32px;border-radius:24px 24px 0 0">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <div style="font-size:32px">${c?.icon??'❓'}</div>
+        <div>
+          <div style="font-size:17px;font-weight:700;color:var(--text)">${c?.label??catInfoId}</div>
+          <div style="font-size:11px;font-weight:600;color:${typeMeta.color};letter-spacing:.5px;margin-top:2px">${typeMeta.label?.toUpperCase()??''}</div>
+        </div>
+      </div>
+      <p style="font-size:14px;color:var(--text2);line-height:1.6;margin:0 0 12px">${info.desc}</p>
+      ${info.ex?`<div style="background:rgba(255,255,255,.05);border-radius:10px;padding:10px 12px">
+        <div style="font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.5px;margin-bottom:4px">EXEMPLOS</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.5">${info.ex}</div>
+      </div>`:''}
+      <button class="btn btn-sec" onclick="closeCatInfo()" style="margin-top:16px;padding:12px">Fechar</button>
+    </div>
+  </div>`;
+}
+
 function renderOverlays(){
   const el=document.getElementById('overlays');if(!el)return;
   if(onboardingStep>0)     el.innerHTML=onboardingHTML();
+  else if(catInfoId)       el.innerHTML=catInfoHTML();
   else if(helpSheet)       el.innerHTML=helpSheetHTML();
   else if(showPrivacy)     el.innerHTML=privacyHTML();
   else if(showFeedback)    el.innerHTML=feedbackHTML();
