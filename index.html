@@ -1843,9 +1843,6 @@ function mapaHTML(){
         <span style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px">MAPA DE ENERGIA</span>
         <button class="info-btn" onclick="openHelp('mapa')">ⓘ</button>
       </div>
-      <button class="btn btn-p" onclick="generateReport()" style="margin:0;padding:13px">
-        📄 Gerar relatório (7 dias)
-      </button>
     </div>
     ${insightSection}
     ${!hasData
@@ -1870,7 +1867,12 @@ function mapaHTML(){
           <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Energia média por período e dia da semana (últimos 30 dias)</p>
           ${heatmapHTML()}
         </div>`
-    }`;
+    }
+    <div class="card" style="padding:12px">
+      <button class="btn btn-p" onclick="generateReport()" style="margin:0;padding:13px">
+        📄 Gerar relatório (7 dias)
+      </button>
+    </div>`;
 }
 
 function heatmapHTML(){
