@@ -851,11 +851,12 @@ function closeFeedback(){showFeedback=false;renderOverlays();}
 async function submitFeedback(){
   if(!feedbackState.mensagem.trim()){toast('Escreva algo antes de enviar 💜');return;}
   try{
-    await fetch('/',{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/feedback`,{
       method:'POST',
-      headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body:new URLSearchParams({'form-name':'feedback',tipo:feedbackState.tipo,mensagem:feedbackState.mensagem.trim()})
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`,'Prefer':'return=minimal'},
+      body:JSON.stringify({tipo:feedbackState.tipo, mensagem:feedbackState.mensagem.trim()})
     });
+    if(!res.ok) throw new Error(await res.text());
     feedbackSent=true;renderOverlays();
   }catch(e){toast('Erro ao enviar. Tente novamente.');}
 }
