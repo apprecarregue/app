@@ -986,7 +986,25 @@ const todayStr=()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getM
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2);
 const cat=id=>CATS.find(c=>c.id===id);
 
-function entryCost(e){const c=cat(e.categoryId);if(!c)return 0;return Math.round(c.cost*(INTS[e.intensity]?.mult??1)*10)/10;}
+function isHardDay(date){return (db.hardDays||[]).includes(date||todayStr());}
+function entryCost(e){
+  const c=cat(e.categoryId);if(!c)return 0;
+  const base=Math.round(c.cost*(INTS[e.intensity]?.mult??1)*10)/10;
+  return (c.cost>0 && isHardDay(e.date)) ? Math.round(base*0.5*10)/10 : base;
+}
+function toggleHardDay(){
+  if(!db.hardDays) db.hardDays=[];
+  const today=todayStr();
+  const idx=db.hardDays.indexOf(today);
+  if(idx>=0) db.hardDays.splice(idx,1); else db.hardDays.push(today);
+  save(); document.getElementById('main').innerHTML=homeHTML();
+}
+function toggleFavorite(id){
+  if(!db.settings.favorites) db.settings.favorites=[];
+  const idx=db.settings.favorites.indexOf(id);
+  if(idx>=0) db.settings.favorites.splice(idx,1); else db.settings.favorites.push(id);
+  save(); render();
+}
 let viewDate = todayStr();
 
 function todayEntries(){return db.entries.filter(e=>e.date===viewDate);}
@@ -1798,12 +1816,39 @@ function homeHTML(){
       </div>
     </div>`;
 
+  // Modo dia difícil
+  const hard=isToday&&isHardDay(todayStr());
+  const hardBanner=hard?`<div style="margin:0 0 8px;padding:12px 14px;border-radius:12px;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.3);font-size:13px;color:var(--accent-lt);line-height:1.5">
+    🌙 <b>Modo dia difícil ativo</b> — custos de energia reduzidos em 50%. Cuide-se com gentileza.
+  </div>`:'';
+
+  // Meta de recuperação
+  const goal=db.settings.recoveryGoal||0;
+  const recCount=isToday?todayEntries().filter(e=>cat(e.categoryId)?.type==='recuperacao').length:0;
+  const recoveryBar=isToday&&goal>0?`<div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+    <span style="font-size:13px">${recCount>=goal?'✅':'💚'}</span>
+    <div style="flex:1">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Meta de recuperação — ${recCount}/${goal}</div>
+      <div style="height:4px;border-radius:2px;background:var(--border)"><div style="height:4px;border-radius:2px;background:#34D399;width:${Math.min(100,recCount/goal*100)}%;transition:width .3s"></div></div>
+    </div>
+    ${recCount>=goal?`<span style="font-size:11px;color:#34D399;font-weight:700">Atingida!</span>`:''}
+  </div>`:'';
+
+  // Frase pessoal
+  const affirmation=db.settings.affirmation?`<div style="font-size:12px;color:var(--muted);font-style:italic;margin-top:4px;line-height:1.4">"${db.settings.affirmation}"</div>`:'';
+
+  // Botão modo dia difícil (só hoje)
+  const hardBtn=isToday?`<button onclick="toggleHardDay()" style="margin-top:10px;width:100%;padding:9px;border-radius:10px;border:1px solid ${hard?'rgba(139,92,246,.5)':'var(--border)'};background:${hard?'rgba(139,92,246,.15)':'transparent'};color:${hard?'var(--accent-lt)':'var(--muted)'};font-size:12px;cursor:pointer;font-family:inherit">
+    ${hard?'✕ Desativar modo dia difícil':'🌙 Hoje está pesado (reduz custos 50%)'}
+  </button>`:'';
+
   return `
     ${backupBanner}
     ${dateNav}
     <div class="card">
       <div class="nrg">
         ${nameGreet}
+        ${affirmation}
         <div class="nrg-date">${fmtDate(viewDate)}</div>
         <div class="nrg-row">
           <div class="nrg-val ${rem<=0?'pulse':''}" style="color:${col}">${remRound}</div>
@@ -1814,8 +1859,11 @@ function homeHTML(){
         <div class="nrg-bar"><div class="nrg-fill" style="width:${p}%;background:${col}"></div></div>
         <div class="nrg-pct">${pct}% de energia restante</div>
         <div class="spoon-bar">${spoons}</div>
+        ${recoveryBar}
+        ${hardBtn}
       </div>
     </div>
+    ${hard?hardBanner:''}
     ${alert}
     ${quickSection}
     ${schedSection}
@@ -1832,6 +1880,18 @@ function homeHTML(){
 function registerHTML(){
   const rem=remaining(),col=nrgColor(rem);
   const remRound=Math.max(0,Math.round(rem*10)/10);
+  const favIds=db.settings.favorites||[];
+  const favCats=favIds.map(id=>CATS.find(c=>c.id===id)).filter(Boolean);
+  const favSection=favCats.length===0?'':`
+    <div class="type-hdr" style="color:var(--accent-lt)">⭐ Favoritas</div>
+    <div class="cat-grid">
+      ${favCats.map(c=>`
+        <button class="cat-btn" onclick="openSheet('${c.id}')" style="border-color:rgba(167,139,250,.4)">
+          <span class="ci-icon">${c.icon}</span>
+          <span class="cl">${c.label}</span>
+          <span class="cc">${c.cost<0?'Devolve '+Math.abs(c.cost)+' pts':'Custa '+c.cost+' pts'}</span>
+        </button>`).join('')}
+    </div>`;
   const sections=Object.keys(TYPES).map(type=>{
     const meta=TYPES[type];
     return `<div class="type-hdr" style="color:${meta.color}">${meta.label}</div>
@@ -1853,6 +1913,7 @@ function registerHTML(){
       </div>
       <div class="reg-bar-pts" style="color:${col}">${remRound}</div>
     </div>
+    ${favSection}
     ${sections}
     <div class="type-hdr" style="color:#F87171">Gatilho não mapeado</div>
     <button class="cat-btn" style="width:100%;margin-bottom:20px;border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.08)" onclick="openTriggerSheet()">
@@ -2195,6 +2256,40 @@ function settingsHTML(){
           ${paletteBtn('azul','Azul','#3B82F6')}
         </div>
       </div>
+    </div>
+    <div class="card">
+      <div class="sec">Frase pessoal</div>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.5">Aparece no card de energia toda vez que você abrir o app. Use como âncora nos dias difíceis.</p>
+      <textarea rows="2" placeholder="Ex: Um dia de cada vez. Você está fazendo o melhor que pode."
+        style="width:100%;padding:11px 14px;background:var(--card2);border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text);font-family:inherit;outline:none;resize:none;box-sizing:border-box"
+        oninput="db.settings.affirmation=this.value.trim();save()"
+      >${db.settings.affirmation||''}</textarea>
+    </div>
+    <div class="card">
+      <div class="sec">Meta de recuperação diária</div>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.5">Quantas atividades de recuperação você quer fazer por dia. Aparece como barra de progresso na aba Hoje.</p>
+      <div class="s-row">
+        <div><div class="s-lbl">Meta diária</div><div class="s-desc">${(db.settings.recoveryGoal||0)===0?'Desativada':'Ativa'}</div></div>
+        <div class="ctr">
+          <button class="ctr-btn" onclick="db.settings.recoveryGoal=Math.max(0,(db.settings.recoveryGoal||0)-1);save();render()">−</button>
+          <span class="ctr-val">${db.settings.recoveryGoal||0}</span>
+          <button class="ctr-btn" onclick="db.settings.recoveryGoal=Math.min(10,(db.settings.recoveryGoal||0)+1);save();render()">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec">⭐ Categorias favoritas</div>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 12px;line-height:1.5">As marcadas aparecem no topo da aba Registrar para acesso rápido.</p>
+      ${Object.keys(TYPES).map(type=>`
+        <div style="font-size:11px;font-weight:600;color:${TYPES[type].color};letter-spacing:.5px;margin:10px 0 6px">${TYPES[type].label.toUpperCase()}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${CATS.filter(c=>c.type===type).map(c=>{
+            const sel=(db.settings.favorites||[]).includes(c.id);
+            return `<button onclick="toggleFavorite('${c.id}')" style="padding:6px 10px;border-radius:20px;border:1.5px solid ${sel?'var(--accent)':'var(--border)'};background:${sel?'var(--accent-bg)':'transparent'};color:${sel?'var(--accent-lt)':'var(--muted)'};font-size:12px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px">
+              ${c.icon} ${c.label}${sel?' ✓':''}
+            </button>`;
+          }).join('')}
+        </div>`).join('')}
     </div>
     <div class="card">
       <div class="sec" style="display:flex;align-items:center;gap:6px">Pontos de energia <button class="info-btn" onclick="openHelp('pontos')">ⓘ</button></div>
