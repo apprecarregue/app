@@ -1025,8 +1025,10 @@ const cat=id=>CATS.find(c=>c.id===id);
 function isHardDay(date){return (db.hardDays||[]).includes(date||todayStr());}
 function entryCost(e){
   const c=cat(e.categoryId);if(!c)return 0;
-  const base=Math.round(c.cost*(INTS[e.intensity]?.mult??1)*10)/10;
-  return (c.cost>0 && isHardDay(e.date)) ? Math.round(base*0.5*10)/10 : base;
+  return Math.round(c.cost*(INTS[e.intensity]?.mult??1)*10)/10;
+}
+function effectiveDailyPts(date){
+  return isHardDay(date||viewDate) ? Math.round(db.settings.dailyPts*0.5) : db.settings.dailyPts;
 }
 function toggleHardDay(){
   if(!db.hardDays) db.hardDays=[];
@@ -1047,8 +1049,9 @@ function todayEntries(){return db.entries.filter(e=>e.date===viewDate);}
 function todayCheckins(){return db.checkins.filter(c=>c.date===viewDate);}
 function periodCheckin(p){return todayCheckins().find(c=>c.period===p);}
 function remaining(){
-  const raw=db.settings.dailyPts-todayEntries().reduce((s,e)=>s+entryCost(e),0);
-  return Math.min(db.settings.dailyPts, raw);
+  const max=effectiveDailyPts(viewDate);
+  const raw=max-todayEntries().reduce((s,e)=>s+entryCost(e),0);
+  return Math.min(max, raw);
 }
 
 function navDay(delta){
@@ -1727,7 +1730,8 @@ function nextRest(){restIdx=(restIdx+1)%REST_ACTIVITIES.length;const el=document
 
 function homeHTML(){
   const rem=remaining(),p=remPct(rem),col=nrgColor(rem);
-  const{dailyPts,alertAt}=db.settings;
+  const{alertAt}=db.settings;
+  const dailyPts=effectiveDailyPts(viewDate);
   const remRound=Math.max(0,Math.round(rem*10)/10);
   const filled=Math.round(p/100*dailyPts);
   const w=Math.max(14,Math.min(26,260/dailyPts-3));
@@ -1858,7 +1862,7 @@ function homeHTML(){
   // Modo dia difícil
   const hard=isToday&&isHardDay(todayStr());
   const hardBanner=hard?`<div style="margin:0 0 8px;padding:12px 14px;border-radius:12px;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.3);font-size:13px;color:var(--accent-lt);line-height:1.5">
-    🌙 <b>Modo dia difícil ativo</b> — custos de energia reduzidos em 50%. Cuide-se com gentileza.
+    🌙 <b>Modo dia difícil ativo</b> — hoje você começa com <b>${effectiveDailyPts(todayStr())} colheres</b> (metade do normal). As atividades custam o mesmo — você simplesmente tem menos reserva hoje. Cuide-se.
   </div>`:'';
 
   // Meta de recuperação
@@ -1878,7 +1882,7 @@ function homeHTML(){
 
   // Botão modo dia difícil (só hoje)
   const hardBtn=isToday?`<button onclick="toggleHardDay()" style="margin-top:10px;width:100%;padding:9px;border-radius:10px;border:1px solid ${hard?'rgba(139,92,246,.5)':'var(--border)'};background:${hard?'rgba(139,92,246,.15)':'transparent'};color:${hard?'var(--accent-lt)':'var(--muted)'};font-size:12px;cursor:pointer;font-family:inherit">
-    ${hard?'✕ Desativar modo dia difícil':'🌙 Hoje está pesado (reduz custos 50%)'}
+    ${hard?'✕ Desativar modo dia difícil':'🌙 Acordei já desgastada — dia difícil'}
   </button>`:'';
 
   return `
