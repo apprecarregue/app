@@ -926,10 +926,38 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2);
 const cat=id=>CATS.find(c=>c.id===id);
 
 function entryCost(e){const c=cat(e.categoryId);if(!c)return 0;return Math.round(c.cost*(INTS[e.intensity]?.mult??1)*10)/10;}
-function todayEntries(){return db.entries.filter(e=>e.date===todayStr());}
-function todayCheckins(){return db.checkins.filter(c=>c.date===todayStr());}
+let viewDate = todayStr();
+
+function todayEntries(){return db.entries.filter(e=>e.date===viewDate);}
+function todayCheckins(){return db.checkins.filter(c=>c.date===viewDate);}
 function periodCheckin(p){return todayCheckins().find(c=>c.period===p);}
 function remaining(){return db.settings.dailyPts-todayEntries().reduce((s,e)=>s+entryCost(e),0);}
+
+function navDay(delta){
+  const d=new Date(viewDate+'T12:00:00');
+  d.setDate(d.getDate()+delta);
+  const next=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  if(next>todayStr())return;
+  viewDate=next;
+  document.getElementById('main').innerHTML=homeHTML();
+}
+
+function topCategories(n=3){
+  const counts={};
+  db.entries.filter(e=>e.categoryId!=='_custom_trigger').forEach(e=>{
+    counts[e.categoryId]=(counts[e.categoryId]||0)+1;
+  });
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([id])=>cat(id)).filter(Boolean);
+}
+
+function quickRegister(catId){
+  db.entries.push({id:uid(),date:todayStr(),createdAt:new Date().toISOString(),
+    categoryId:catId,intensity:'normal',note:''});
+  save();
+  const c=cat(catId);
+  toast(`${c.icon} ${c.label} registrado`);
+  document.getElementById('main').innerHTML=homeHTML();
+}
 function remPct(rem){return Math.max(0,Math.min(100,(rem/db.settings.dailyPts)*100));}
 
 function nrgColor(rem){
@@ -966,7 +994,7 @@ function toast(msg){
 
 // ── NAV ───────────────────────────────────────────────────────────────────────
 
-function go(s){screen=s;sheetState=null;triggerSheetState=null;showReport=false;render();trackEvent('screen_viewed',{screen:s});}
+function go(s){screen=s;sheetState=null;triggerSheetState=null;showReport=false;viewDate=todayStr();render();trackEvent('screen_viewed',{screen:s});}
 
 // ── CHECK-IN ──────────────────────────────────────────────────────────────────
 
@@ -1311,10 +1339,32 @@ function scheduleNotifs(){
     if(delay>0&&delay<18*60*60*1000){
       setTimeout(()=>{
         if(!periodCheckin(pid)&&Notification.permission==='granted')
-          new Notification('Recarregue ⚡',{body:`Como está sua energia nessa ${pd.label.toLowerCase()}?`,icon:'./icon.png',tag:`checkin-${pid}`});
+          new Notification('Recarregue',{body:`Como está sua energia nessa ${pd.label.toLowerCase()}?`,icon:'./icon.png',tag:`checkin-${pid}`});
       },delay);
     }
   });
+  // Resumo do dia às 22h
+  const summary=new Date();summary.setHours(22,0,0,0);
+  const summaryDelay=summary-now;
+  if(summaryDelay>0&&summaryDelay<24*60*60*1000){
+    setTimeout(()=>{
+      if(Notification.permission!=='granted')return;
+      const es=db.entries.filter(e=>e.date===todayStr());
+      const rem=db.settings.dailyPts-es.reduce((s,e)=>s+entryCost(e),0);
+      const topDrain=()=>{
+        const c={};
+        es.filter(e=>cat(e.categoryId)?.type!=='recuperacao'&&e.categoryId!=='_custom_trigger')
+          .forEach(e=>{c[e.categoryId]=(c[e.categoryId]||0)+1;});
+        const top=Object.entries(c).sort((a,b)=>b[1]-a[1])[0];
+        return top?cat(top[0])?.label:'—';
+      };
+      const recoveries=es.filter(e=>cat(e.categoryId)?.type==='recuperacao').length;
+      new Notification('Recarregue — resumo do dia',{
+        body:`Energia restante: ${Math.round(Math.max(0,rem))} pts · Maior dreno: ${topDrain()} · Recuperações: ${recoveries}`,
+        icon:'./icon.png',tag:'resumo-dia'
+      });
+    },summaryDelay);
+  }
 }
 
 // ── REPORT ────────────────────────────────────────────────────────────────────
@@ -1626,8 +1676,20 @@ function homeHTML(){
   const nameGreet=db.settings.name?`<div style="font-size:13px;color:var(--muted);margin-bottom:2px">Olá, <strong style="color:var(--accent-lt)">${db.settings.name}</strong> 👋</div>`:'';
   const backupBanner=needsBackupReminder()?`<div class="backup-remind-banner" onclick="backupToCloud()">☁️ Seus dados não têm backup recente — toque para salvar na nuvem</div>`:'';
 
-  // Agendamentos de hoje (pendentes)
-  const todaySched=(db.scheduled||[]).filter(s=>s.date===todayStr()&&!s.applied);
+  // Navegação de datas
+  const isToday=viewDate===todayStr();
+  const dayLabel=isToday?'Hoje':fmtDate(viewDate);
+  const dateNav=`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px 0">
+      <button onclick="navDay(-1)" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:4px 8px">‹</button>
+      <span style="font-size:13px;font-weight:600;color:${isToday?'var(--accent-lt)':'var(--text2)'}">
+        ${dayLabel}${isToday?' 📍':''}
+      </span>
+      <button onclick="navDay(1)" style="background:none;border:none;color:${isToday?'rgba(255,255,255,.15)':'var(--muted)'};font-size:22px;cursor:pointer;padding:4px 8px" ${isToday?'disabled':''}>›</button>
+    </div>`;
+
+  // Agendamentos de hoje (pendentes) — só no dia atual
+  const todaySched=isToday?(db.scheduled||[]).filter(s=>s.date===todayStr()&&!s.applied):[];
   const schedSection=todaySched.length===0?'':`
     <div class="sched-card">
       <div class="sec" style="margin-bottom:8px">⏰ Agendado para hoje</div>
@@ -1644,12 +1706,27 @@ function homeHTML(){
       }).join('')}
     </div>`;
 
+  // Modo rápido — top 3 categorias mais usadas (só no dia atual)
+  const quickCats=isToday?topCategories(3):[];
+  const quickSection=quickCats.length<2?'': `
+    <div style="padding:0 16px 8px">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.5px;margin-bottom:8px">REGISTRO RÁPIDO</div>
+      <div style="display:flex;gap:8px">
+        ${quickCats.map(c=>`
+          <button onclick="quickRegister('${c.id}')" style="flex:1;padding:10px 6px;border-radius:12px;border:1px solid ${TYPE_BG[c.type]};background:${TYPE_BG[c.type]};cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <span style="font-size:20px">${c.icon}</span>
+            <span style="font-size:10px;font-weight:600;color:var(--text);line-height:1.2;text-align:center">${c.label}</span>
+          </button>`).join('')}
+      </div>
+    </div>`;
+
   return `
     ${backupBanner}
+    ${dateNav}
     <div class="card">
       <div class="nrg">
         ${nameGreet}
-        <div class="nrg-date">${fmtDate(todayStr())}</div>
+        <div class="nrg-date">${fmtDate(viewDate)}</div>
         <div class="nrg-row">
           <div class="nrg-val ${rem<=0?'pulse':''}" style="color:${col}">${remRound}</div>
           <span class="nrg-spoon">🥄</span>
@@ -1662,13 +1739,14 @@ function homeHTML(){
       </div>
     </div>
     ${alert}
+    ${quickSection}
     ${schedSection}
     <div class="card">
-      <div class="sec">Check-ins de hoje <button class="info-btn" onclick="openHelp('checkin')">ⓘ</button></div>
+      <div class="sec">Check-ins ${isToday?'de hoje':fmtDate(viewDate)} <button class="info-btn" onclick="openHelp('checkin')">ⓘ</button></div>
       <div class="period-row">${periodCards}</div>
     </div>
     <div class="card">
-      <div class="sec">Registros de hoje <button class="info-btn" onclick="openHelp('home')">ⓘ</button></div>
+      <div class="sec">Registros ${isToday?'de hoje':fmtDate(viewDate)} <button class="info-btn" onclick="openHelp('home')">ⓘ</button></div>
       ${entries}
     </div>`;
 }
@@ -1706,10 +1784,59 @@ function registerHTML(){
     </button>`;
 }
 
+function buildInsights(){
+  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-30);
+  const recent=db.entries.filter(e=>new Date(e.date)>=cutoff&&e.categoryId!=='_custom_trigger');
+  if(recent.length<5)return[];
+  const insights=[];
+
+  // Maior dreno
+  const counts={};
+  recent.filter(e=>cat(e.categoryId)?.type!=='recuperacao').forEach(e=>{counts[e.categoryId]=(counts[e.categoryId]||0)+1;});
+  const topDrain=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+  if(topDrain){const c=cat(topDrain[0]);if(c)insights.push(`${c.icon} <b>${c.label}</b> é seu maior dreno — apareceu <b>${topDrain[1]}x</b> nos últimos 30 dias.`);}
+
+  // Taxa de recuperação
+  const total=recent.length;
+  const recoveries=recent.filter(e=>cat(e.categoryId)?.type==='recuperacao').length;
+  const recPct=Math.round(recoveries/total*100);
+  if(recPct<20)insights.push(`💡 Só <b>${recPct}%</b> dos seus registros são recuperações. Tente equilibrar mais.`);
+  else if(recPct>=30)insights.push(`✨ <b>${recPct}%</b> dos registros são recuperações — você está cuidando bem de si.`);
+
+  // Energia média nos checkins (últimos 7 dias)
+  const d7=new Date();d7.setDate(d7.getDate()-7);
+  const recentCi=db.checkins.filter(c=>new Date(c.date)>=d7);
+  if(recentCi.length>=3){
+    const avg=(recentCi.reduce((s,c)=>s+c.energy,0)/recentCi.length).toFixed(1);
+    const label=avg>=7?'boa semana 💚':avg>=4?'semana moderada 🟡':'semana pesada 🔴';
+    insights.push(`Sua energia média nos últimos 7 dias foi <b>${avg}/10</b> — ${label}.`);
+  }
+
+  // Dia com mais drenos
+  const byDay={};
+  recent.filter(e=>cat(e.categoryId)?.type!=='recuperacao').forEach(e=>{byDay[e.date]=(byDay[e.date]||0)+1;});
+  const days=Object.entries(byDay).sort((a,b)=>b[1]-a[1]);
+  if(days.length>=3){
+    const dow=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    const worstDayOfWeek={};
+    days.forEach(([d,n])=>{const dw=dow[new Date(d+'T12:00').getDay()];worstDayOfWeek[dw]=(worstDayOfWeek[dw]||0)+n;});
+    const worstDow=Object.entries(worstDayOfWeek).sort((a,b)=>b[1]-a[1])[0];
+    if(worstDow)insights.push(`📅 <b>${worstDow[0]}</b> costuma ser seu dia mais pesado — considere proteger essa energia.`);
+  }
+
+  return insights;
+}
+
 function mapaHTML(){
   const cutoff=new Date();cutoff.setDate(cutoff.getDate()-30);
   const recent=db.entries.filter(e=>new Date(e.date)>=cutoff);
   const hasData=recent.length>=5;
+  const insights=buildInsights();
+  const insightSection=insights.length===0?'': `
+    <div class="card">
+      <div class="sec">✨ Insights</div>
+      ${insights.map(i=>`<div style="font-size:13px;color:var(--text2);line-height:1.6;padding:8px 0;border-bottom:1px solid var(--border)">${i}</div>`).join('')}
+    </div>`;
   return `
     <div class="card" style="padding:12px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -1720,6 +1847,7 @@ function mapaHTML(){
         📄 Gerar relatório (7 dias)
       </button>
     </div>
+    ${insightSection}
     ${!hasData
       ?`<div class="card"><div class="empty">
           <div class="e-icon">📊</div>
