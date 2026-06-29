@@ -1914,7 +1914,7 @@ function sosHTML(){
             <div class="cl-item" style="display:flex;align-items:center;gap:0">
               <div onclick="toggleComfortItem(${i})" style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer">
                 <div class="cl-check ${item.done?'checked':''}">${item.done?'✓':''}</div>
-                <div class="cl-text ${item.done?'checked':''}">${item.text}</div>
+                <div class="cl-text ${item.done?'checked':''}">${esc(item.text)}</div>
               </div>
               <button onclick="delComfortItem(${i})" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:4px 8px;flex-shrink:0">✕</button>
             </div>`).join('')
@@ -1946,7 +1946,7 @@ function settingsHTML(){
       <div class="sec" style="display:flex;align-items:center;gap:6px">Personalização <button class="info-btn" onclick="openHelp('personalizacao')">ⓘ</button></div>
       <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:8px">
         <div class="s-lbl">Como prefere ser chamad@?</div>
-        <input type="text" value="${name||''}" placeholder="Seu nome ou apelido..." autocomplete="off"
+        <input type="text" value="${esc(name)||''}" placeholder="Seu nome ou apelido..." autocomplete="off"
           style="width:100%;padding:11px 14px;background:var(--card2);border:1px solid var(--border);border-radius:10px;font-size:15px;color:var(--text);font-family:inherit;outline:none"
           onchange="db.settings.name=this.value.trim();save();render()"
         >
@@ -2095,7 +2095,7 @@ function onboardingHTML(){
     // Tela 5 — nome
     {icon:'✨', title:'Última coisa...', sub:'Quero te chamar pelo seu nome.', body:`
       <p>Como você gostaria de ser chamada(o) aqui dentro?</p>
-      <input id="onboard-name" type="text" value="${db.settings.name||''}" placeholder="Como me chamam..." autocomplete="off"
+      <input id="onboard-name" type="text" value="${esc(db.settings.name)||''}" placeholder="Como me chamam..." autocomplete="off"
         style="width:100%;margin-top:16px;padding:14px 16px;background:var(--card2);border:1px solid var(--border);border-radius:12px;font-size:16px;color:var(--text);font-family:inherit;outline:none"
         oninput="this.style.borderColor='var(--accent)'"
       >
