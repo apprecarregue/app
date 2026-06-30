@@ -732,6 +732,7 @@ const ICO = {
   chart:    ico('<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>'),
   sos:      ico('<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
   settings: ico('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
+  sintomas: ico('<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>'),
 };
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -847,6 +848,30 @@ const SENSORIAL_ITEMS = [
   {id:'cheiro',  label:'Cheiro',  icon:'👃'},
 ];
 
+const SINTOMAS_CATS = [
+  {id:'fisico',    label:'Físico',    color:'var(--red)',    colorBg:'var(--red-bg)'},
+  {id:'emocional', label:'Emocional', color:'var(--amber)',  colorBg:'var(--amber-bg)'},
+  {id:'cognitivo', label:'Cognitivo', color:'var(--accent)', colorBg:'var(--accent-bg)'},
+];
+
+const SINTOMAS_DEFAULT = [
+  {id:'dor',          label:'Dor',               icon:'🤕', cat:'fisico'},
+  {id:'fadiga',       label:'Fadiga',             icon:'😴', cat:'fisico'},
+  {id:'nausea',       label:'Náusea',             icon:'🤢', cat:'fisico'},
+  {id:'tensao',       label:'Tensão muscular',    icon:'💪', cat:'fisico'},
+  {id:'cabeca',       label:'Dor de cabeça',      icon:'🤯', cat:'fisico'},
+  {id:'sensorial',    label:'Sens. sensorial',    icon:'⚡', cat:'fisico'},
+  {id:'ansiedade_s',  label:'Ansiedade',          icon:'😰', cat:'emocional'},
+  {id:'humor_baixo',  label:'Humor baixo',        icon:'😔', cat:'emocional'},
+  {id:'irritab_s',    label:'Irritabilidade',     icon:'😤', cat:'emocional'},
+  {id:'sobrecarga_s', label:'Sobrecarga',         icon:'🌋', cat:'emocional'},
+  {id:'panico',       label:'Pânico',             icon:'😱', cat:'emocional'},
+  {id:'nevoa',        label:'Névoa mental',       icon:'🌫️', cat:'cognitivo'},
+  {id:'concentracao', label:'Dif. de foco',       icon:'🎯', cat:'cognitivo'},
+  {id:'insonia',      label:'Insônia',            icon:'🌙', cat:'cognitivo'},
+  {id:'sono',         label:'Sono não reparador', icon:'💤', cat:'cognitivo'},
+];
+
 const AFFIRMATIONS = [
   'Você está fazendo o melhor possível com a energia que tem hoje.',
   'Seus sentidos trabalham intensamente. Isso não é fraqueza — é como você funciona.',
@@ -875,7 +900,7 @@ const REST_ACTIVITIES = [
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 
-let db = {entries:[], checkins:[], settings:{dailyPts:12, alertAt:3, notifEnabled:false, name:'', theme:'dark', palette:'roxo'}};
+let db = {entries:[], checkins:[], sintomas:{lista:[...SINTOMAS_DEFAULT], registros:[]}, settings:{dailyPts:12, alertAt:3, notifEnabled:false, name:'', theme:'dark', palette:'roxo'}};
 let screen = 'home';
 let checkinState = null;
 let sheetState = null;
@@ -911,7 +936,7 @@ function onboardBack(){
   if(onboardingStep > 1){ onboardingStep--; renderOverlays(); }
 }
 function onboardNext(){
-  if(onboardingStep < 7){ onboardingStep++; renderOverlays(); }
+  if(onboardingStep < 8){ onboardingStep++; renderOverlays(); }
   else {
     const inp=document.getElementById('onboard-name');
     if(inp&&inp.value.trim()){ db.settings.name=inp.value.trim(); save(); }
@@ -981,7 +1006,7 @@ function applyTheme(){
 function load() {
   try {
     const r=localStorage.getItem(KEY);
-    if(r){const p=JSON.parse(r);db.entries=p.entries||[];db.checkins=p.checkins||[];db.settings={...db.settings,...p.settings};return;}
+    if(r){const p=JSON.parse(r);db.entries=p.entries||[];db.checkins=p.checkins||[];db.settings={...db.settings,...p.settings};if(p.sintomas)db.sintomas=p.sintomas;return;}
     const r1=localStorage.getItem('energia_v1');
     if(r1){const p=JSON.parse(r1);db.entries=p.entries||[];db.settings={...db.settings,...p.settings};}
   } catch(_){}
@@ -1554,6 +1579,29 @@ function buildReportText(){
     r+='\n';
   }
   if(Object.keys(humorPer).length>0){r+=`HUMOR POR PERÍODO\n`;['manha','tarde','noite'].forEach(pid=>{if(!humorPer[pid])return;const top1=Object.entries(humorPer[pid]).sort((a,b)=>b[1]-a[1])[0];const h=HUMORS.find(x=>x.id===top1[0]);r+=`• ${PERIODS[pid].icon} ${PERIODS[pid].label}: ${h?.icon??''} ${h?.label??''} (${top1[1]}x)\n`;});r+='\n';}
+  // Sintomas
+  const recentSinR=(db.sintomas?.registros||[]).filter(e=>new Date(e.date)>=d7);
+  if(recentSinR.length>0){
+    r+=`🩺 SINTOMAS DA SEMANA\n`;
+    const listaR=db.sintomas?.lista||SINTOMAS_DEFAULT;
+    const byCatR={fisico:[],emocional:[],cognitivo:[]};
+    const byIdR={};
+    recentSinR.forEach(rs=>{if(!byIdR[rs.sintomaId]){byIdR[rs.sintomaId]={count:0,total:0};}byIdR[rs.sintomaId].count++;byIdR[rs.sintomaId].total+=rs.intensidade;});
+    Object.entries(byIdR).forEach(([id,d])=>{const s=listaR.find(x=>x.id===id);if(s&&byCatR[s.cat])byCatR[s.cat].push({s,d});});
+    const catLabelsR={fisico:'Físico',emocional:'Emocional',cognitivo:'Cognitivo'};
+    Object.entries(byCatR).forEach(([catId,items])=>{
+      if(!items.length)return;
+      r+=`• ${catLabelsR[catId]}: `;
+      r+=items.sort((a,b)=>b.d.count-a.d.count).map(({s,d})=>`${s.icon} ${s.label} (${d.count}×, int. ${(d.total/d.count).toFixed(1)})`).join(', ');
+      r+='\n';
+    });
+    const sinDatesR=Object.keys(byIdR);
+    if(sinDatesR.length>0){
+      const heavyR=sinDatesR.filter(d=>{const du=db.entries.filter(e=>e.date===d&&cat(e.categoryId)?.type!=='recuperacao').reduce((s,e)=>s+Math.abs(entryCost(e)),0);return du/db.settings.dailyPts>0.6;});
+      if(heavyR.length>0){const dow2=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];const hd=heavyR.map(d=>dow2[new Date(d+'T12:00').getDay()]).join(', ');r+=`• Alta carga + sintomas: ${hd}\n`;}
+    }
+    r+='\n';
+  }
   r+=`${'─'.repeat(34)}\nGerado em ${today.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})}\nApp Recarregue — uso pessoal`;
   return r;
 }
@@ -1967,6 +2015,115 @@ function registerHTML(){
     </button>`;
 }
 
+// ── SINTOMAS ──────────────────────────────────────────────────────────────────
+
+function toggleSintoma(sintomaId, intensidade){
+  if(!db.sintomas)db.sintomas={lista:[...SINTOMAS_DEFAULT],registros:[]};
+  if(!db.sintomas.registros)db.sintomas.registros=[];
+  const today=todayStr();
+  const idx=db.sintomas.registros.findIndex(r=>r.date===today&&r.sintomaId===sintomaId);
+  if(idx>=0){
+    if(db.sintomas.registros[idx].intensidade===intensidade) db.sintomas.registros.splice(idx,1);
+    else db.sintomas.registros[idx].intensidade=intensidade;
+  } else {
+    db.sintomas.registros.push({id:uid(),date:today,createdAt:new Date().toISOString(),sintomaId,intensidade});
+  }
+  save();
+  document.getElementById('main').innerHTML=renderSintomas();
+}
+
+function renderSintomas(){
+  const today=todayStr();
+  const todaySin=(db.sintomas?.registros||[]).filter(r=>r.date===today);
+  const lista=db.sintomas?.lista||SINTOMAS_DEFAULT;
+
+  // últimos 7 dias para o histórico
+  const last7=[];
+  for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);last7.push(d.toISOString().slice(0,10));}
+
+  const groupsHTML=SINTOMAS_CATS.map(gc=>{
+    const items=lista.filter(s=>s.cat===gc.id);
+    const itemsHTML=items.map(s=>{
+      const reg=todaySin.find(r=>r.sintomaId===s.id);
+      const curInt=reg?.intensidade||0;
+
+      const histHTML=last7.map(d=>{
+        const r=(db.sintomas?.registros||[]).find(r=>r.date===d&&r.sintomaId===s.id);
+        if(!r)return`<div style="width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.08)"></div>`;
+        const sz=r.intensidade===3?10:r.intensidade===2?8:6;
+        const op=r.intensidade===3?1:r.intensidade===2?.7:.45;
+        return`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${gc.color};opacity:${op};flex-shrink:0"></div>`;
+      }).join('');
+
+      const circles=[1,2,3].map(n=>{
+        const active=curInt>=n;
+        return`<button onclick="toggleSintoma('${s.id}',${n})" style="width:28px;height:28px;border-radius:50%;border:2px solid ${active?gc.color:'rgba(255,255,255,.18)'};background:${active?gc.color:'transparent'};cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;font-size:12px;color:${active?'#fff':'rgba(255,255,255,.3)'}">${active?'●':'○'}</button>`;
+      }).join('');
+
+      return`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+        <div style="font-size:20px;width:26px;text-align:center;flex-shrink:0">${s.icon}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:5px">${s.label}</div>
+          <div style="display:flex;gap:3px;align-items:center">${histHTML}</div>
+        </div>
+        <div style="display:flex;gap:5px;align-items:center;flex-shrink:0">${circles}</div>
+      </div>`;
+    }).join('');
+
+    return`<div class="card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div style="width:4px;height:18px;border-radius:2px;background:${gc.color}"></div>
+        <span style="font-size:11px;font-weight:700;color:${gc.color};letter-spacing:.6px">${gc.label.toUpperCase()}</span>
+      </div>
+      ${itemsHTML}
+    </div>`;
+  }).join('');
+
+  const totalHoje=todaySin.length;
+  return`
+    <div class="card" style="padding:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px">SINTOMAS DE HOJE</span>
+        <button class="info-btn" onclick="openHelp('sintomas')">ⓘ</button>
+      </div>
+      ${totalHoje>0?`<div style="margin-top:6px;font-size:12px;color:var(--muted)">${totalHoje} sintoma${totalHoje>1?'s':''} registrado${totalHoje>1?'s':''} hoje</div>`:''}
+    </div>
+    ${groupsHTML}
+    <div style="text-align:center;padding:4px 0 16px;font-size:11px;color:var(--muted)">
+      Toque nos círculos: leve · moderado · intenso
+    </div>`;
+}
+
+function sintomasTopHTML(){
+  const d7=new Date();d7.setDate(d7.getDate()-7);
+  const recent=(db.sintomas?.registros||[]).filter(r=>new Date(r.date)>=d7);
+  if(recent.length===0)return'';
+  const byId={};
+  recent.forEach(r=>{if(!byId[r.sintomaId])byId[r.sintomaId]={count:0,total:0};byId[r.sintomaId].count++;byId[r.sintomaId].total+=r.intensidade;});
+  const top3=Object.entries(byId).sort((a,b)=>b[1].count-a[1].count).slice(0,3);
+  if(!top3.length)return'';
+  const lista=db.sintomas?.lista||SINTOMAS_DEFAULT;
+  return`<div class="card">
+    <div class="sec">Sintomas mais frequentes (7 dias)</div>
+    ${top3.map(([id,d])=>{
+      const s=lista.find(x=>x.id===id)||{label:id,icon:'🩺',cat:'fisico'};
+      const gc=SINTOMAS_CATS.find(c=>c.id===s.cat)||SINTOMAS_CATS[0];
+      const avg=(d.total/d.count).toFixed(1);
+      const pct=Math.round((d.total/(d.count*3))*100);
+      return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+        <div style="font-size:18px">${s.icon}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${s.label}</div>
+          <div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:4px">
+            <div style="height:4px;border-radius:2px;background:${gc.color};width:${pct}%;transition:width .4s"></div>
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;font-size:12px;color:var(--muted)">${d.count}× · int.${avg}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
 function buildInsights(){
   const cutoff=new Date();cutoff.setDate(cutoff.getDate()-30);
   const recent=db.entries.filter(e=>new Date(e.date)>=cutoff&&e.categoryId!=='_custom_trigger');
@@ -2007,6 +2164,20 @@ function buildInsights(){
     if(worstDow)insights.push(`📅 <b>${worstDow[0]}</b> costuma ser seu dia mais pesado — considere proteger essa energia.`);
   }
 
+  // Correlação sintomas cognitivos × alta carga energética
+  const d7sin=new Date();d7sin.setDate(d7sin.getDate()-7);
+  const recentSin=(db.sintomas?.registros||[]).filter(r=>new Date(r.date)>=d7sin);
+  if(recentSin.length>=2){
+    const lista=db.sintomas?.lista||SINTOMAS_DEFAULT;
+    const cogDates=new Set(recentSin.filter(r=>lista.find(x=>x.id===r.sintomaId)?.cat==='cognitivo').map(r=>r.date));
+    if(cogDates.size>=2){
+      const ep=db.settings.dailyPts;
+      const heavyDates=new Set([...cogDates].filter(d=>{const du=db.entries.filter(e=>e.date===d&&cat(e.categoryId)?.type!=='recuperacao').reduce((s,e)=>s+Math.abs(entryCost(e)),0);return du/ep>0.6;}));
+      const overlap=[...cogDates].filter(d=>heavyDates.has(d)).length;
+      if(overlap>=2)insights.push(`🩺 Névoa mental e alta carga energética coincidiram <b>${overlap}×</b> nessa semana — pode ser sinal de sobrecarga acumulando.`);
+    }
+  }
+
   return insights;
 }
 
@@ -2041,6 +2212,12 @@ function mapaHTML(){
           <div class="sec">Últimos 7 dias — energia gasta</div>
           <div class="chart-wrap" style="height:200px"><canvas id="weekC"></canvas></div>
         </div>
+        <div class="card">
+          <div class="sec">Sintomas × Energia (7 dias)</div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Roxo = energia gasta · Vermelho = carga de sintomas</p>
+          <div class="chart-wrap" style="height:200px"><canvas id="sintomasC"></canvas></div>
+        </div>
+        ${sintomasTopHTML()}
         <div class="card">
           <div class="sec">Humor por período</div>
           <div class="chart-wrap" style="height:220px"><canvas id="humorC"></canvas></div>
@@ -2447,24 +2624,50 @@ function onboardingHTML(){
       <p>O Recarregue te ajuda a <strong>visualizar esse gasto</strong> e identificar seus padrões — antes que as colheres acabem.</p>
     `, btn:'Como funciona? →', extraBtn:null},
     // 4 — como usar (novo)
-    {icon:'🧭', title:'Como funciona', sub:'4 abas, tudo o que você precisa.', body:`
-      <div style="display:flex;flex-direction:column;gap:12px;margin:4px 0">
-        <div style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:var(--card2)">
-          <span style="font-size:22px">🏠</span>
-          <div><div style="font-weight:700;color:var(--text);font-size:14px">Hoje</div><div style="font-size:12px;color:var(--muted)">Acompanhe sua energia, check-ins e registros do dia</div></div>
+    {icon:'🧭', title:'Como funciona', sub:'5 abas, tudo o que você precisa.', body:`
+      <div style="display:flex;flex-direction:column;gap:10px;margin:4px 0">
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--card2)">
+          <span style="font-size:20px">🏠</span>
+          <div><div style="font-weight:700;color:var(--text);font-size:13px">Hoje</div><div style="font-size:11px;color:var(--muted)">Acompanhe sua energia, check-ins e registros do dia</div></div>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:var(--card2)">
-          <span style="font-size:22px">➕</span>
-          <div><div style="font-weight:700;color:var(--text);font-size:14px">Registrar</div><div style="font-size:12px;color:var(--muted)">Marque o que drena ou recarrega sua energia</div></div>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--card2)">
+          <span style="font-size:20px">➕</span>
+          <div><div style="font-weight:700;color:var(--text);font-size:13px">Registrar</div><div style="font-size:11px;color:var(--muted)">Marque o que drena ou recarrega sua energia</div></div>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:var(--card2)">
-          <span style="font-size:22px">📊</span>
-          <div><div style="font-weight:700;color:var(--text);font-size:14px">Mapa</div><div style="font-size:12px;color:var(--muted)">Veja seus padrões e insights dos últimos 30 dias</div></div>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--card2)">
+          <span style="font-size:20px">📊</span>
+          <div><div style="font-weight:700;color:var(--text);font-size:13px">Mapa</div><div style="font-size:11px;color:var(--muted)">Veja seus padrões e insights dos últimos 30 dias</div></div>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2)">
-          <span style="font-size:22px">🆘</span>
-          <div><div style="font-weight:700;color:#FCA5A5;font-size:14px">SOS</div><div style="font-size:12px;color:var(--muted)">Para momentos de sobrecarga, crise ou descanso urgente</div></div>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.15)">
+          <span style="font-size:20px">🩺</span>
+          <div><div style="font-weight:700;color:#FCA5A5;font-size:13px">Sintomas</div><div style="font-size:11px;color:var(--muted)">Registre como seu corpo e mente estão se sentindo</div></div>
         </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.15)">
+          <span style="font-size:20px">🆘</span>
+          <div><div style="font-weight:700;color:#FCA5A5;font-size:13px">SOS</div><div style="font-size:11px;color:var(--muted)">Para momentos de sobrecarga, crise ou descanso urgente</div></div>
+        </div>
+      </div>
+    `, btn:'Entendi →', extraBtn:null},
+    // 5 — sintomas (novo)
+    {icon:'🩺', title:'Rastreie seus sintomas', sub:'Físico, emocional e cognitivo.', body:`
+      <p>A aba <strong>Sintomas</strong> é para registrar como seu corpo e mente estão — separado dos gastos de energia.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;margin:12px 0">
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--red-bg)">
+          <span style="font-size:18px">🤕</span>
+          <div><div style="font-size:13px;font-weight:700;color:var(--red)">Físico</div><div style="font-size:11px;color:var(--muted)">Dor, fadiga, náusea, tensão, dor de cabeça...</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--amber-bg)">
+          <span style="font-size:18px">😰</span>
+          <div><div style="font-size:13px;font-weight:700;color:var(--amber)">Emocional</div><div style="font-size:11px;color:var(--muted)">Ansiedade, irritabilidade, sobrecarga...</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--accent-bg)">
+          <span style="font-size:18px">🌫️</span>
+          <div><div style="font-size:13px;font-weight:700;color:var(--accent-lt)">Cognitivo</div><div style="font-size:11px;color:var(--muted)">Névoa mental, dificuldade de foco, insônia...</div></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;justify-content:center;margin-top:10px">
+        ${[1,2,3].map(n=>`<div style="width:24px;height:24px;border-radius:50%;background:var(--accent);opacity:${n*0.33+0.01};display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff">${n}</div>`).join('<span style="color:var(--muted);font-size:11px">→</span>')}
+        <span style="font-size:11px;color:var(--muted);margin-left:4px">leve → intenso</span>
       </div>
     `, btn:'Entendi →', extraBtn:null},
     // 5 — check-in (novo)
@@ -2508,7 +2711,7 @@ function onboardingHTML(){
   ];
 
   const s=steps[onboardingStep-1];
-  const dots=[1,2,3,4,5,6,7].map(i=>`<span style="width:7px;height:7px;border-radius:50%;background:${i===onboardingStep?'var(--accent)':'var(--border)'};display:inline-block;margin:0 2px;transition:background .2s"></span>`).join('');
+  const dots=[1,2,3,4,5,6,7,8].map(i=>`<span style="width:7px;height:7px;border-radius:50%;background:${i===onboardingStep?'var(--accent)':'var(--border)'};display:inline-block;margin:0 2px;transition:background .2s"></span>`).join('');
 
   const mainBtn = s.notifStep && notifSupported
     ? `<button class="btn btn-p" onclick="onboardRequestNotif()">${s.btn}</button>`
@@ -2803,6 +3006,12 @@ function initCharts(){
   for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const ds=d.toISOString().slice(0,10);days.push(d.toLocaleDateString('pt-BR',{weekday:'short',day:'numeric'}));const du=db.entries.filter(e=>e.date===ds&&e.categoryId!=='_custom_trigger').reduce((s,e)=>{const c=cat(e.categoryId);return c&&c.type!=='recuperacao'?s+Math.abs(entryCost(e)):s;},0);used.push(Math.min(du,db.settings.dailyPts));}
   mkChart('weekC',{type:'bar',data:{labels:days,datasets:[{data:used,backgroundColor:used.map(v=>{const p=(v/db.settings.dailyPts)*100;return p>70?'rgba(248,113,113,.7)':p>40?'rgba(252,211,77,.7)':'rgba(52,211,153,.7)';}),borderRadius:7}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:db.settings.dailyPts,grid:{color:CD.gridColor},ticks:{color:CD.tickColor,font:{size:11}}},x:{grid:{display:false},ticks:{color:CD.tickColor,font:{size:11}}}}}});
 
+  // Gráfico Sintomas × Energia
+  const sinDays=[],sinEn=[],sinSin=[];
+  for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const ds=d.toISOString().slice(0,10);sinDays.push(d.toLocaleDateString('pt-BR',{weekday:'short',day:'numeric'}));const du=db.entries.filter(e=>e.date===ds&&e.categoryId!=='_custom_trigger').reduce((s,e)=>{const c=cat(e.categoryId);return c&&c.type!=='recuperacao'?s+Math.abs(entryCost(e)):s;},0);sinEn.push(Math.min(du,db.settings.dailyPts));const st=(db.sintomas?.registros||[]).filter(r=>r.date===ds).reduce((s,r)=>s+r.intensidade,0);sinSin.push(st);}
+  const maxSin=Math.max(...sinSin,3);
+  mkChart('sintomasC',{type:'line',data:{labels:sinDays,datasets:[{label:'Energia gasta',data:sinEn,borderColor:'#8B5CF6',backgroundColor:'rgba(139,92,246,.1)',tension:.35,pointRadius:4,pointBackgroundColor:'#8B5CF6',yAxisID:'y',fill:true},{label:'Carga sintomas',data:sinSin,borderColor:'#F87171',backgroundColor:'rgba(248,113,113,.08)',tension:.35,pointRadius:4,pointBackgroundColor:'#F87171',yAxisID:'y2',fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:8,color:CD.color}}},scales:{y:{beginAtZero:true,max:db.settings.dailyPts,grid:{color:CD.gridColor},ticks:{color:CD.tickColor,font:{size:10}},position:'left',title:{display:true,text:'pts',color:CD.tickColor,font:{size:9}}},y2:{beginAtZero:true,max:maxSin*1.3,grid:{display:false},ticks:{color:'#F87171',font:{size:10}},position:'right',title:{display:true,text:'sint.',color:'#F87171',font:{size:9}}}}}});
+
   const ciCutoff=new Date();ciCutoff.setDate(ciCutoff.getDate()-30);
   const recentCi=db.checkins.filter(c=>new Date(c.date)>=ciCutoff);
   if(recentCi.length>0){
@@ -2874,6 +3083,17 @@ const HELP = {
       { h: 'Exportar backup (arquivo local)', p: 'Baixa um arquivo com todos os seus dados. Guarde no Google Drive, iCloud ou onde preferir. Para restaurar, use "Importar backup" e selecione esse arquivo.' },
       { h: 'Código de restauração', p: 'É o seu código único, gerado só no seu aparelho. Ele serve para recuperar seu backup da nuvem em outro dispositivo. Guarde-o num lugar seguro — sem ele, não conseguimos ajudar a recuperar.' },
       { h: 'Sem rastreio, sem surpresas', p: 'Não há publicidade, perfil criado ou dados compartilhados com terceiros. O controle é 100% seu — sempre foi e sempre vai ser.' },
+    ]
+  },
+  sintomas: {
+    title: 'Rastreio de Sintomas',
+    icon: '🩺',
+    items: [
+      { h: 'O que são os sintomas?', p: 'Aqui você registra sensações físicas, emocionais e cognitivas do dia — não para diagnóstico, mas para enxergar padrões ao longo do tempo.' },
+      { h: 'Como usar os círculos', p: '● leve — você percebeu mas não atrapalhou muito. ●● moderado — afetou seu dia. ●●● intenso — foi um sintoma significativo. Toque no mesmo círculo ativo para remover.' },
+      { h: 'Histórico por pontinhos', p: 'Os sete pontinhos ao lado de cada sintoma mostram os últimos 7 dias. Ponto maior e mais cheio = intensidade maior naquele dia.' },
+      { h: 'Cruzamento com energia', p: 'No Mapa de Energia você vê como seus sintomas se relacionam com sua carga energética — ajudando a identificar padrões antes de dias difíceis.' },
+      { h: 'No relatório', p: 'Os sintomas da semana aparecem no relatório de 7 dias com frequência e intensidade média — útil para compartilhar com profissional de saúde.' },
     ]
   },
   personalizacao: {
@@ -2954,11 +3174,12 @@ const NAV=[
   {id:'home',     icon:ICO.home,     label:'Hoje',      cls:''},
   {id:'register', icon:ICO.plus,     label:'Registrar', cls:''},
   {id:'mapa',     icon:ICO.chart,    label:'Mapa',      cls:''},
+  {id:'sintomas', icon:ICO.sintomas, label:'Sintomas',  cls:''},
   {id:'sos',      icon:ICO.sos,      label:'SOS',       cls:'sos-btn'},
   {id:'settings', icon:ICO.settings, label:'Config',    cls:''},
 ];
-const TITLES={home:'Recarregue',register:'Registrar',mapa:'Mapa de Energia',sos:'SOS',settings:'Configurações'};
-const CONTENT={home:homeHTML,register:registerHTML,mapa:mapaHTML,sos:sosHTML,settings:settingsHTML};
+const TITLES={home:'Recarregue',register:'Registrar',mapa:'Mapa de Energia',sintomas:'Sintomas',sos:'SOS',settings:'Configurações'};
+const CONTENT={home:homeHTML,register:registerHTML,mapa:mapaHTML,sintomas:renderSintomas,sos:sosHTML,settings:settingsHTML};
 
 function catInfoHTML(){
   const c=cat(catInfoId);
@@ -3004,12 +3225,15 @@ function render(){
       <span class="hdr-title">${TITLES[screen]}</span>
       <div style="display:flex;align-items:center;gap:8px"><span class="beta-badge">beta</span><img src="icon.png" class="hdr-icon" style="width:28px;height:28px;border-radius:7px;object-fit:cover"></div>
     </div>
-    <div id="update-banner" class="update-banner" style="display:none;margin:12px 16px 0">
+    <div id="update-banner" class="update-banner" style="display:none;margin:12px 16px 0;flex-direction:column;gap:10px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Nova versão disponível</strong>
-        Seus dados estão seguros. Faça um backup e recarregue a página para atualizar.
+        <strong>✨ Versão 1.3.0 disponível!</strong>
+        Antes de atualizar, faça um backup dos seus dados em Configurações para não perder nada.
       </div>
-      <button class="update-banner-btn" onclick="backupToCloud().then(()=>{dismissUpdate();setTimeout(()=>location.reload(),400);})">Backup e atualizar</button>
+      <div style="display:flex;gap:8px">
+        <button class="update-banner-btn" style="flex:1;background:rgba(255,255,255,.1);color:var(--text);border:1px solid rgba(255,255,255,.15)" onclick="go('settings')">📦 Fazer backup</button>
+        <button class="update-banner-btn" style="flex:1" onclick="dismissUpdate();setTimeout(()=>location.reload(),400)">Atualizar agora</button>
+      </div>
     </div>
     <div class="main" id="main">${CONTENT[screen]()}</div>
     <nav class="bnav">
@@ -3021,7 +3245,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
