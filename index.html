@@ -2066,25 +2066,25 @@ function removeSintomaCustom(id){
 
 function addSintomaSheetHTML(){
   const gc=SINTOMAS_CATS.find(c=>c.id===addSintomaSheet.cat)||SINTOMAS_CATS[0];
-  return`<div class="overlay" onclick="closeAddSintoma()" style="display:flex;align-items:flex-end">
-    <div class="sheet" onclick="event.stopPropagation()" style="padding:20px 20px 32px;border-radius:24px 24px 0 0">
+  return`<div class="backdrop" onclick="if(event.target===this)closeAddSintoma()">
+    <div class="sheet">
+      <div class="sh-handle"></div>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
         <div style="width:4px;height:18px;border-radius:2px;background:${gc.color}"></div>
-        <span style="font-size:13px;font-weight:700;color:${gc.color}">Novo sintoma — ${gc.label}</span>
+        <span style="font-size:14px;font-weight:700;color:${gc.color}">Novo sintoma — ${gc.label}</span>
       </div>
       <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.5">Adicione um sintoma que você vive e não está na lista padrão.</p>
-      <div style="margin-bottom:12px">
+      <div style="margin-bottom:14px">
         <div style="font-size:11px;color:var(--muted);margin-bottom:6px;letter-spacing:.4px">EMOJI (opcional)</div>
-        <input type="text" maxlength="2" placeholder="Ex: 🌀" value="${addSintomaForm.icon}"
+        <input type="text" maxlength="2" placeholder="🌀" value="${addSintomaForm.icon}"
           oninput="addSintomaForm.icon=this.value"
           style="width:64px;padding:10px;background:var(--card2);border:1px solid var(--border);border-radius:10px;font-size:22px;color:var(--text);font-family:inherit;outline:none;text-align:center">
       </div>
-      <div style="margin-bottom:20px">
+      <div style="margin-bottom:22px">
         <div style="font-size:11px;color:var(--muted);margin-bottom:6px;letter-spacing:.4px">NOME DO SINTOMA</div>
-        <input type="text" maxlength="30" placeholder="Ex: Dor nas articulações" value="${addSintomaForm.label}"
-          oninput="addSintomaForm.label=this.value"
-          style="width:100%;padding:12px 14px;background:var(--card2);border:1px solid var(--border);border-radius:12px;font-size:15px;color:var(--text);font-family:inherit;outline:none;box-sizing:border-box"
-          oninput="addSintomaForm.label=this.value;this.style.borderColor='var(--accent)'">
+        <input id="add-sintoma-input" type="text" maxlength="30" placeholder="Ex: Dor nas articulações" value="${addSintomaForm.label}"
+          oninput="addSintomaForm.label=this.value;this.style.borderColor='var(--accent)'"
+          style="width:100%;padding:12px 14px;background:var(--card2);border:1px solid var(--border);border-radius:12px;font-size:15px;color:var(--text);font-family:inherit;outline:none;box-sizing:border-box">
       </div>
       <button class="btn btn-p" onclick="saveAddSintoma()" style="margin:0">Adicionar sintoma</button>
       <button class="btn btn-sec" onclick="closeAddSintoma()" style="margin-top:10px">Cancelar</button>
