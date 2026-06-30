@@ -1074,7 +1074,8 @@ function toggleHardDay(){
   if(!db.hardDays) db.hardDays=[];
   const today=todayStr();
   const idx=db.hardDays.indexOf(today);
-  if(idx>=0) db.hardDays.splice(idx,1); else db.hardDays.push(today);
+  if(idx>=0) db.hardDays.splice(idx,1);
+  else{ db.hardDays.push(today); trackEvent('hard_day_activated'); }
   save(); document.getElementById('main').innerHTML=homeHTML();
 }
 function toggleFavorite(id){
@@ -2244,9 +2245,11 @@ function toggleSintoma(sintomaId, intensidade){
   const idx=db.sintomas.registros.findIndex(r=>r.date===today&&r.sintomaId===sintomaId);
   if(idx>=0){
     if(db.sintomas.registros[idx].intensidade===intensidade) db.sintomas.registros.splice(idx,1);
-    else db.sintomas.registros[idx].intensidade=intensidade;
+    else{ db.sintomas.registros[idx].intensidade=intensidade; }
   } else {
     db.sintomas.registros.push({id:uid(),date:today,createdAt:new Date().toISOString(),sintomaId,intensidade});
+    const s=(db.sintomas.lista||SINTOMAS_DEFAULT).find(x=>x.id===sintomaId);
+    trackEvent('sintoma_registrado',{sintomaId,cat:s?.cat||'unknown',intensidade});
   }
   save();
   document.getElementById('main').innerHTML=renderSintomas();
@@ -3506,7 +3509,7 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:none;margin:12px 16px 0;flex-direction:column;gap:10px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 1.6.0 disponível!</strong>
+        <strong>✨ Versão 1.7.0 disponível!</strong>
         Antes de atualizar, faça um backup dos seus dados em Configurações para não perder nada.
       </div>
       <div style="display:flex;gap:8px">
@@ -3524,7 +3527,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
