@@ -2134,7 +2134,7 @@ function renderSintomas(){
 
       const histHTML=last7.map(d=>{
         const r=(db.sintomas?.registros||[]).find(r=>r.date===d&&r.sintomaId===s.id);
-        if(!r)return`<div style="width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.08)"></div>`;
+        if(!r)return`<div style="width:5px;height:5px;border-radius:50%;background:var(--border)"></div>`;
         const sz=r.intensidade===3?10:r.intensidade===2?8:6;
         const op=r.intensidade===3?1:r.intensidade===2?.7:.45;
         return`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${gc.color};opacity:${op};flex-shrink:0"></div>`;
@@ -2142,7 +2142,7 @@ function renderSintomas(){
 
       const circles=[1,2,3].map(n=>{
         const active=curInt>=n;
-        return`<button onclick="toggleSintoma('${s.id}',${n})" style="width:28px;height:28px;border-radius:50%;border:2px solid ${active?gc.color:'rgba(255,255,255,.18)'};background:${active?gc.color:'transparent'};cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;font-size:12px;color:${active?'#fff':'rgba(255,255,255,.3)'}">${active?'●':'○'}</button>`;
+        return`<button onclick="toggleSintoma('${s.id}',${n})" style="width:28px;height:28px;border-radius:50%;border:2px solid ${active?gc.color:'var(--border)'};background:${active?gc.color:'transparent'};cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;font-size:12px;color:${active?'#fff':'var(--muted)'}">${active?'●':'○'}</button>`;
       }).join('');
 
       const isCustom=s.custom===true;
