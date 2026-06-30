@@ -1418,6 +1418,46 @@ function getRestoreCode(){
   return code;
 }
 
+function exportPDF(){
+  const report=buildReportText();
+  const name=db.settings.name||'Usuária';
+  const date=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  // top sintomas 7 dias
+  const d7=new Date();d7.setDate(d7.getDate()-7);
+  const sinFreq={};
+  (db.sintomas?.registros||[]).filter(r=>new Date(r.date)>=d7).forEach(r=>{sinFreq[r.sintomaId]=(sinFreq[r.sintomaId]||0)+1;});
+  const lista=db.sintomas?.lista||SINTOMAS_DEFAULT;
+  const topSin=Object.entries(sinFreq).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([id,c])=>{
+    const s=lista.find(x=>x.id===id);const gc=s?SINTOMAS_CATS.find(x=>x.id===s.cat):null;
+    return s?`<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:99px;background:#f3f0ff;margin:3px;font-size:12px">${s.icon} ${s.label} <strong style="color:#7C3AED">${c}×</strong></span>`:'';
+  }).join('');
+
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório Recarregue — ${name}</title>
+  <style>
+    body{font-family:system-ui,sans-serif;color:#1a1030;max-width:700px;margin:40px auto;padding:0 24px;line-height:1.6}
+    h1{color:#7C3AED;margin-bottom:4px}
+    .sub{color:#6b5fa0;font-size:14px;margin-bottom:32px}
+    h2{color:#7C3AED;font-size:15px;border-bottom:2px solid #e8e0ff;padding-bottom:6px;margin-top:28px}
+    pre{background:#f8f6ff;padding:16px;border-radius:8px;white-space:pre-wrap;font-size:12px;color:#3d2c6b;border:1px solid #e0d9ff}
+    .chips{margin:8px 0}
+    footer{margin-top:40px;font-size:11px;color:#9e93c0;border-top:1px solid #e8e0ff;padding-top:12px}
+    @media print{body{margin:0}}
+  </style></head><body>
+  <h1>Relatório de Autoconhecimento</h1>
+  <div class="sub">📱 Recarregue · ${name} · ${date}</div>
+  ${topSin?`<h2>🩺 Sintomas mais frequentes (7 dias)</h2><div class="chips">${topSin}</div>`:''}
+  <h2>📄 Relatório completo</h2>
+  <pre>${report}</pre>
+  <footer>Gerado pelo app Recarregue · recarregue.pages.dev · Este relatório é de uso pessoal e pode ser compartilhado com profissionais de saúde.</footer>
+  </body></html>`;
+
+  const w=window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>w.print(),400);
+}
+
 function exportJSON(){
   const data = JSON.stringify({...db, exportedAt: new Date().toISOString()}, null, 2);
   const blob = new Blob([data], {type:'application/json'});
@@ -1507,6 +1547,13 @@ async function requestNotifPermission(){
   else toast('Permissão negada. Ative nas configurações do celular.');
   document.getElementById('main').innerHTML=settingsHTML();
 }
+function setSilentMode(hours){
+  silentUntil=hours===0?0:Date.now()+hours*60*60*1000;
+  go('sos');
+  if(hours>0)toast(`🔕 Notificações silenciadas por ${hours}h`);
+  else toast('🔔 Notificações reativadas');
+}
+
 function scheduleNotifs(){
   if(typeof Notification==='undefined'||Notification.permission!=='granted')return;
   const now=new Date();
@@ -1516,7 +1563,7 @@ function scheduleNotifs(){
     const delay=fire-now;
     if(delay>0&&delay<18*60*60*1000){
       setTimeout(()=>{
-        if(!periodCheckin(pid)&&Notification.permission==='granted')
+        if(!periodCheckin(pid)&&Notification.permission==='granted'&&Date.now()>silentUntil)
           new Notification('Recarregue',{body:`Como está sua energia nessa ${pd.label.toLowerCase()}?`,icon:'./icon.png',tag:`checkin-${pid}`});
       },delay);
     }
@@ -2076,9 +2123,60 @@ function registerHTML(){
 // ── SINTOMAS ──────────────────────────────────────────────────────────────────
 
 let addSintomaSheet = null; // {cat: 'fisico'|'emocional'|'cognitivo'}
+let sintomaEvolSheet = null; // {sintomaId: string} — gráfico de evolução
+let silentUntil = 0; // timestamp — notificações silenciadas até essa hora
 let mapaRange = 30; // dias visíveis no Mapa (7 | 14 | 30)
 function setMapaRange(n){mapaRange=n;go('mapa');}
 let addSintomaForm = {label:'', icon:''};
+
+function openSintomaEvol(sintomaId){sintomaEvolSheet={sintomaId};renderOverlays();}
+function closeSintomaEvol(){sintomaEvolSheet=null;renderOverlays();}
+
+function sintomaEvolSheetHTML(){
+  if(!sintomaEvolSheet)return'';
+  const lista=db.sintomas?.lista||SINTOMAS_DEFAULT;
+  const s=lista.find(x=>x.id===sintomaEvolSheet.sintomaId);if(!s)return'';
+  const gc=SINTOMAS_CATS.find(c=>c.id===s.cat);
+  const days=[],vals=[];
+  for(let i=29;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const ds=d.toISOString().slice(0,10);days.push(d.toLocaleDateString('pt-BR',{day:'numeric',month:'short'}));const r=(db.sintomas?.registros||[]).find(r=>r.date===ds&&r.sintomaId===s.id);vals.push(r?.intensidade||0);}
+  const hasData=vals.some(v=>v>0);
+  return`<div class="backdrop" onclick="if(event.target===this)closeSintomaEvol()">
+    <div class="sheet">
+      <div class="sh-handle"></div>
+      <div style="padding:16px 20px 8px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <span style="font-size:26px">${s.icon}</span>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:var(--text)">${s.label}</div>
+            <div style="font-size:11px;color:${gc.color};font-weight:600">${gc.label} · últimos 30 dias</div>
+          </div>
+        </div>
+        ${hasData
+          ?`<div style="height:180px;margin-top:12px"><canvas id="evolC"></canvas></div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px">
+              <span style="font-size:10px;color:var(--muted)">30 dias atrás</span>
+              <span style="font-size:10px;color:var(--muted)">hoje</span>
+            </div>`
+          :`<div style="text-align:center;padding:32px 0;color:var(--muted);font-size:13px">Nenhum registro nos últimos 30 dias</div>`}
+        <button class="btn btn-sec" onclick="closeSintomaEvol()" style="margin-top:16px">Fechar</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function initEvolChart(){
+  if(!sintomaEvolSheet||typeof Chart==='undefined')return;
+  const lista=db.sintomas?.lista||SINTOMAS_DEFAULT;
+  const s=lista.find(x=>x.id===sintomaEvolSheet.sintomaId);if(!s)return;
+  const gc=SINTOMAS_CATS.find(c=>c.id===s.cat);
+  const days=[],vals=[];
+  for(let i=29;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const ds=d.toISOString().slice(0,10);days.push(d.toLocaleDateString('pt-BR',{day:'numeric',month:'short'}));const r=(db.sintomas?.registros||[]).find(r=>r.date===ds&&r.sintomaId===s.id);vals.push(r?.intensidade||0);}
+  if(!vals.some(v=>v>0))return;
+  requestAnimationFrame(()=>{
+    const cv=document.getElementById('evolC');if(!cv)return;
+    new Chart(cv,{type:'line',data:{labels:days,datasets:[{data:vals,borderColor:gc.color,backgroundColor:gc.color+'22',tension:.35,pointRadius:vals.map(v=>v>0?4:0),pointBackgroundColor:gc.color,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:3,ticks:{stepSize:1,color:CD.tickColor,font:{size:10},callback:v=>v===0?'—':v===1?'Leve':v===2?'Médio':'Forte'},grid:{color:CD.gridColor}},x:{ticks:{color:CD.tickColor,font:{size:9},maxTicksLimit:6,maxRotation:0},grid:{display:false}}}}});
+  });
+}
 
 function openAddSintoma(catId){
   addSintomaSheet={cat:catId};
@@ -2191,11 +2289,11 @@ function renderSintomas(){
 
       const isCustom=s.custom===true;
       return`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05)">
-        <div style="font-size:20px;width:26px;text-align:center;flex-shrink:0">${s.icon}</div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+        <div onclick="openSintomaEvol('${s.id}')" style="font-size:20px;width:26px;text-align:center;flex-shrink:0;cursor:pointer">${s.icon}</div>
+        <div style="flex:1;min-width:0" onclick="openSintomaEvol('${s.id}')" style="cursor:pointer">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;cursor:pointer">
             <span style="font-size:13px;font-weight:600;color:var(--text)">${s.label}</span>
-            ${isCustom?`<button onclick="removeSintomaCustom('${s.id}')" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--muted);opacity:.6;padding:0;line-height:1" title="Remover">🗑️</button>`:''}
+            ${isCustom?`<button onclick="event.stopPropagation();removeSintomaCustom('${s.id}')" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--muted);opacity:.6;padding:0;line-height:1" title="Remover">🗑️</button>`:''}
           </div>
           <div style="display:flex;gap:3px;align-items:center">${histHTML}</div>
         </div>
@@ -2439,6 +2537,21 @@ function sosHTML(){
       </div>
       <div class="sos-banner-sub">Ferramentas de regulação — escolha o que precisar agora</div>
     </div>
+
+    ${(()=>{
+      const active=Date.now()<silentUntil;
+      const rem=active?Math.ceil((silentUntil-Date.now())/60000):'';
+      return`<div style="margin-bottom:8px;padding:12px 16px;border-radius:12px;background:${active?'rgba(139,92,246,.12)':'var(--card)'};border:1px solid ${active?'rgba(139,92,246,.3)':'var(--border)'}">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.4px;margin-bottom:8px">🔕 MODO SILENCIOSO</div>
+        ${active
+          ?`<div style="font-size:13px;color:var(--accent-lt);margin-bottom:10px">Notificações pausadas · ainda ${rem} min</div>
+            <button onclick="setSilentMode(0)" style="padding:7px 16px;border-radius:8px;border:1px solid rgba(139,92,246,.4);background:transparent;color:var(--accent-lt);font-size:12px;cursor:pointer;font-family:inherit">Reativar agora</button>`
+          :`<div style="font-size:12px;color:var(--text2);margin-bottom:8px">Pausa temporária nas notificações:</div>
+            <div style="display:flex;gap:6px">
+              ${[1,2,4].map(h=>`<button onclick="setSilentMode(${h})" style="flex:1;padding:8px 0;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer;font-family:inherit">${h}h</button>`).join('')}
+            </div>`}
+      </div>`;
+    })()}
 
     <div class="sos-module">
       <div class="sos-module-hdr" onclick="toggleModule('crise')">
@@ -2701,10 +2814,11 @@ function settingsHTML(){
       ${(()=>{const d=backupAgeDays();const lbl=d===null?'Nunca':d===0?'Hoje':d===1?'Ontem':`Há ${d} dias`;return `<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Último backup na nuvem: <strong style="color:${d===null||d>=30?'var(--amber)':'var(--green)'}">${lbl}</strong></div>`})()}
       <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px">Seus dados ficam só no seu aparelho — não compartilhamos, não lemos, não vendemos nada. O backup existe pra <strong style="color:var(--text)">você não perder seu histórico de autoconhecimento</strong>. É pra você, não pra nós.</p>
 
-      <div style="display:flex;gap:8px;margin-bottom:16px">
+      <div style="display:flex;gap:8px;margin-bottom:10px">
         <button class="btn btn-p" style="flex:1;padding:11px;font-size:13px" onclick="exportJSON()">⬇️ Exportar backup</button>
         <button class="btn" style="flex:1;padding:11px;font-size:13px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:12px" onclick="importJSON()">⬆️ Importar backup</button>
       </div>
+      <button class="btn" style="width:100%;padding:11px;font-size:13px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:12px;margin-bottom:16px" onclick="exportPDF()">📄 Exportar relatório PDF</button>
 
       <div class="backup-divider">ou use seu código de restauração</div>
 
@@ -3378,7 +3492,8 @@ function renderOverlays(){
   else if(triggerSheetState) el.innerHTML=triggerSheetHTML();
   else if(sheetState)      el.innerHTML=categorySheetHTML();
   else if(showReport)      el.innerHTML=reportSheetHTML();
-  else if(addSintomaSheet) el.innerHTML=addSintomaSheetHTML();
+  else if(addSintomaSheet)  el.innerHTML=addSintomaSheetHTML();
+  else if(sintomaEvolSheet){el.innerHTML=sintomaEvolSheetHTML();initEvolChart();}
   else el.innerHTML='';
 }
 
@@ -3391,7 +3506,7 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:none;margin:12px 16px 0;flex-direction:column;gap:10px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 1.5.0 disponível!</strong>
+        <strong>✨ Versão 1.6.0 disponível!</strong>
         Antes de atualizar, faça um backup dos seus dados em Configurações para não perder nada.
       </div>
       <div style="display:flex;gap:8px">
@@ -3409,7 +3524,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
