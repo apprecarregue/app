@@ -951,7 +951,7 @@ function onboardBack(){
   if(onboardingStep > 1){ onboardingStep--; renderOverlays(); }
 }
 function onboardNext(){
-  if(onboardingStep < 8){ onboardingStep++; renderOverlays(); }
+  if(onboardingStep < 9){ onboardingStep++; renderOverlays(); }
   else {
     const inp=document.getElementById('onboard-name');
     if(inp&&inp.value.trim()){ db.settings.name=inp.value.trim(); save(); }
@@ -2937,7 +2937,25 @@ function onboardingHTML(){
       </div>
       <p style="font-size:13px;color:var(--muted)">Nos dias muito pesados, existe o <strong>modo expresso</strong>: salva só o número, sem precisar preencher o resto.</p>
     `, btn:'Continuar →', extraBtn:null},
-    // 6 — notificações (novo)
+    // 6 — instalação iOS/Android
+    {icon:'📱', title:'Funciona no seu celular', sub:'iPhone, Android — em qualquer um.', body:`
+      <p>O Recarregue é um <strong>app web</strong> — roda direto no navegador, sem precisar de App Store ou Play Store.</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Para instalar na tela inicial e ter a experiência completa (sem barra do navegador):</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="padding:12px 14px;border-radius:12px;background:var(--card2);border:1px solid var(--border)">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">🍎 iPhone (Safari)</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.6">Toque em <strong style="color:var(--text2)">Compartilhar</strong> (ícone de caixa com seta) → role até <strong style="color:var(--text2)">"Adicionar à Tela de Início"</strong> → confirme</div>
+        </div>
+        <div style="padding:12px 14px;border-radius:12px;background:var(--card2);border:1px solid var(--border)">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">🤖 Android (Chrome)</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.6">Toque nos <strong style="color:var(--text2)">3 pontos</strong> no canto superior → <strong style="color:var(--text2)">"Instalar aplicativo"</strong> ou <strong style="color:var(--text2)">"Adicionar à tela inicial"</strong></div>
+        </div>
+      </div>
+      <div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(139,92,246,.08);font-size:12px;color:var(--muted);line-height:1.5">
+        💡 Seus dados ficam salvos no aparelho mesmo sem instalar. A instalação só melhora a experiência visual e ativa notificações.
+      </div>
+    `, btn:'Entendi →', extraBtn:null},
+    // 7 — notificações (novo)
     {icon:'🔔', title:'Lembretes de check-in', sub:'Para não esquecer de se checar.', body:`
       <p>O app pode te lembrar de fazer o check-in nos melhores momentos do dia:</p>
       <div style="display:flex;gap:10px;justify-content:center;margin:16px 0">
@@ -2945,7 +2963,7 @@ function onboardingHTML(){
         <div style="text-align:center;padding:10px 14px;border-radius:10px;background:var(--card2)"><div style="font-size:18px">☀️</div><div style="font-size:12px;color:var(--muted);margin-top:4px">13h</div></div>
         <div style="text-align:center;padding:10px 14px;border-radius:10px;background:var(--card2)"><div style="font-size:18px">🌙</div><div style="font-size:12px;color:var(--muted);margin-top:4px">20h</div></div>
       </div>
-      <p style="font-size:12px;color:var(--muted);text-align:center">Funciona quando o app está instalado na tela inicial. Você pode ativar ou desativar depois em Configurações.</p>
+      <p style="font-size:12px;color:var(--muted);text-align:center">Requer o app instalado na tela inicial. No iPhone, funciona a partir do iOS 16.4. Você pode ativar ou desativar depois em Configurações.</p>
     `, btn: notifSupported ? '🔔 Ativar notificações' : 'Continuar →',
        extraBtn: notifSupported ? {label:'Agora não →', fn:'onboardNext()'} : null,
        notifStep: true},
@@ -2969,7 +2987,7 @@ function onboardingHTML(){
   ];
 
   const s=steps[onboardingStep-1];
-  const dots=[1,2,3,4,5,6,7,8].map(i=>`<span style="width:7px;height:7px;border-radius:50%;background:${i===onboardingStep?'var(--accent)':'var(--border)'};display:inline-block;margin:0 2px;transition:background .2s"></span>`).join('');
+  const dots=[1,2,3,4,5,6,7,8,9].map(i=>`<span style="width:7px;height:7px;border-radius:50%;background:${i===onboardingStep?'var(--accent)':'var(--border)'};display:inline-block;margin:0 2px;transition:background .2s"></span>`).join('');
 
   const mainBtn = s.notifStep && notifSupported
     ? `<button class="btn btn-p" onclick="onboardRequestNotif()">${s.btn}</button>`
@@ -3509,7 +3527,7 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:none;margin:12px 16px 0;flex-direction:column;gap:10px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 1.7.0 disponível!</strong>
+        <strong>✨ Versão 1.8.0 disponível!</strong>
         Antes de atualizar, faça um backup dos seus dados em Configurações para não perder nada.
       </div>
       <div style="display:flex;gap:8px">
@@ -3527,7 +3545,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.8.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
