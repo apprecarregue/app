@@ -2246,7 +2246,7 @@ function registerHTML(){
     const meta=TYPES[type];
     return `<div class="type-hdr" style="color:${meta.color}">${meta.label}</div>
     <div class="cat-grid">
-      ${CATS.filter(c=>c.type===type).map(c=>`
+      ${CATS.filter(c=>c.type===type && !favIds.includes(c.id)).map(c=>`
         <button class="cat-btn" onclick="openSheet('${c.id}')">
           <span class="ci-icon">${c.icon}</span>
           <span class="cl">${c.label}</span>
