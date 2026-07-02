@@ -956,7 +956,11 @@ function onboardNext(){
     const inp=document.getElementById('onboard-name');
     if(inp&&inp.value.trim()){ db.settings.name=inp.value.trim(); save(); }
     localStorage.setItem(ONBOARDED_KEY,'1'); onboardingStep=0; renderOverlays();
-    trackEvent('onboarding_completed');
+    // Só dispara onboarding_completed uma vez por dispositivo
+    if(!localStorage.getItem('recarregue_onboarding_tracked')){
+      localStorage.setItem('recarregue_onboarding_tracked','1');
+      trackEvent('onboarding_completed');
+    }
     if(shouldShowCheckin())setTimeout(openCheckin,500);
   }
 }
@@ -1021,7 +1025,7 @@ function applyTheme(){
 function load() {
   try {
     const r=localStorage.getItem(KEY);
-    if(r){const p=JSON.parse(r);db.entries=p.entries||[];db.checkins=p.checkins||[];db.settings={...db.settings,...p.settings};if(p.sintomas)db.sintomas=p.sintomas;return;}
+    if(r){const p=JSON.parse(r);db.entries=p.entries||[];db.checkins=p.checkins||[];db.settings={...db.settings,...p.settings};if(p.sintomas)db.sintomas=p.sintomas;if(p.hardDays)db.hardDays=p.hardDays;return;}
     const r1=localStorage.getItem('energia_v1');
     if(r1){const p=JSON.parse(r1);db.entries=p.entries||[];db.settings={...db.settings,...p.settings};}
   } catch(_){}
@@ -1402,7 +1406,7 @@ function getDeviceId(){
   return id;
 }
 async function trackEvent(name,meta={}){
-  if(!SUPABASE_URL)return;
+  if(!SUPABASE_URL||PREVIEW_MODE)return;
   try{
     fetch(`${SUPABASE_URL}/rest/v1/events`,{
       method:'POST',
@@ -1423,40 +1427,112 @@ function exportPDF(){
   const report=buildReportText();
   const name=db.settings.name||'Usuária';
   const date=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-
-  // top sintomas 7 dias
   const d7=new Date();d7.setDate(d7.getDate()-7);
+
+  // Insights HTML
+  const insightsHTML=buildInsights().map(i=>`<div class="insight-item">${i}</div>`).join('');
+
+  // Top drenos
+  const byId={};
+  db.entries.filter(e=>new Date(e.date)>=d7&&e.categoryId!=='_custom_trigger').forEach(e=>{
+    const c=cat(e.categoryId);if(c&&c.type!=='recuperacao'){
+      if(!byId[e.categoryId])byId[e.categoryId]={count:0,pts:0};
+      byId[e.categoryId].count++;byId[e.categoryId].pts+=Math.abs(entryCost(e));
+    }
+  });
+  const topDrains=Object.entries(byId).filter(([id])=>cat(id)).sort((a,b)=>b[1].pts-a[1].pts).slice(0,5);
+
+  // Energia por período
+  const recentCi=db.checkins.filter(c=>new Date(c.date)>=d7);
+  const enByPeriod={manha:[],tarde:[],noite:[]};
+  recentCi.forEach(c=>{if(enByPeriod[c.period])enByPeriod[c.period].push(c.energy);});
+  const periodRows=['manha','tarde','noite'].filter(p=>enByPeriod[p].length>0).map(p=>{
+    const avg=(enByPeriod[p].reduce((s,v)=>s+v,0)/enByPeriod[p].length).toFixed(1);
+    const pct=Math.round(+avg*10);
+    return `<tr><td>${PERIODS[p].icon} ${PERIODS[p].label}</td><td><div class="bar-wrap"><div class="bar-fill" style="width:${pct}%"></div></div></td><td><strong>${avg}/10</strong></td></tr>`;
+  }).join('');
+
+  // Energia por dia da semana
+  const dow=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const enByDow={};
+  recentCi.forEach(c=>{const d=dow[new Date(c.date+'T12:00').getDay()];if(!enByDow[d])enByDow[d]=[];enByDow[d].push(c.energy);});
+  const dowRows=Object.entries(enByDow).map(([d,arr])=>{
+    const avg=(arr.reduce((s,v)=>s+v,0)/arr.length).toFixed(1);
+    const pct=Math.round(+avg*10);
+    return `<tr><td>${d}</td><td><div class="bar-wrap"><div class="bar-fill" style="width:${pct}%"></div></div></td><td><strong>${avg}/10</strong></td></tr>`;
+  }).sort((a,b)=>0).join('');
+
+  // Top sintomas
   const sinFreq={};
   (db.sintomas?.registros||[]).filter(r=>new Date(r.date)>=d7).forEach(r=>{sinFreq[r.sintomaId]=(sinFreq[r.sintomaId]||0)+1;});
   const lista=db.sintomas?.lista||SINTOMAS_DEFAULT;
-  const topSin=Object.entries(sinFreq).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([id,c])=>{
-    const s=lista.find(x=>x.id===id);const gc=s?SINTOMAS_CATS.find(x=>x.id===s.cat):null;
-    return s?`<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:99px;background:#f3f0ff;margin:3px;font-size:12px">${s.icon} ${s.label} <strong style="color:#7C3AED">${c}×</strong></span>`:'';
+  const topSinHTML=Object.entries(sinFreq).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([id,c])=>{
+    const s=lista.find(x=>x.id===id);
+    return s?`<span class="chip">${s.icon} ${s.label} <strong>${c}×</strong></span>`:'';
   }).join('');
+
+  // Dias difíceis
+  const hardThisWeek=(db.hardDays||[]).filter(d=>new Date(d)>=d7);
+  const hardHTML=hardThisWeek.length>0
+    ?`<p class="hard-days">🔴 Dias difíceis marcados: <strong>${hardThisWeek.map(d=>new Date(d+'T12:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})).join(' · ')}</strong></p>`
+    :'<p style="color:#6b5fa0;font-size:13px">Nenhum dia difícil marcado nessa semana 💚</p>';
 
   const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório Recarregue — ${name}</title>
   <style>
-    body{font-family:system-ui,sans-serif;color:#1a1030;max-width:700px;margin:40px auto;padding:0 24px;line-height:1.6}
-    h1{color:#7C3AED;margin-bottom:4px}
-    .sub{color:#6b5fa0;font-size:14px;margin-bottom:32px}
-    h2{color:#7C3AED;font-size:15px;border-bottom:2px solid #e8e0ff;padding-bottom:6px;margin-top:28px}
-    pre{background:#f8f6ff;padding:16px;border-radius:8px;white-space:pre-wrap;font-size:12px;color:#3d2c6b;border:1px solid #e0d9ff}
-    .chips{margin:8px 0}
-    footer{margin-top:40px;font-size:11px;color:#9e93c0;border-top:1px solid #e8e0ff;padding-top:12px}
-    @media print{body{margin:0}}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;color:#1a1030;max-width:720px;margin:40px auto;padding:0 24px;line-height:1.6;font-size:14px}
+    h1{color:#7C3AED;margin-bottom:2px;font-size:22px}
+    .sub{color:#6b5fa0;font-size:13px;margin-bottom:28px}
+    h2{color:#7C3AED;font-size:14px;font-weight:700;border-bottom:2px solid #e8e0ff;padding-bottom:5px;margin-top:28px;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+    table{width:100%;border-collapse:collapse;margin-bottom:4px}
+    td{padding:5px 8px;font-size:13px}
+    .bar-wrap{background:#f0ebff;border-radius:99px;height:8px;width:120px;overflow:hidden}
+    .bar-fill{background:#7C3AED;height:100%;border-radius:99px}
+    .drain-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f0ebff;font-size:13px}
+    .drain-pts{margin-left:auto;font-size:12px;color:#7C3AED;font-weight:700}
+    .chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:99px;background:#f3f0ff;margin:3px;font-size:12px;color:#3d2c6b}
+    .chip strong{color:#7C3AED}
+    .insight-item{font-size:13px;color:#3d2c6b;padding:6px 10px;border-left:3px solid #7C3AED;margin-bottom:6px;background:#f8f6ff;border-radius:0 6px 6px 0}
+    .hard-days{font-size:13px;color:#b45309;background:#fef9ec;padding:8px 12px;border-radius:8px;border:1px solid #fde68a}
+    .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px}
+    .kpi{background:#f8f6ff;border-radius:10px;padding:10px 12px;text-align:center}
+    .kpi-val{font-size:20px;font-weight:700;color:#7C3AED}
+    .kpi-lbl{font-size:11px;color:#6b5fa0;margin-top:2px}
+    footer{margin-top:40px;font-size:11px;color:#9e93c0;border-top:1px solid #e8e0ff;padding-top:12px;text-align:center}
+    @media print{body{margin:0}h2{break-after:avoid}}
   </style></head><body>
   <h1>Relatório de Autoconhecimento</h1>
   <div class="sub">📱 Recarregue · ${name} · ${date}</div>
-  ${topSin?`<h2>🩺 Sintomas mais frequentes (7 dias)</h2><div class="chips">${topSin}</div>`:''}
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-val">${recentCi.length>0?(recentCi.reduce((s,c)=>s+c.energy,0)/recentCi.length).toFixed(1):'—'}</div><div class="kpi-lbl">Energia média /10</div></div>
+    <div class="kpi"><div class="kpi-val">${db.entries.filter(e=>new Date(e.date)>=d7).length}</div><div class="kpi-lbl">Eventos registrados</div></div>
+    <div class="kpi"><div class="kpi-val">${hardThisWeek.length}</div><div class="kpi-lbl">Dias difíceis</div></div>
+  </div>
+
+  ${insightsHTML?`<h2>💡 Insights</h2>${insightsHTML}`:''}
+
+  ${topDrains.length>0?`<h2>⚡ Principais drenos</h2>${topDrains.map(([id,d])=>{const c=cat(id);return `<div class="drain-row">${c.icon} ${c.label} <span style="color:#6b5fa0;font-size:12px">${d.count}×</span><span class="drain-pts">${d.pts.toFixed(1)} pts</span></div>`;}).join('')}`:''}
+
+  ${periodRows?`<h2>🕐 Energia por período</h2><table>${periodRows}</table>`:''}
+
+  ${dowRows?`<h2>📅 Energia por dia da semana</h2><table>${dowRows}</table>`:''}
+
+  <h2>🔴 Dias difíceis</h2>${hardHTML}
+
+  ${topSinHTML?`<h2>🩺 Sintomas da semana</h2><div>${topSinHTML}</div>`:''}
+
   <h2>📄 Relatório completo</h2>
-  <pre>${report}</pre>
-  <footer>Gerado pelo app Recarregue · recarregue.pages.dev · Este relatório é de uso pessoal e pode ser compartilhado com profissionais de saúde.</footer>
+  <pre style="background:#f8f6ff;padding:16px;border-radius:8px;white-space:pre-wrap;font-size:11px;color:#3d2c6b;border:1px solid #e0d9ff">${report}</pre>
+
+  <footer>Gerado pelo app Recarregue · Este relatório é de uso pessoal e pode ser compartilhado com profissionais de saúde.</footer>
   </body></html>`;
 
   const w=window.open('','_blank');
+  if(!w){toast('Permita popups para gerar o PDF.');return;}
   w.document.write(html);
   w.document.close();
-  setTimeout(()=>w.print(),400);
+  setTimeout(()=>w.print(),500);
 }
 
 function exportJSON(){
@@ -1608,6 +1684,11 @@ function buildReportText(){
   const recent=db.entries.filter(e=>new Date(e.date)>=d7);
   const recentCi=db.checkins.filter(c=>new Date(c.date)>=d7);
   const days=new Set(recent.map(e=>e.date)).size;
+  const name=db.settings.name||'Usuária';
+  const start=d7.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+  const end=today.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+  // Drenos
   const byId={};
   recent.filter(e=>e.categoryId!=='_custom_trigger').forEach(e=>{
     const c=cat(e.categoryId);if(c&&c.type!=='recuperacao'){
@@ -1616,22 +1697,104 @@ function buildReportText(){
     }
   });
   const top=Object.entries(byId).filter(([id])=>cat(id)).sort((a,b)=>b[1].pts-a[1].pts).slice(0,5);
+
+  // Recuperações
   const recov=recent.filter(e=>cat(e.categoryId)?.type==='recuperacao');
   const byRec={};recov.forEach(e=>{const c=cat(e.categoryId);byRec[c.id]=(byRec[c.id]||0)+1;});
   const topRec=Object.entries(byRec).sort((a,b)=>b[1]-a[1]).slice(0,3);
+
+  // Energia e bateria social
   const avgEn=recentCi.length>0?(recentCi.reduce((s,c)=>s+c.energy,0)/recentCi.length).toFixed(1):'—';
   const avgBat=recentCi.filter(c=>c.socialBattery!=null).length>0
     ?(recentCi.filter(c=>c.socialBattery!=null).reduce((s,c)=>s+(c.socialBattery??0),0)/recentCi.filter(c=>c.socialBattery!=null).length).toFixed(1):'—';
+
+  // Energia por período
+  const enByPeriod={manha:[],tarde:[],noite:[]};
+  recentCi.forEach(c=>{if(enByPeriod[c.period])enByPeriod[c.period].push(c.energy);});
+
+  // Humor
   const humorPer={};
   recentCi.forEach(c=>{if(!humorPer[c.period])humorPer[c.period]={};humorPer[c.period][c.humor]=(humorPer[c.period][c.humor]||0)+1;});
+
+  // Energia por dia da semana
+  const dow=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const enByDow={};
+  recentCi.forEach(c=>{const d=dow[new Date(c.date+'T12:00').getDay()];if(!enByDow[d])enByDow[d]=[];enByDow[d].push(c.energy);});
+  const dowEntries=Object.entries(enByDow).map(([d,arr])=>({d,avg:(arr.reduce((s,v)=>s+v,0)/arr.length).toFixed(1)})).sort((a,b)=>b.avg-a.avg);
+
+  // Dias difíceis
+  const hardThisWeek=(db.hardDays||[]).filter(d=>new Date(d)>=d7);
+
+  // Gatilhos customizados
   const customTriggers=recent.filter(e=>e.categoryId==='_custom_trigger');
-  const start=d7.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
-  const end=today.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+  // Sintomas
+  const recentSinR=(db.sintomas?.registros||[]).filter(e=>new Date(e.date)>=d7);
+  const listaR=db.sintomas?.lista||SINTOMAS_DEFAULT;
+  const byCatR={fisico:[],emocional:[],cognitivo:[]};
+  const byIdR={};
+  recentSinR.forEach(rs=>{if(!byIdR[rs.sintomaId]){byIdR[rs.sintomaId]={count:0,total:0};}byIdR[rs.sintomaId].count++;byIdR[rs.sintomaId].total+=rs.intensidade;});
+  Object.entries(byIdR).forEach(([id,d])=>{const s=listaR.find(x=>x.id===id);if(s&&byCatR[s.cat])byCatR[s.cat].push({s,d});});
+
+  // Insights (texto plano)
+  const insightsRaw=[];
+  if(top.length>0){const c=cat(top[0][0]);if(c)insightsRaw.push(`${c.icon} ${c.label} é seu maior dreno essa semana (${top[0][1].count}×).`);}
+  const recPct=recent.length>0?Math.round(recov.length/recent.length*100):0;
+  if(recPct<20)insightsRaw.push(`Só ${recPct}% dos registros são recuperações — tente equilibrar mais.`);
+  else if(recPct>=30)insightsRaw.push(`${recPct}% dos registros são recuperações — você está se cuidando bem.`);
+  if(recentCi.length>=3)insightsRaw.push(`Energia média de ${avgEn}/10 — ${+avgEn>=7?'boa semana 💚':+avgEn>=4?'semana moderada 🟡':'semana pesada 🔴'}.`);
+  if(dowEntries.length>=3){insightsRaw.push(`Melhor dia: ${dowEntries[0].d} (${dowEntries[0].avg}/10). Dia mais pesado: ${dowEntries[dowEntries.length-1].d} (${dowEntries[dowEntries.length-1].avg}/10).`);}
+  if(hardThisWeek.length>0){const hdDow=hardThisWeek.map(d=>dow[new Date(d+'T12:00').getDay()]).join(', ');insightsRaw.push(`Dias difíceis marcados: ${hdDow}.`);}
+  // correlação cognitivo × alta carga
+  const cogDates=new Set(recentSinR.filter(r=>listaR.find(x=>x.id===r.sintomaId)?.cat==='cognitivo').map(r=>r.date));
+  if(cogDates.size>=2){
+    const ep=db.settings.dailyPts;
+    const heavyDates=new Set([...cogDates].filter(d=>{const du=db.entries.filter(e=>e.date===d&&cat(e.categoryId)?.type!=='recuperacao').reduce((s,e)=>s+Math.abs(entryCost(e)),0);return du/ep>0.6;}));
+    const overlap=[...cogDates].filter(d=>heavyDates.has(d)).length;
+    if(overlap>=2)insightsRaw.push(`Névoa mental e alta carga energética coincidiram ${overlap}× — pode ser sinal de sobrecarga acumulando.`);
+  }
+
   let r='';
-  r+=`RELATÓRIO DE ENERGIA\nPeríodo: ${start} a ${end}\n${'─'.repeat(34)}\n\n`;
-  r+=`RESUMO\n• Dias com registros: ${days}\n• Total de eventos: ${recent.length}\n• Check-ins realizados: ${recentCi.length}\n• Energia média: ${avgEn}/10\n• Bateria social média: ${avgBat}/10\n\n`;
+  r+=`RELATÓRIO DE ENERGIA — ${name}\nPeríodo: ${start} a ${end}\n${'─'.repeat(36)}\n\n`;
+
+  r+=`RESUMO\n`;
+  r+=`• Dias com registros: ${days}\n`;
+  r+=`• Total de eventos: ${recent.length}\n`;
+  r+=`• Check-ins realizados: ${recentCi.length}\n`;
+  r+=`• Energia média: ${avgEn}/10\n`;
+  r+=`• Bateria social média: ${avgBat}/10\n`;
+  if(hardThisWeek.length>0)r+=`• Dias difíceis: ${hardThisWeek.length}\n`;
+  r+='\n';
+
+  if(insightsRaw.length>0){r+=`INSIGHTS\n`;insightsRaw.forEach(i=>r+=`• ${i}\n`);r+='\n';}
+
   if(top.length>0){r+=`PRINCIPAIS DRENOS\n`;top.forEach(([id,d],i)=>{const c=cat(id);r+=`${i+1}. ${c.icon} ${c.label} — ${d.count}x — ${d.pts.toFixed(1)} pts\n`;});r+='\n';}
+
   if(topRec.length>0){r+=`RECUPERAÇÕES MAIS USADAS\n`;topRec.forEach(([id,n])=>{const c=cat(id);r+=`• ${c.icon} ${c.label} — ${n}x\n`;});r+='\n';}
+
+  if(dowEntries.length>0){r+=`ENERGIA POR DIA DA SEMANA\n`;dowEntries.forEach(({d,avg})=>r+=`• ${d}: ${avg}/10\n`);r+='\n';}
+
+  if(Object.keys(enByPeriod).some(p=>enByPeriod[p].length>0)){
+    r+=`ENERGIA POR PERÍODO\n`;
+    ['manha','tarde','noite'].forEach(pid=>{
+      const arr=enByPeriod[pid];if(!arr.length)return;
+      const avg=(arr.reduce((s,v)=>s+v,0)/arr.length).toFixed(1);
+      r+=`• ${PERIODS[pid].icon} ${PERIODS[pid].label}: ${avg}/10\n`;
+    });
+    r+='\n';
+  }
+
+  if(Object.keys(humorPer).length>0){
+    r+=`HUMOR POR PERÍODO\n`;
+    ['manha','tarde','noite'].forEach(pid=>{
+      if(!humorPer[pid])return;
+      const top1=Object.entries(humorPer[pid]).sort((a,b)=>b[1]-a[1])[0];
+      const h=HUMORS.find(x=>x.id===top1[0]);
+      r+=`• ${PERIODS[pid].icon} ${PERIODS[pid].label}: ${h?.icon??''} ${h?.label??''} (${top1[1]}x)\n`;
+    });
+    r+='\n';
+  }
+
   if(customTriggers.length>0){
     r+=`GATILHOS NÃO MAPEADOS\n`;
     customTriggers.forEach(e=>{
@@ -1641,16 +1804,9 @@ function buildReportText(){
     });
     r+='\n';
   }
-  if(Object.keys(humorPer).length>0){r+=`HUMOR POR PERÍODO\n`;['manha','tarde','noite'].forEach(pid=>{if(!humorPer[pid])return;const top1=Object.entries(humorPer[pid]).sort((a,b)=>b[1]-a[1])[0];const h=HUMORS.find(x=>x.id===top1[0]);r+=`• ${PERIODS[pid].icon} ${PERIODS[pid].label}: ${h?.icon??''} ${h?.label??''} (${top1[1]}x)\n`;});r+='\n';}
-  // Sintomas
-  const recentSinR=(db.sintomas?.registros||[]).filter(e=>new Date(e.date)>=d7);
+
   if(recentSinR.length>0){
-    r+=`🩺 SINTOMAS DA SEMANA\n`;
-    const listaR=db.sintomas?.lista||SINTOMAS_DEFAULT;
-    const byCatR={fisico:[],emocional:[],cognitivo:[]};
-    const byIdR={};
-    recentSinR.forEach(rs=>{if(!byIdR[rs.sintomaId]){byIdR[rs.sintomaId]={count:0,total:0};}byIdR[rs.sintomaId].count++;byIdR[rs.sintomaId].total+=rs.intensidade;});
-    Object.entries(byIdR).forEach(([id,d])=>{const s=listaR.find(x=>x.id===id);if(s&&byCatR[s.cat])byCatR[s.cat].push({s,d});});
+    r+=`SINTOMAS DA SEMANA\n`;
     const catLabelsR={fisico:'Físico',emocional:'Emocional',cognitivo:'Cognitivo'};
     Object.entries(byCatR).forEach(([catId,items])=>{
       if(!items.length)return;
@@ -1658,14 +1814,10 @@ function buildReportText(){
       r+=items.sort((a,b)=>b.d.count-a.d.count).map(({s,d})=>`${s.icon} ${s.label} (${d.count}×, int. ${(d.total/d.count).toFixed(1)})`).join(', ');
       r+='\n';
     });
-    const sinDatesR=Object.keys(byIdR);
-    if(sinDatesR.length>0){
-      const heavyR=sinDatesR.filter(d=>{const du=db.entries.filter(e=>e.date===d&&cat(e.categoryId)?.type!=='recuperacao').reduce((s,e)=>s+Math.abs(entryCost(e)),0);return du/db.settings.dailyPts>0.6;});
-      if(heavyR.length>0){const dow2=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];const hd=heavyR.map(d=>dow2[new Date(d+'T12:00').getDay()]).join(', ');r+=`• Alta carga + sintomas: ${hd}\n`;}
-    }
     r+='\n';
   }
-  r+=`${'─'.repeat(34)}\nGerado em ${today.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})}\nApp Recarregue — uso pessoal`;
+
+  r+=`${'─'.repeat(36)}\nGerado em ${today.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})}\nApp Recarregue — uso pessoal`;
   return r;
 }
 
@@ -2467,9 +2619,12 @@ function mapaHTML(){
           ${heatmapHTML()}
         </div>`
     }
-    <div class="card" style="padding:12px">
-      <button class="btn btn-p" onclick="generateReport()" style="margin:0;padding:13px">
-        📄 Gerar relatório (7 dias)
+    <div class="card" style="padding:12px;display:flex;gap:8px">
+      <button class="btn btn-p" onclick="generateReport()" style="flex:1;margin:0;padding:13px;font-size:13px">
+        📄 Relatório em texto
+      </button>
+      <button class="btn" onclick="exportPDF()" style="flex:1;margin:0;padding:13px;font-size:13px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:12px">
+        📑 Exportar PDF
       </button>
     </div>`;
 }
@@ -2821,8 +2976,6 @@ function settingsHTML(){
         <button class="btn btn-p" style="flex:1;padding:11px;font-size:13px" onclick="exportJSON()">⬇️ Exportar backup</button>
         <button class="btn" style="flex:1;padding:11px;font-size:13px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:12px" onclick="importJSON()">⬆️ Importar backup</button>
       </div>
-      <button class="btn" style="width:100%;padding:11px;font-size:13px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:12px;margin-bottom:16px" onclick="exportPDF()">📄 Exportar relatório PDF</button>
-
       <div class="backup-divider">ou use seu código de restauração</div>
 
       <div class="restore-code-box">
@@ -3527,7 +3680,7 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:none;margin:12px 16px 0;flex-direction:column;gap:10px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 1.8.0 disponível!</strong>
+        <strong>✨ Versão 2.0.0 disponível!</strong>
         Antes de atualizar, faça um backup dos seus dados em Configurações para não perder nada.
       </div>
       <div style="display:flex;gap:8px">
@@ -3545,7 +3698,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '2.0.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
@@ -3572,8 +3725,30 @@ function dismissUpdate(){
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
 
+// Preview mode: ?preview=1 reseta só o estado de UI (onboarding/versão) sem apagar dados
+// Nenhum trackEvent é disparado durante preview para não contaminar analytics
+let PREVIEW_MODE = false;
+if(new URLSearchParams(location.search).get('preview')==='1'){
+  PREVIEW_MODE = true;
+  localStorage.removeItem('recarregue_v1_onboarded');
+  localStorage.removeItem('recarregue_version');
+  localStorage.removeItem('recarregue_visited_tabs');
+  history.replaceState(null,'',location.pathname);
+}
+
 load();applyTheme();render();
-trackEvent('session_started',{returning:!!localStorage.getItem(ONBOARDED_KEY)});
+// Sessão: só conta 1 por hora por dispositivo
+const _lastSession = parseInt(localStorage.getItem('recarregue_last_session')||'0');
+if(Date.now() - _lastSession > 3600000){
+  localStorage.setItem('recarregue_last_session', Date.now());
+  trackEvent('session_started',{
+    returning: !!localStorage.getItem(ONBOARDED_KEY),
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    lang: navigator.language,
+    screen: `${screen.width}x${screen.height}`,
+    platform: navigator.platform || navigator.userAgentData?.platform || 'unknown',
+  });
+}
 if(onboardingStep===0&&shouldShowCheckin())setTimeout(openCheckin,700);
 if(db.settings.notifEnabled)scheduleNotifs();
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
