@@ -2233,20 +2233,19 @@ function registerHTML(){
   const favIds=db.settings.favorites||[];
   const favCats=favIds.map(id=>CATS.find(c=>c.id===id)).filter(Boolean);
   const favSection=favCats.length===0?'':`
-    <div class="type-hdr" style="color:var(--accent-lt)">⭐ Favoritas</div>
-    <div class="cat-grid">
+    <div style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.5px;margin-bottom:8px">⭐ ATALHOS</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">
       ${favCats.map(c=>`
-        <button class="cat-btn" onclick="openSheet('${c.id}')" style="border-color:rgba(167,139,250,.4)">
-          <span class="ci-icon">${c.icon}</span>
-          <span class="cl">${c.label}</span>
-          <span class="cc">${c.cost<0?'Devolve '+Math.abs(c.cost)+' pts':'Custa '+c.cost+' pts'}</span>
+        <button onclick="openSheet('${c.id}')" style="display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:20px;border:1.5px solid rgba(167,139,250,.35);background:rgba(167,139,250,.08);cursor:pointer;font-family:inherit">
+          <span style="font-size:18px;line-height:1">${c.icon}</span>
+          <span style="font-size:13px;font-weight:600;color:var(--text)">${c.label}</span>
         </button>`).join('')}
     </div>`;
   const sections=Object.keys(TYPES).map(type=>{
     const meta=TYPES[type];
     return `<div class="type-hdr" style="color:${meta.color}">${meta.label}</div>
     <div class="cat-grid">
-      ${CATS.filter(c=>c.type===type && !favIds.includes(c.id)).map(c=>`
+      ${CATS.filter(c=>c.type===type).map(c=>`
         <button class="cat-btn" onclick="openSheet('${c.id}')">
           <span class="ci-icon">${c.icon}</span>
           <span class="cl">${c.label}</span>
