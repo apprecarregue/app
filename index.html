@@ -2062,8 +2062,10 @@ function homeHTML(){
 
   const periodCards=Object.entries(PERIODS).map(([pid,pd])=>{
     const ci=periodCheckin(pid),isCurrent=currentPeriod()===pid;
+    const hr=new Date().getHours();
+    const periodAvail = viewDate!==todayStr() || (pid==='manha'?hr>=6 : pid==='tarde'?hr>=12 : hr>=18);
     const h=ci?HUMORS.find(x=>x.id===ci.humor):null;
-    return `<div class="period-card ${ci?'done':''} ${isCurrent&&!ci?'active':''} ${!ci&&!isCurrent?'tappable':''}" ${!ci?`onclick="openCheckin('${pid}')"`:''}>
+    return `<div class="period-card ${ci?'done':''} ${!ci&&isCurrent?'active':''} ${!ci&&!isCurrent&&periodAvail?'tappable':''}" ${!ci&&periodAvail?`onclick="openCheckin('${pid}')"`:''}>
       <div class="pc-period-icon">${pd.icon}</div>
       <div class="pc-label">${pd.label}</div>
       ${ci
@@ -2072,7 +2074,9 @@ function homeHTML(){
           <div class="pc-done-icon">✅</div>`
         :isCurrent
           ?`<div class="pc-tap">Toque aqui</div>`
-          :`<div style="font-size:10px;color:var(--muted);margin-top:4px">registrar</div>`
+          :periodAvail
+            ?`<div style="font-size:10px;color:var(--muted);margin-top:4px">registrar</div>`
+            :`<div style="font-size:10px;color:rgba(255,255,255,.12);margin-top:4px">—</div>`
       }
     </div>`;
   }).join('');
@@ -3068,35 +3072,44 @@ function settingsHTML(){
 function onboardingHTML(){
   const pr=db.settings.pronoun;
   const steps=[
-    // 1 — boas-vindas + nome
+    // 1 — boas-vindas
     {icon:'💜', title:'Seu espaço de autoconhecimento', sub:'Bem-vind@ ao Recarregue.', body:`
       <p>Aqui você registra padrões de energia para se conhecer melhor — no seu ritmo, do seu jeito.</p>
-      <div style="margin-top:14px">
-        <p style="font-size:13px;color:var(--text2);margin-bottom:8px">Como prefere ser chamad@? <span style="color:var(--muted);font-size:11px">(opcional)</span></p>
-        <input id="onboard-name" type="text" value="${db.settings.name||''}" placeholder="Seu nome ou apelido..." autocomplete="off" autocorrect="off" spellcheck="false"
-          style="width:100%;padding:13px 16px;background:var(--card2);border:1.5px solid var(--border);border-radius:12px;font-size:15px;color:var(--text);font-family:inherit;outline:none;box-sizing:border-box"
-          oninput="db.settings.name=this.value.trim();save();this.style.borderColor='var(--accent)'">
-      </div>
-      <div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(139,92,246,.08);border:1px solid var(--border);font-size:11px;color:var(--muted);line-height:1.6">
+      <p style="margin-top:10px">Tudo que você anota fica <strong>só no seu aparelho</strong>. Sem login, sem cadastro.</p>
+      <div style="margin-top:14px;padding:10px 12px;border-radius:10px;background:rgba(139,92,246,.08);border:1px solid var(--border);font-size:11px;color:var(--muted);line-height:1.6">
         🔒 Dados locais · Sem servidor · Apague quando quiser em Configurações
       </div>
     `, btn:'Continuar →'},
-    // 2 — pronomes
-    {icon:'🌈', title:'Como prefere ser chamad@?', sub:'Para o app falar do jeito certo.', body:`
-      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5">Escolha como prefere que o app se refira a você. Você pode alterar isso depois em Configurações.</p>
-      <div style="display:flex;flex-direction:column;gap:10px">
+    // 2 — perfil: nome + idade + pronomes
+    {icon:'👋', title:'Vamos nos conhecer', sub:'Tudo opcional — mude quando quiser.', body:`
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div style="flex:1">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:5px">Nome ou apelido</p>
+          <input id="onboard-name" type="text" value="${db.settings.name||''}" placeholder="Ex: Carla" autocomplete="off" autocorrect="off" spellcheck="false"
+            style="width:100%;padding:11px 12px;background:var(--card2);border:1.5px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);font-family:inherit;outline:none;box-sizing:border-box"
+            oninput="db.settings.name=this.value.trim();save();this.style.borderColor='var(--accent)'">
+        </div>
+        <div style="width:80px">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:5px">Idade</p>
+          <input id="onboard-age" type="number" min="1" max="120" value="${db.settings.age||''}" placeholder="Ex: 28"
+            style="width:100%;padding:11px 12px;background:var(--card2);border:1.5px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);font-family:inherit;outline:none;box-sizing:border-box"
+            oninput="const a=parseInt(this.value);if(a>0&&a<120){db.settings.age=a;save();}this.style.borderColor='var(--accent)'">
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Como prefere ser chamad@?</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
         ${[
-          {p:'ela', icon:'💜', label:'Ela / Feminino',    ex:'esgotada, focada, bem-vinda'},
-          {p:'ele', icon:'💙', label:'Ele / Masculino',   ex:'esgotado, focado, bem-vindo'},
-          {p:'elu', icon:'💚', label:'Elu / Neutro',      ex:'esgotadu, focadu, bem-vindu'},
-          {p:null,  icon:'🤍', label:'Prefiro não informar', ex:'sem adaptação de linguagem'},
+          {p:'ela', icon:'💜', label:'Ela',  ex:'esgotada'},
+          {p:'ele', icon:'💙', label:'Ele',  ex:'esgotado'},
+          {p:'elu', icon:'💚', label:'Elu',  ex:'esgotadu'},
+          {p:null,  icon:'🤍', label:'Não informar', ex:'sem adaptação'},
         ].map(o=>{
           const sel=pr===o.p;
-          return `<button onclick="onboardSetPronoun(${o.p===null?'null':`'${o.p}'`})" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;border:2px solid ${sel?'var(--accent)':'var(--border)'};background:${sel?'var(--accent-bg)':'var(--card2)'};cursor:pointer;font-family:inherit;text-align:left;width:100%">
-            <span style="font-size:22px">${o.icon}</span>
+          return `<button onclick="onboardSetPronoun(${o.p===null?'null':`'${o.p}'`})" style="display:flex;align-items:center;gap:8px;padding:10px 11px;border-radius:12px;border:2px solid ${sel?'var(--accent)':'var(--border)'};background:${sel?'var(--accent-bg)':'var(--card2)'};cursor:pointer;font-family:inherit;text-align:left;width:100%">
+            <span style="font-size:18px">${o.icon}</span>
             <div>
-              <div style="font-size:14px;font-weight:700;color:${sel?'var(--accent-lt)':'var(--text)'}">${o.label}${sel?' ✓':''}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px">${o.ex}</div>
+              <div style="font-size:13px;font-weight:700;color:${sel?'var(--accent-lt)':'var(--text)'}">${o.label}${sel?' ✓':''}</div>
+              <div style="font-size:10px;color:var(--muted)">${o.ex}</div>
             </div>
           </button>`;
         }).join('')}
