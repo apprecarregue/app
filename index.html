@@ -118,21 +118,25 @@ body {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 8px 0 10px; border: none; background: none; cursor: pointer;
   color: var(--muted); font-size: 10px; gap: 4px; font-family: inherit; transition: color .15s;
+  opacity: .55;
 }
 .nav-btn.on {
   color: var(--accent-lt);
+  font-weight: 700;
+  opacity: 1;
 }
 .nav-btn.on .nav-ico {
-  background: var(--accent-bg);
-  border-radius: 10px;
-  padding: 4px 10px;
-  box-shadow: 0 0 8px var(--accent-bg);
+  background: rgba(139,92,246,.28);
+  border-radius: 12px;
+  padding: 5px 13px;
+  box-shadow: 0 0 14px rgba(139,92,246,.35);
+  transform: scale(1.08);
 }
-.nav-btn.sos-btn { color: #F87171; }
-.nav-btn.sos-btn.on { color: #FF6B6B; }
+.nav-btn.sos-btn { color: #F87171; opacity: .75; }
+.nav-btn.sos-btn.on { color: #FF6B6B; opacity: 1; }
 .nav-btn.sos-btn.on .nav-ico {
-  background: rgba(248,113,113,.15);
-  box-shadow: 0 0 8px rgba(248,113,113,.2);
+  background: rgba(248,113,113,.22);
+  box-shadow: 0 0 14px rgba(248,113,113,.3);
 }
 .nav-ico { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
 .nav-ico svg { display: block; }
@@ -932,6 +936,7 @@ const VISITED_KEY   = 'recarregue_visited_tabs';
 const TOUR_KEY      = 'recarregue_tour_done';
 const TOUR_TABS     = {2:'home', 3:'register', 4:'sintomas', 5:'mapa', 6:'sos'};
 let onboardingStep = localStorage.getItem(ONBOARDED_KEY) ? 0 : 1;
+let onboardReadSet = new Set(); // steps already "read"
 let tourStep = 0; // initialized after load()
 
 // ── PRONOMES / LINGUAGEM ──────────────────────────────────────────────────────
@@ -976,7 +981,17 @@ let feedbackSent = false;
 let feedbackState = {tipo:'sugestao', mensagem:''};
 
 function onboardBack(){
-  if(onboardingStep > 1){ onboardingStep--; renderOverlays(); }
+  if(onboardingStep > 1){ onboardingStep--; renderOverlays(); scheduleOnboardRead(); }
+}
+let _onboardReadTimer=null;
+function scheduleOnboardRead(){
+  clearTimeout(_onboardReadTimer);
+  if(onboardReadSet.has(onboardingStep)) return;
+  _onboardReadTimer=setTimeout(()=>{
+    onboardReadSet.add(onboardingStep);
+    const btn=document.getElementById('onboard-next-btn');
+    if(btn){btn.disabled=false;btn.style.opacity='1';btn.style.pointerEvents='auto';}
+  }, 2000);
 }
 function restartOnboarding(){
   localStorage.removeItem(ONBOARDED_KEY);
@@ -987,7 +1002,7 @@ function onboardSetPronoun(p){
   db.settings.pronoun=p; save(); renderOverlays();
 }
 function onboardNext(){
-  if(onboardingStep < 3){ onboardingStep++; renderOverlays(); }
+  if(onboardingStep < 3){ onboardingStep++; renderOverlays(); scheduleOnboardRead(); }
   else {
     localStorage.setItem(ONBOARDED_KEY,'1'); onboardingStep=0; renderOverlays();
     // Inicia tour para novos usuários
@@ -1237,6 +1252,7 @@ function setSocialBattery(v){
 }
 
 function checkinNext(){if(!checkinState||checkinState.step!==1)return;checkinState.step=2;renderOverlays();}
+function checkinBack(){if(!checkinState||checkinState.step!==2)return;checkinState.step=1;renderOverlays();}
 
 function pickHumor(id){
   if(!checkinState)return;
@@ -3160,7 +3176,7 @@ function onboardingHTML(){
         <div class="onboard-title">${s.title}</div>
         <div class="onboard-sub">${s.sub}</div>
         <div class="onboard-body">${s.body}</div>
-        <button class="btn btn-p" onclick="onboardNext()">${s.btn}</button>
+        <button id="onboard-next-btn" class="btn btn-p" onclick="onboardNext()" ${onboardReadSet.has(onboardingStep)?'':'disabled style="opacity:.4;pointer-events:none"'}>${s.btn}</button>
         <div class="onboard-footer" style="margin-top:16px"><span class="beta-badge">Versão de teste</span></div>
       </div>
     </div>`;
@@ -3282,7 +3298,8 @@ function checkinOverlayHTML(){
     <div class="backdrop">
       <div class="sheet">
         <div class="sh-handle"></div>
-        <div class="ci-hdr">
+        <div class="ci-hdr" style="position:relative">
+          <button onclick="checkinBack()" style="position:absolute;left:0;background:none;border:none;color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;padding:4px 8px;display:flex;align-items:center;gap:3px">← Voltar</button>
           <span class="ci-period-lbl">${pd.icon} Check-in da ${pd.label}</span>
           <button class="ci-skip" onclick="skipCheckin()">Pular</button>
         </div>
@@ -3701,9 +3718,10 @@ function tourGuideBarHTML(){
         </div>
         <div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:6px">${s.title}</div>
         <div style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:14px">${s.text}</div>
-        <div style="display:flex;gap:10px;align-items:center">
-          <button onclick="tourNext()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:0;font-family:inherit">Pular</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          ${tourStep>2?`<button onclick="tourPrev()" style="background:none;border:1.5px solid var(--border);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;padding:10px 12px;border-radius:12px;font-family:inherit;white-space:nowrap">← Voltar</button>`:''}
           <button onclick="${ctaOnclick}" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">${s.cta}</button>
+          <button onclick="tourNext()" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px;font-family:inherit;white-space:nowrap">Pular</button>
         </div>
       </div>
     </div>`;
@@ -3712,9 +3730,22 @@ function tourGuideBarHTML(){
 function renderTourGuide(){
   const el=document.getElementById('tour-guide');
   if(!el) return;
-  el.innerHTML=(tourStep>=2&&tourStep<=6)?tourGuideBarHTML():'';
+  // Hide guide bar when any modal/sheet is open
+  const modalOpen=!!(checkinState||sheetState||helpSheet||showFeedback||onboardingStep>0);
+  const active=tourStep>=2&&tourStep<=6&&!modalOpen;
+  el.innerHTML=active?tourGuideBarHTML():'';
+  const main=document.getElementById('main');
+  if(main) main.style.paddingBottom=active?'210px':'';
 }
 
+function tourPrev(){
+  if(tourStep>2){
+    tourStep--;
+    const tab=TOUR_TABS[tourStep];
+    if(tab&&tab!==screen) go(tab);
+    else { renderOverlays(); renderTourGuide(); }
+  }
+}
 function tourNext(){
   if(tourStep<7){
     tourStep++;
@@ -3743,6 +3774,7 @@ function renderOverlays(){
   else if(addSintomaSheet)  el.innerHTML=addSintomaSheetHTML();
   else if(sintomaEvolSheet){el.innerHTML=sintomaEvolSheetHTML();initEvolChart();}
   else el.innerHTML='';
+  renderTourGuide();
 }
 
 function render(){
@@ -3754,8 +3786,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:none;margin:12px 16px 0;flex-direction:column;gap:10px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.2.0 disponível!</strong>
-        Onboarding mais curto, tour inclui Sintomas e check-in disponível para qualquer período do dia. Faça backup antes de atualizar.
+        <strong>✨ Versão 2.3.0 disponível!</strong>
+        Tour guiado com botão Voltar, nav com destaque claro, botão do onboarding com leitura obrigatória e sobreposições corrigidas. Faça backup antes de atualizar.
       </div>
       <div style="display:flex;gap:8px">
         <button class="update-banner-btn" style="flex:1;background:rgba(255,255,255,.1);color:var(--text);border:1px solid rgba(255,255,255,.15)" onclick="go('settings')">📦 Fazer backup</button>
@@ -3773,7 +3805,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.2.0';
+const APP_VERSION = '2.3.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
@@ -3815,6 +3847,7 @@ load();applyTheme();
 // Inicia tour se onboarding já foi feito mas tour não, e usuário ainda não tem dados (novo usuário real)
 if(localStorage.getItem(ONBOARDED_KEY)&&!localStorage.getItem(TOUR_KEY)&&db.checkins.length===0) tourStep=1;
 render();
+if(onboardingStep>0) scheduleOnboardRead();
 // Sessão: só conta 1 por hora por dispositivo
 const _lastSession = parseInt(localStorage.getItem('recarregue_last_session')||'0');
 if(Date.now() - _lastSession > 3600000){
