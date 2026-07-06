@@ -659,8 +659,8 @@ body {
 /* BOTÃO DE AJUDA ⓘ */
 .info-btn {
   background: none; border: none; padding: 0 2px;
-  font-size: 14px; color: var(--muted); cursor: pointer;
-  line-height: 1; vertical-align: middle; opacity: .7;
+  font-size: 14px; color: #F59E0B; cursor: pointer;
+  line-height: 1; vertical-align: middle; opacity: .85;
   transition: opacity .15s;
 }
 .info-btn:hover { opacity: 1; }
@@ -2243,8 +2243,9 @@ function homeHTML(){
       </div>`:'';
 
   // Botão modo dia difícil (só hoje)
-  const hardBtn=isToday?`<button onclick="toggleHardDay()" style="margin-top:10px;width:100%;padding:9px;border-radius:10px;border:1px solid ${hard?'rgba(139,92,246,.5)':'var(--border)'};background:${hard?'rgba(139,92,246,.15)':'transparent'};color:${hard?'var(--accent-lt)':'var(--muted)'};font-size:12px;cursor:pointer;font-family:inherit">
-    ${hard?'✕ Desativar modo dia difícil':`🌙 Acordei já ${g('desgastada','desgastado','desgastadu')} — dia difícil`}
+  const hardBtn=isToday?`<button onclick="toggleHardDay()" style="margin-top:10px;width:100%;padding:9px 12px;border-radius:10px;border:1px solid ${hard?'rgba(139,92,246,.5)':'var(--border)'};background:${hard?'rgba(139,92,246,.15)':'transparent'};color:${hard?'var(--accent-lt)':'var(--muted)'};cursor:pointer;font-family:inherit;text-align:left;display:flex;flex-direction:column;gap:2px">
+    <span style="font-size:12px;font-weight:600">${hard?'✕ Desativar modo dia difícil':`🌙 Acordei já ${g('desgastada','desgastado','desgastadu')} — dia difícil`}</span>
+    ${hard?'':`<span style="font-size:10px;color:var(--muted);opacity:.8">noite mal dormida, ansiedade alta ou corpo pesado desde cedo</span>`}
   </button>`:'';
 
   return `
@@ -2260,7 +2261,7 @@ function homeHTML(){
           <span class="nrg-spoon">🥄</span>
           <div class="nrg-total" style="color:var(--muted)">${dailyPts}</div>
         </div>
-        <div class="nrg-label">Restante · Total</div>
+        <div class="nrg-label">Restante · Total <button class="info-btn" onclick="openHelp('colheres')">ⓘ</button></div>
         <div class="nrg-bar"><div class="nrg-fill" style="width:${p}%;background:${col}"></div></div>
         <div class="nrg-pct">${pct}% de energia restante</div>
         <div class="spoon-bar">${spoons}</div>
@@ -3611,6 +3612,16 @@ const HELP = {
       { h: 'Método 5-4-3-2-1', p: 'Ancoragem sensorial para tirar você de uma espiral mental. Você identifica 5 coisas que vê, 4 que ouve... e assim por diante. Traz de volta para o presente.' },
       { h: 'Afirmações', p: 'Lembretes gentis para momentos difíceis. Deslize para ver próximas — escolha a que ressoa com o que você está sentindo agora.' },
       { h: 'Redução de sobrecarga', p: 'Lista de ações rápidas para quando o ambiente está demais. Simples, direto, sem exigir muito do seu cérebro quando ele já está sobrecarregado.' },
+    ]
+  },
+  colheres: {
+    title: 'Teoria das Colheres',
+    icon: '🥄',
+    items: [
+      { h: 'O que são colheres?', p: 'Uma metáfora criada por Christine Miserandino para descrever energia com condições invisíveis. Você começa o dia com um número fixo. Cada tarefa, sensação e interação custa algumas. Quando acabam — acabaram.' },
+      { h: 'O número grande', p: 'Mostra quantas colheres ainda restam hoje. A cor muda conforme cai: verde é fôlego, amarelo é atenção, vermelho é crítico. Respeitar o amarelo evita chegar no vermelho.' },
+      { h: 'Por que não é igual todo dia?', p: 'Dormir mal, ansiedade alta ou acordar já esgotada consome colheres antes de qualquer tarefa. O <strong>Modo Dia Difícil</strong> reflete isso — você começa com metade do total para representar o que realmente tem disponível.' },
+      { h: 'Recuperação devolve colheres', p: 'Registrar descanso, tempo sozinha e atividades prazerosas na aba Registrar → Recuperação devolve colheres ao seu saldo. Cuidar de si conta como dado.' },
     ]
   },
 };
