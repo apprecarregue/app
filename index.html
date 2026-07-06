@@ -915,7 +915,7 @@ const REST_ACTIVITIES = [
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 
-let db = {entries:[], checkins:[], sintomas:{lista:[...SINTOMAS_DEFAULT], registros:[]}, settings:{dailyPts:12, alertAt:3, notifEnabled:false, name:'', theme:'dark', palette:'roxo'}};
+let db = {entries:[], checkins:[], sintomas:{lista:[...SINTOMAS_DEFAULT], registros:[]}, settings:{dailyPts:12, alertAt:3, notifEnabled:false, name:'', theme:'dark', palette:'roxo', pronoun:null, age:null}};
 let screen = 'home';
 let checkinState = null;
 let sheetState = null;
@@ -927,7 +927,32 @@ let helpSheet = null; // 'home' | 'checkin' | 'register' | 'mapa' | 'sos'
 // Onboarding / privacidade / feedback
 const ONBOARDED_KEY = 'recarregue_v1_onboarded';
 const VISITED_KEY   = 'recarregue_visited_tabs';
+const TOUR_KEY      = 'recarregue_tour_done';
 let onboardingStep = localStorage.getItem(ONBOARDED_KEY) ? 0 : 1;
+let tourStep = 0; // initialized after load()
+
+// ── PRONOMES / LINGUAGEM ──────────────────────────────────────────────────────
+// g(ela, ele, elu) — retorna forma correta baseado no pronome salvo
+function g(ela, ele, elu){
+  const p=db.settings.pronoun;
+  if(p==='ele') return ele;
+  if(p==='elu') return elu||ela;
+  return ela; // default feminine (null ou 'ela')
+}
+// gword(palavra_feminina) — conjuga automaticamente terminação -a → -o/-u
+function gword(fem){
+  const p=db.settings.pronoun;
+  if(!p||p==='ela') return fem;
+  const suf=p==='ele'?'o':'u';
+  return fem.replace(/as$/,suf+'s').replace(/a$/,suf);
+}
+// humorLabel(h) — retorna label do humor conjugado no pronome do usuário
+function humorLabel(h){ return gword(h.label); }
+// catLabel(c) — retorna label da categoria adaptado ao pronome (só para as gendrificadas)
+function catLabel(c){
+  if(c.id==='sozinha') return g('Tempo sozinha','Tempo sozinho','Tempo a sós');
+  return c.label;
+}
 
 function getVisitedTabs(){try{return JSON.parse(localStorage.getItem(VISITED_KEY)||'{"home":true}');}catch{return{home:true};}}
 function markTabVisited(id){const v=getVisitedTabs();v[id]=true;localStorage.setItem(VISITED_KEY,JSON.stringify(v));}
@@ -950,18 +975,25 @@ let feedbackState = {tipo:'sugestao', mensagem:''};
 function onboardBack(){
   if(onboardingStep > 1){ onboardingStep--; renderOverlays(); }
 }
+function onboardSetPronoun(p){
+  db.settings.pronoun=p; save(); renderOverlays();
+}
 function onboardNext(){
-  if(onboardingStep < 9){ onboardingStep++; renderOverlays(); }
+  if(onboardingStep < 4){ onboardingStep++; renderOverlays(); }
   else {
-    const inp=document.getElementById('onboard-name');
-    if(inp&&inp.value.trim()){ db.settings.name=inp.value.trim(); save(); }
+    const nameInp=document.getElementById('onboard-name');
+    if(nameInp&&nameInp.value.trim()){ db.settings.name=nameInp.value.trim(); save(); }
+    const ageInp=document.getElementById('onboard-age');
+    if(ageInp&&ageInp.value.trim()){ const a=parseInt(ageInp.value);if(a>0&&a<120){db.settings.age=a;save();} }
     localStorage.setItem(ONBOARDED_KEY,'1'); onboardingStep=0; renderOverlays();
+    // Inicia tour para novos usuários
+    if(!localStorage.getItem(TOUR_KEY)){ tourStep=1; setTimeout(()=>renderOverlays(),300); }
     // Só dispara onboarding_completed uma vez por dispositivo
     if(!localStorage.getItem('recarregue_onboarding_tracked')){
       localStorage.setItem('recarregue_onboarding_tracked','1');
-      trackEvent('onboarding_completed');
+      trackEvent('onboarding_completed',{pronoun:db.settings.pronoun,hasAge:!!db.settings.age});
     }
-    if(shouldShowCheckin())setTimeout(openCheckin,500);
+    if(!tourStep&&shouldShowCheckin())setTimeout(openCheckin,500);
   }
 }
 function onboardRequestNotif(){
@@ -1425,7 +1457,7 @@ function getRestoreCode(){
 
 function exportPDF(){
   const report=buildReportText();
-  const name=db.settings.name||'Usuária';
+  const name=db.settings.name||g('Usuária','Usuário','Usuáriu');
   const date=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const d7=new Date();d7.setDate(d7.getDate()-7);
 
@@ -1684,7 +1716,7 @@ function buildReportText(){
   const recent=db.entries.filter(e=>new Date(e.date)>=d7);
   const recentCi=db.checkins.filter(c=>new Date(c.date)>=d7);
   const days=new Set(recent.map(e=>e.date)).size;
-  const name=db.settings.name||'Usuária';
+  const name=db.settings.name||g('Usuária','Usuário','Usuáriu');
   const start=d7.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
   const end=today.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
 
@@ -2004,7 +2036,7 @@ function homeHTML(){
   // Modo descanso quando energia zerada
   const REST_SUGGESTIONS=[
     {id:'descanso',icon:'😴',label:'Descanso/pausa',pts:-2},
-    {id:'sozinha', icon:'🌿',label:'Tempo sozinho',  pts:-2},
+    {id:'sozinha', icon:'🌿',label:g('Tempo sozinha','Tempo sozinho','Tempo a sós'),  pts:-2},
     {id:'prazerosa',icon:'💙',label:'Atividade prazerosa',pts:-1},
     {id:'exercicio',icon:'🏃',label:'Movimento leve',pts:-1},
   ];
@@ -2186,13 +2218,13 @@ function homeHTML(){
 
   // Botão modo dia difícil (só hoje)
   const hardBtn=isToday?`<button onclick="toggleHardDay()" style="margin-top:10px;width:100%;padding:9px;border-radius:10px;border:1px solid ${hard?'rgba(139,92,246,.5)':'var(--border)'};background:${hard?'rgba(139,92,246,.15)':'transparent'};color:${hard?'var(--accent-lt)':'var(--muted)'};font-size:12px;cursor:pointer;font-family:inherit">
-    ${hard?'✕ Desativar modo dia difícil':'🌙 Acordei já desgastada — dia difícil'}
+    ${hard?'✕ Desativar modo dia difícil':`🌙 Acordei já ${g('desgastada','desgastado','desgastadu')} — dia difícil`}
   </button>`:'';
 
   return `
     ${backupBanner}
     ${dateNav}
-    <div class="card">
+    <div class="card" id="tour-energy">
       <div class="nrg">
         ${nameGreet}
         ${affirmation}
@@ -2218,7 +2250,7 @@ function homeHTML(){
     ${schedSection}
     <div class="card">
       <div class="sec">Check-ins ${isToday?'de hoje':fmtDate(viewDate)} <button class="info-btn" onclick="openHelp('checkin')">ⓘ</button></div>
-      <div class="period-row">${periodCards}</div>
+      <div class="period-row" id="tour-checkin">${periodCards}</div>
     </div>
     ${sintomaHomeCard}
     <div class="card">
@@ -2238,7 +2270,7 @@ function registerHTML(){
       ${favCats.map(c=>`
         <button onclick="openSheet('${c.id}')" style="display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:20px;border:1.5px solid rgba(167,139,250,.35);background:rgba(167,139,250,.08);cursor:pointer;font-family:inherit">
           <span style="font-size:18px;line-height:1">${c.icon}</span>
-          <span style="font-size:13px;font-weight:600;color:var(--text)">${c.label}</span>
+          <span style="font-size:13px;font-weight:600;color:var(--text)">${catLabel(c)}</span>
         </button>`).join('')}
     </div>`;
   const sections=Object.keys(TYPES).map(type=>{
@@ -2248,7 +2280,7 @@ function registerHTML(){
       ${CATS.filter(c=>c.type===type).map(c=>`
         <button class="cat-btn" onclick="openSheet('${c.id}')">
           <span class="ci-icon">${c.icon}</span>
-          <span class="cl">${c.label}</span>
+          <span class="cl">${catLabel(c)}</span>
           <span class="cc">${c.cost<0?'Devolve '+Math.abs(c.cost)+' pts':'Custa '+c.cost+' pts'}</span>
         </button>`).join('')}
     </div>`;
@@ -2858,11 +2890,20 @@ function settingsHTML(){
     <div class="card">
       <div class="sec" style="display:flex;align-items:center;gap:6px">Personalização <button class="info-btn" onclick="openHelp('personalizacao')">ⓘ</button></div>
       <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:8px">
-        <div class="s-lbl">Como prefere ser chamad@?</div>
+        <div class="s-lbl">Como quer ser ${g('chamada','chamado','chamadu')}?</div>
         <input type="text" value="${name||''}" placeholder="Seu nome ou apelido..." autocomplete="off"
           style="width:100%;padding:11px 14px;background:var(--card2);border:1px solid var(--border);border-radius:10px;font-size:15px;color:var(--text);font-family:inherit;outline:none"
           onchange="db.settings.name=this.value.trim();save();render()"
         >
+      </div>
+      <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:8px;margin-top:4px">
+        <div class="s-lbl">Pronomes</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;width:100%">
+          ${[{p:'ela',l:'Ela / Feminino'},{p:'ele',l:'Ele / Masculino'},{p:'elu',l:'Elu / Neutro'},{p:null,l:'Prefiro não informar'}].map(o=>{
+            const sel=db.settings.pronoun===o.p;
+            return `<button onclick="db.settings.pronoun=${o.p===null?'null':`'${o.p}'`};save();render()" style="padding:8px 12px;border-radius:10px;border:1.5px solid ${sel?'var(--accent)':'var(--border)'};background:${sel?'var(--accent-bg)':'transparent'};color:${sel?'var(--accent-lt)':'var(--muted)'};font-size:12px;font-weight:${sel?700:400};cursor:pointer;font-family:inherit">${o.l}${sel?' ✓':''}</button>`;
+          }).join('')}
+        </div>
       </div>
       <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:8px;margin-top:4px">
         <div class="s-lbl">Tema</div>
@@ -2951,9 +2992,27 @@ function settingsHTML(){
       <div class="s-row"><div class="s-lbl">Check-ins realizados</div><span style="font-size:20px;font-weight:800;color:var(--purple-lt)">${db.checkins.length}</span></div>
     </div>
     <div class="card">
-      <div class="sec">Sobre</div>
-      <p style="font-size:14px;color:var(--muted);line-height:1.7">Criado para monitorar gasto energético com <strong style="color:var(--text2)">TEA, TDAH e TAG</strong>.<br><br>Baseado na <strong style="color:var(--text2)">Teoria das Colheres</strong>.</p>
-      <div style="margin-top:10px;font-size:12px;color:var(--muted)">Versão <strong style="color:var(--text2)">${APP_VERSION}</strong> · beta</div>
+      <div class="sec">Sobre o Recarregue</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px">Criado para monitorar gasto energético com <strong style="color:var(--text2)">TEA, TDAH e TAG</strong>. Baseado na <strong style="color:var(--text2)">Teoria das Colheres</strong>.</p>
+      <div style="margin-bottom:12px">
+        <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.textContent=this.textContent.startsWith('▾')?'▸ Por que eu criei':'▾ Por que eu criei'" style="background:none;border:none;color:var(--accent-lt);font-size:13px;font-weight:700;cursor:pointer;padding:0;font-family:inherit;display:flex;align-items:center;gap:6px">▸ Por que eu criei</button>
+        <div style="display:none;margin-top:10px;font-size:13px;color:var(--text2);line-height:1.7;padding:14px;background:var(--card2);border-radius:12px">
+          <p>Oi. Eu sou a Carla — tenho TEA, TDAH e TAG. Durante muito tempo fui me descobrindo através de colapsos e exaustão que eu não sabia nomear.</p>
+          <p style="margin-top:8px">O Recarregue nasceu porque eu precisava me entender: saber o que me drena, o que me recarrega, por que certos dias custam tanto mais do que outros.</p>
+          <p style="margin-top:8px">Não é perfeito — é honesto. Se você também está aqui tentando se conhecer, seja ${g('bem-vinda','bem-vindo','bem-vindu')}. 💜</p>
+        </div>
+      </div>
+      <div>
+        <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.textContent=this.textContent.startsWith('▾')?'▸ Teoria das Colheres':'▾ Teoria das Colheres'" style="background:none;border:none;color:var(--accent-lt);font-size:13px;font-weight:700;cursor:pointer;padding:0;font-family:inherit;display:flex;align-items:center;gap:6px">▸ Teoria das Colheres</button>
+        <div style="display:none;margin-top:10px;font-size:13px;color:var(--text2);line-height:1.7;padding:14px;background:var(--card2);border-radius:12px">
+          <p>Criada por Christine Miserandino para explicar como é ter energia limitada. Imagine que você acorda todo dia com um número fixo de colheres.</p>
+          <p style="margin-top:8px">Cada coisa que você faz custa algumas: reunião custa 3, barulho intenso custa 2, masking/esforço social custa 3, tomar banho pode custar 1 em um dia difícil.</p>
+          <p style="margin-top:8px">Quando as colheres acabam... acabaram. Não tem como criar mais. Você pode pegar emprestado do dia seguinte — mas isso tem juros: você acorda no dia seguinte já no negativo.</p>
+          <p style="margin-top:8px">Pessoas neurodivergentes ou com condições crônicas frequentemente têm <strong>menos colheres que a média</strong> — e gastam mais em atividades que para outros parecem triviais.</p>
+          <p style="margin-top:8px">O Recarregue usa essa metáfora para te ajudar a visualizar seu gasto antes que as colheres acabem — não depois.</p>
+        </div>
+      </div>
+      <div style="margin-top:14px;font-size:12px;color:var(--muted)">Versão <strong style="color:var(--text2)">${APP_VERSION}</strong> · beta · apprecarregue@gmail.com</div>
     </div>
     <div class="card">
       <div class="sec">Privacidade &amp; Feedback</div>
@@ -3010,122 +3069,56 @@ function settingsHTML(){
 // ── ONBOARDING / PRIVACIDADE / FEEDBACK ──────────────────────────────────────
 
 function onboardingHTML(){
-  const notifSupported=typeof Notification!=='undefined';
+  const pr=db.settings.pronoun;
   const steps=[
-    // 1 — boas-vindas / privacidade
-    {icon:'💜', title:'Esse espaço é só seu', sub:'Bem-vinda(o) ao Recarregue.', body:`
-      <p>Aqui você registra seus padrões de energia pra se conhecer melhor — no seu ritmo, do seu jeito.</p>
-      <p>Tudo que você anota fica <strong>só no seu aparelho</strong>. Sem login, sem cadastro, sem servidor. É você com você.</p>
-      <p>Quando quiser, apaga tudo nas configurações. O controle é 100% seu.</p>
-    `, btn:'Continuar →', extraBtn:null},
-    // 2 — história
-    {icon:'🌱', title:'Por que esse app existe', sub:'Uma história real, de uma mente real.', body:`
-      <p>Oi. Eu sou a Carla — tenho TEA, TDAH e TAG. Durante muito tempo fui me descobrindo através de colapsos e exaustão.</p>
-      <p>O Recarregue nasceu porque eu precisava me entender: saber o que me drena, o que me recarrega, por que certos dias custam tanto.</p>
-      <p style="color:var(--muted);font-size:13px">Não é perfeito — é honesto. Se você também está aqui tentando se conhecer, seja bem-vinda(o). 💜</p>
-    `, btn:'Continuar →', extraBtn:null},
-    // 3 — teoria das colheres
-    {icon:'🥄', title:'A Teoria das Colheres', sub:'O conceito que guia tudo aqui.', body:`
-      <p>Imagine que você acorda com <strong>12 colheres</strong>. Cada coisa que você faz custa algumas delas — reunião, barulho, decisão difícil, interação social.</p>
-      <p>Quando as colheres acabam... acabaram. Não tem como criar mais — e pegar emprestado do dia seguinte tem juros.</p>
-      <p>O Recarregue te ajuda a <strong>visualizar esse gasto</strong> e identificar seus padrões — antes que as colheres acabem.</p>
-    `, btn:'Como funciona? →', extraBtn:null},
-    // 4 — como usar (novo)
-    {icon:'🧭', title:'Como funciona', sub:'5 abas, tudo o que você precisa.', body:`
-      <div style="display:flex;flex-direction:column;gap:10px;margin:4px 0">
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--card2)">
-          <span style="font-size:20px">🏠</span>
-          <div><div style="font-weight:700;color:var(--text);font-size:13px">Hoje</div><div style="font-size:11px;color:var(--muted)">Acompanhe sua energia, check-ins e registros do dia</div></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--card2)">
-          <span style="font-size:20px">➕</span>
-          <div><div style="font-weight:700;color:var(--text);font-size:13px">Registrar</div><div style="font-size:11px;color:var(--muted)">Marque o que drena ou recarrega sua energia</div></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--card2)">
-          <span style="font-size:20px">📊</span>
-          <div><div style="font-weight:700;color:var(--text);font-size:13px">Mapa</div><div style="font-size:11px;color:var(--muted)">Veja seus padrões e insights dos últimos 30 dias</div></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.15)">
-          <span style="font-size:20px">🩺</span>
-          <div><div style="font-weight:700;color:#FCA5A5;font-size:13px">Sintomas</div><div style="font-size:11px;color:var(--muted)">Registre como seu corpo e mente estão se sentindo</div></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.15)">
-          <span style="font-size:20px">🆘</span>
-          <div><div style="font-weight:700;color:#FCA5A5;font-size:13px">SOS</div><div style="font-size:11px;color:var(--muted)">Para momentos de sobrecarga, crise ou descanso urgente</div></div>
-        </div>
+    // 1 — boas-vindas
+    {icon:'💜', title:'Seu espaço de autoconhecimento', sub:'Bem-vind@ ao Recarregue.', body:`
+      <p>Aqui você registra padrões de energia para se conhecer melhor — no seu ritmo, do seu jeito.</p>
+      <p style="margin-top:10px">Tudo que você anota fica <strong>só no seu aparelho</strong>. Sem login, sem cadastro. O controle é 100% seu.</p>
+      <div style="margin-top:14px;padding:12px 14px;border-radius:12px;background:rgba(139,92,246,.08);border:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.6">
+        🔒 Dados locais · Sem servidor · Apague quando quiser em Configurações
       </div>
-    `, btn:'Entendi →', extraBtn:null},
-    // 5 — sintomas (novo)
-    {icon:'🩺', title:'Rastreie seus sintomas', sub:'Físico, emocional e cognitivo.', body:`
-      <p>A aba <strong>Sintomas</strong> é para registrar como seu corpo e mente estão — separado dos gastos de energia.</p>
-      <div style="display:flex;flex-direction:column;gap:8px;margin:12px 0">
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--red-bg)">
-          <span style="font-size:18px">🤕</span>
-          <div><div style="font-size:13px;font-weight:700;color:var(--red)">Físico</div><div style="font-size:11px;color:var(--muted)">Dor, fadiga, náusea, tensão, dor de cabeça...</div></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--amber-bg)">
-          <span style="font-size:18px">😰</span>
-          <div><div style="font-size:13px;font-weight:700;color:var(--amber)">Emocional</div><div style="font-size:11px;color:var(--muted)">Ansiedade, irritabilidade, sobrecarga...</div></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--accent-bg)">
-          <span style="font-size:18px">🌫️</span>
-          <div><div style="font-size:13px;font-weight:700;color:var(--accent-lt)">Cognitivo</div><div style="font-size:11px;color:var(--muted)">Névoa mental, dificuldade de foco, insônia...</div></div>
-        </div>
+    `, btn:'Continuar →'},
+    // 2 — nome + idade
+    {icon:'👋', title:'Vamos nos conhecer', sub:'Dois detalhes rápidos.', body:`
+      <div style="margin-bottom:14px">
+        <p style="font-size:13px;color:var(--text2);margin-bottom:8px">Como quer ser chamad@?</p>
+        <input id="onboard-name" type="text" value="${db.settings.name||''}" placeholder="Seu nome ou apelido..." autocomplete="off" autocorrect="off" spellcheck="false"
+          style="width:100%;padding:13px 16px;background:var(--card2);border:1.5px solid var(--border);border-radius:12px;font-size:15px;color:var(--text);font-family:inherit;outline:none;box-sizing:border-box"
+          oninput="db.settings.name=this.value.trim();save();this.style.borderColor='var(--accent)'">
       </div>
-      <div style="display:flex;gap:6px;align-items:center;justify-content:center;margin-top:10px">
-        ${[1,2,3].map(n=>`<div style="width:24px;height:24px;border-radius:50%;background:var(--accent);opacity:${n*0.33+0.01};display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff">${n}</div>`).join('<span style="color:var(--muted);font-size:11px">→</span>')}
-        <span style="font-size:11px;color:var(--muted);margin-left:4px">leve → intenso</span>
+      <div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:8px">Qual a sua idade? <span style="color:var(--muted);font-size:11px">(opcional, só para análise interna)</span></p>
+        <input id="onboard-age" type="number" min="1" max="120" value="${db.settings.age||''}" placeholder="Ex: 28"
+          style="width:100%;padding:13px 16px;background:var(--card2);border:1.5px solid var(--border);border-radius:12px;font-size:15px;color:var(--text);font-family:inherit;outline:none;box-sizing:border-box"
+          oninput="this.style.borderColor='var(--accent)'">
       </div>
-      <div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.05);font-size:12px;color:var(--muted);line-height:1.5">
-        💡 Cada categoria tem um botão <strong>＋ Personalizar</strong> — adicione sintomas que são seus, porque cada corpo é único.
-      </div>
-    `, btn:'Entendi →', extraBtn:null},
-    // 5 — check-in (novo)
-    {icon:'✅', title:'O check-in diário', sub:'3 momentos por dia, 2 minutos cada.', body:`
-      <p>3 vezes por dia — manhã, tarde e noite — o app te pergunta:</p>
-      <div style="display:flex;flex-direction:column;gap:8px;margin:12px 0">
-        <div style="padding:10px 12px;border-radius:10px;background:var(--card2);font-size:13px;color:var(--text2)">🔋 <strong>Energia agora</strong> — de 0 a 10</div>
-        <div style="padding:10px 12px;border-radius:10px;background:var(--card2);font-size:13px;color:var(--text2)">💬 <strong>Como você está</strong> — humor e bateria social</div>
-      </div>
-      <p style="font-size:13px;color:var(--muted)">Nos dias muito pesados, existe o <strong>modo expresso</strong>: salva só o número, sem precisar preencher o resto.</p>
-    `, btn:'Continuar →', extraBtn:null},
-    // 6 — instalação iOS/Android
-    {icon:'📱', title:'Funciona no seu celular', sub:'iPhone, Android — em qualquer um.', body:`
-      <p>O Recarregue é um <strong>app web</strong> — roda direto no navegador, sem precisar de App Store ou Play Store.</p>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Para instalar na tela inicial e ter a experiência completa (sem barra do navegador):</p>
+    `, btn:'Continuar →'},
+    // 3 — pronomes
+    {icon:'🌈', title:'Como prefere ser chamad@?', sub:'Para o app falar do jeito certo.', body:`
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5">Escolha como prefere que o app se refira a você. Você pode alterar isso depois em Configurações.</p>
       <div style="display:flex;flex-direction:column;gap:10px">
-        <div style="padding:12px 14px;border-radius:12px;background:var(--card2);border:1px solid var(--border)">
-          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">🍎 iPhone (Safari)</div>
-          <div style="font-size:12px;color:var(--muted);line-height:1.6">Toque em <strong style="color:var(--text2)">Compartilhar</strong> (ícone de caixa com seta) → role até <strong style="color:var(--text2)">"Adicionar à Tela de Início"</strong> → confirme</div>
-        </div>
-        <div style="padding:12px 14px;border-radius:12px;background:var(--card2);border:1px solid var(--border)">
-          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">🤖 Android (Chrome)</div>
-          <div style="font-size:12px;color:var(--muted);line-height:1.6">Toque nos <strong style="color:var(--text2)">3 pontos</strong> no canto superior → <strong style="color:var(--text2)">"Instalar aplicativo"</strong> ou <strong style="color:var(--text2)">"Adicionar à tela inicial"</strong></div>
-        </div>
+        ${[
+          {p:'ela', icon:'💜', label:'Ela / Feminino',    ex:'esgotada, focada, bem-vinda'},
+          {p:'ele', icon:'💙', label:'Ele / Masculino',   ex:'esgotado, focado, bem-vindo'},
+          {p:'elu', icon:'💚', label:'Elu / Neutro',      ex:'esgotadu, focadu, bem-vindu'},
+          {p:null,  icon:'🤍', label:'Prefiro não informar', ex:'sem adaptação de linguagem'},
+        ].map(o=>{
+          const sel=pr===o.p;
+          return `<button onclick="onboardSetPronoun(${o.p===null?'null':`'${o.p}'`})" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;border:2px solid ${sel?'var(--accent)':'var(--border)'};background:${sel?'var(--accent-bg)':'var(--card2)'};cursor:pointer;font-family:inherit;text-align:left;width:100%">
+            <span style="font-size:22px">${o.icon}</span>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:${sel?'var(--accent-lt)':'var(--text)'}">${o.label}${sel?' ✓':''}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${o.ex}</div>
+            </div>
+          </button>`;
+        }).join('')}
       </div>
-      <div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(139,92,246,.08);font-size:12px;color:var(--muted);line-height:1.5">
-        💡 Seus dados ficam salvos no aparelho mesmo sem instalar. A instalação só melhora a experiência visual e ativa notificações.
-      </div>
-    `, btn:'Entendi →', extraBtn:null},
-    // 7 — notificações (novo)
-    {icon:'🔔', title:'Lembretes de check-in', sub:'Para não esquecer de se checar.', body:`
-      <p>O app pode te lembrar de fazer o check-in nos melhores momentos do dia:</p>
-      <div style="display:flex;gap:10px;justify-content:center;margin:16px 0">
-        <div style="text-align:center;padding:10px 14px;border-radius:10px;background:var(--card2)"><div style="font-size:18px">🌅</div><div style="font-size:12px;color:var(--muted);margin-top:4px">8h</div></div>
-        <div style="text-align:center;padding:10px 14px;border-radius:10px;background:var(--card2)"><div style="font-size:18px">☀️</div><div style="font-size:12px;color:var(--muted);margin-top:4px">13h</div></div>
-        <div style="text-align:center;padding:10px 14px;border-radius:10px;background:var(--card2)"><div style="font-size:18px">🌙</div><div style="font-size:12px;color:var(--muted);margin-top:4px">20h</div></div>
-      </div>
-      <p style="font-size:12px;color:var(--muted);text-align:center">Requer o app instalado na tela inicial. No iPhone, funciona a partir do iOS 16.4. Você pode ativar ou desativar depois em Configurações.</p>
-    `, btn: notifSupported ? '🔔 Ativar notificações' : 'Continuar →',
-       extraBtn: notifSupported ? {label:'Agora não →', fn:'onboardNext()'} : null,
-       notifStep: true},
-    // 7 — nome + calibração de energia
-    {icon:'✨', title:'Quase lá!', sub:'Dois detalhes finais.', body:`
-      <p style="font-size:14px;color:var(--text2);margin-bottom:6px">Como quer ser chamada(o)?</p>
-      <input id="onboard-name" type="text" value="${db.settings.name||''}" placeholder="Seu nome ou apelido..." autocomplete="off"
-        style="width:100%;padding:13px 16px;background:var(--card2);border:1px solid var(--border);border-radius:12px;font-size:15px;color:var(--text);font-family:inherit;outline:none;box-sizing:border-box"
-        oninput="this.style.borderColor='var(--accent)'">
-      <p style="font-size:13px;color:var(--text2);margin:18px 0 8px">Em dias normais, como é seu fôlego?</p>
+    `, btn:'Continuar →'},
+    // 4 — calibração de energia
+    {icon:'🥄', title:'Quantas colheres você tem?', sub:'Baseado na Teoria das Colheres.', body:`
+      <p style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:14px">Imagine que você acorda com um número fixo de colheres. Cada tarefa, barulho e interação custa algumas. Quando acabam — acabaram.</p>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Em dias normais, como é seu fôlego?</p>
       <div style="display:flex;gap:8px">
         ${[{pts:8,label:'Pouco',sub:'Dias custam caro'},{pts:12,label:'Médio',sub:'Padrão recomendado'},{pts:16,label:'Bastante',sub:'Alta capacidade'}].map(o=>`
           <button class="ob-energy-btn" data-pts="${o.pts}" onclick="onboardSetEnergy(${o.pts})" style="flex:1;padding:10px 6px;border-radius:12px;border:1.5px solid ${db.settings.dailyPts===o.pts?'var(--accent)':'var(--border)'};background:${db.settings.dailyPts===o.pts?'var(--accent-bg)':'transparent'};cursor:pointer;transition:all .2s;font-family:inherit">
@@ -3135,15 +3128,11 @@ function onboardingHTML(){
           </button>`).join('')}
       </div>
       <p style="font-size:11px;color:var(--muted);margin-top:10px">Você pode ajustar isso depois em Configurações.</p>
-    `, btn:'Vamos começar ✨', extraBtn:null},
+    `, btn:'Começar ✨'},
   ];
 
   const s=steps[onboardingStep-1];
-  const dots=[1,2,3,4,5,6,7,8,9].map(i=>`<span style="width:7px;height:7px;border-radius:50%;background:${i===onboardingStep?'var(--accent)':'var(--border)'};display:inline-block;margin:0 2px;transition:background .2s"></span>`).join('');
-
-  const mainBtn = s.notifStep && notifSupported
-    ? `<button class="btn btn-p" onclick="onboardRequestNotif()">${s.btn}</button>`
-    : `<button class="btn btn-p" onclick="onboardNext()">${s.btn}</button>`;
+  const dots=[1,2,3,4].map(i=>`<span style="width:7px;height:7px;border-radius:50%;background:${i===onboardingStep?'var(--accent)':'var(--border)'};display:inline-block;margin:0 3px;transition:background .2s"></span>`).join('');
 
   return `
     <div class="onboard-overlay">
@@ -3156,8 +3145,7 @@ function onboardingHTML(){
         <div class="onboard-title">${s.title}</div>
         <div class="onboard-sub">${s.sub}</div>
         <div class="onboard-body">${s.body}</div>
-        ${mainBtn}
-        ${s.extraBtn?`<button class="btn" style="margin-top:8px;color:var(--muted);border-color:var(--border);font-size:13px" onclick="${s.extraBtn.fn}">${s.extraBtn.label}</button>`:''}
+        <button class="btn btn-p" onclick="onboardNext()">${s.btn}</button>
         <div class="onboard-footer" style="margin-top:16px"><span class="beta-badge">Versão de teste</span></div>
       </div>
     </div>`;
@@ -3297,7 +3285,7 @@ function checkinOverlayHTML(){
             </div>
             <input type="range" class="battery-slider" min="0" max="10" value="${checkinState.socialBattery}" oninput="setSocialBattery(this.value)"
               style="background:linear-gradient(to right,#F87171,#F59E0B,#10B981)">
-            <div class="slider-labels"><span>0 — esgotada</span><span>10 — cheia</span></div>
+            <div class="slider-labels"><span>0 — ${g('esgotada','esgotado','esgotadu')}</span><span>10 — ${g('cheia','cheio','cheiu')}</span></div>
           </div>
 
           <div class="sec" style="margin-top:16px">Como você está se sentindo?</div>
@@ -3305,7 +3293,7 @@ function checkinOverlayHTML(){
             ${HUMORS.map(h=>`
               <button class="humor-btn ${checkinState.humor===h.id?'sel':''}" data-id="${h.id}" onclick="pickHumor('${h.id}')">
                 <span class="h-ico">${h.icon}</span>
-                <span class="h-lbl">${h.label}</span>
+                <span class="h-lbl">${humorLabel(h)}</span>
               </button>`).join('')}
           </div>
           ${(()=>{
@@ -3351,7 +3339,7 @@ function categorySheetHTML(){
         <div class="cat-sh-hdr">
           <div class="cat-sh-ico" style="background:${TYPE_BG[c.type]}">${c.icon}</div>
           <div>
-            <div class="cat-sh-name">${c.label}</div>
+            <div class="cat-sh-name">${catLabel(c)}</div>
             <div class="cat-sh-type">${TYPES[c.type]?.label??''} · ${isR?'devolve energia':'drena energia'}</div>
           </div>
         </div>
@@ -3468,7 +3456,7 @@ function initCharts(){
     const pLabels=Object.values(PERIODS).map(p=>`${p.icon} ${p.label}`);
     const hColors=['#86EFAC','#93C5FD','#FCA5A5','#C4B5FD','#6EE7B7','#FDE68A'];
     const datasets=HUMORS.map((h,i)=>({
-      label:`${h.icon} ${h.label}`,
+      label:`${h.icon} ${humorLabel(h)}`,
       data:Object.keys(PERIODS).map(pid=>recentCi.filter(c=>c.period===pid&&c.humor===h.id).length),
       backgroundColor:hColors[i%hColors.length],borderRadius:4,
     }));
@@ -3654,9 +3642,56 @@ function catInfoHTML(){
   </div>`;
 }
 
+function tourOverlayHTML(){
+  const steps=[
+    {sel:'#tour-energy',  title:'Suas colheres do dia 🥄', text:'Este número mostra sua energia restante. Cada tarefa, barulho e interação custa algumas colheres — quando chegam a zero, é hora de parar.'},
+    {sel:'#tour-checkin', title:'Check-ins diários ✅',     text:'3 vezes por dia (manhã, tarde e noite), registre como você está — energia, humor e bateria social. Leva menos de 2 minutos.'},
+    {sel:'#nav-register',  title:'Registrar ➕',             text:'Aqui você marca o que drenou ou recarregou sua energia: reuniões, barulho, descanso, música... Cada item tem um custo em colheres.'},
+    {sel:'#nav-mapa',     title:'Mapa dos padrões 📊',     text:'Com o tempo, você verá quais atividades mais drenam, qual período do dia é mais pesado, e tendências emocionais.'},
+    {sel:'#nav-sos',      title:'SOS 🆘',                  text:'Para momentos de sobrecarga: técnicas de respiração, ancoragem nos sentidos e o número 188 (CVV) para apoio emocional.'},
+    {sel:null,            title:'',                         text:'', isDone:true},
+  ];
+  const s=steps[tourStep-1];
+  if(!s) return '';
+  if(s.isDone){
+    const nome=db.settings.name?` ${db.settings.name}`:'';
+    return `<div style="position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:24px">
+      <div style="background:var(--card);border-radius:24px;padding:36px 24px;text-align:center;max-width:340px;width:100%">
+        <div style="font-size:56px;margin-bottom:16px">🎉</div>
+        <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:12px">Tudo pronto,${nome}!</div>
+        <div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:24px">Explore o app no seu ritmo. O Recarregue é seu. 💜</div>
+        <button onclick="tourNext()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit">Começar ✨</button>
+      </div>
+    </div>`;
+  }
+  const target=document.querySelector(s.sel);
+  if(!target){ setTimeout(()=>{tourStep++;renderOverlays();},0); return ''; }
+  const r=target.getBoundingClientRect();
+  const pad=8;
+  const st=r.top-pad, sl=r.left-pad, sw=r.width+pad*2, sh=r.height+pad*2;
+  const isAbove=st>window.innerHeight/2;
+  const tipTop=isAbove?'auto':`${r.bottom+pad+14}px`;
+  const tipBot=isAbove?`${window.innerHeight-r.top+pad+14}px`:'auto';
+  return `
+    <div style="position:fixed;top:${st}px;left:${sl}px;width:${sw}px;height:${sh}px;border-radius:16px;box-shadow:0 0 0 9999px rgba(0,0,0,.82);z-index:3001;pointer-events:none;border:2px solid rgba(167,139,250,.7)"></div>
+    <div style="position:fixed;top:${tipTop};bottom:${tipBot};left:14px;right:14px;z-index:3002;background:var(--card);border:1.5px solid rgba(167,139,250,.3);border-radius:20px;padding:20px 18px 16px;box-shadow:0 8px 32px rgba(0,0,0,.5)">
+      <div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:8px">${s.title}</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px">${s.text}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;gap:5px">${[1,2,3,4,5].map(i=>`<span style="width:7px;height:7px;border-radius:50%;background:${i===tourStep?'var(--accent)':'var(--border)'};display:inline-block"></span>`).join('')}</div>
+        <button onclick="tourNext()" style="padding:11px 22px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Próximo →</button>
+      </div>
+    </div>`;
+}
+function tourNext(){
+  if(tourStep<6){ tourStep++; renderOverlays(); }
+  else { tourStep=0; localStorage.setItem(TOUR_KEY,'1'); renderOverlays(); if(shouldShowCheckin())setTimeout(openCheckin,400); }
+}
+
 function renderOverlays(){
   const el=document.getElementById('overlays');if(!el)return;
   if(onboardingStep>0)     el.innerHTML=onboardingHTML();
+  else if(tourStep>0)      el.innerHTML=tourOverlayHTML();
   else if(catInfoId)       el.innerHTML=catInfoHTML();
   else if(helpSheet)       el.innerHTML=helpSheetHTML();
   else if(showPrivacy)     el.innerHTML=privacyHTML();
@@ -3679,8 +3714,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:none;margin:12px 16px 0;flex-direction:column;gap:10px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.0.0 disponível!</strong>
-        Antes de atualizar, faça um backup dos seus dados em Configurações para não perder nada.
+        <strong>✨ Versão 2.1.0 disponível!</strong>
+        Novo onboarding com perfil, tutorial interativo e linguagem com pronomes. Faça backup antes de atualizar.
       </div>
       <div style="display:flex;gap:8px">
         <button class="update-banner-btn" style="flex:1;background:rgba(255,255,255,.1);color:var(--text);border:1px solid rgba(255,255,255,.15)" onclick="go('settings')">📦 Fazer backup</button>
@@ -3689,7 +3724,7 @@ function render(){
     </div>
     <div class="main" id="main">${CONTENT[screen]()}</div>
     <nav class="bnav">
-      ${(()=>{const v=getVisitedTabs();return NAV.map(n=>`<button class="nav-btn ${n.cls} ${screen===n.id?'on':''}" onclick="go('${n.id}')"><span class="nav-ico" style="position:relative">${n.icon}${n.id==='settings'?`<span class="nav-config-badge" style="display:${needsBackupReminder()?'block':'none'}"></span>`:!v[n.id]?'<span class="nav-new-badge"></span>':''}</span><span>${n.label}</span></button>`).join('');})()}
+      ${(()=>{const v=getVisitedTabs();return NAV.map(n=>`<button id="nav-${n.id}" class="nav-btn ${n.cls} ${screen===n.id?'on':''}" onclick="go('${n.id}')"><span class="nav-ico" style="position:relative">${n.icon}${n.id==='settings'?`<span class="nav-config-badge" style="display:${needsBackupReminder()?'block':'none'}"></span>`:!v[n.id]?'<span class="nav-new-badge"></span>':''}</span><span>${n.label}</span></button>`).join('');})()}
     </nav>`;
   renderOverlays();
   if(screen==='mapa')requestAnimationFrame(initCharts);
@@ -3697,7 +3732,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.1.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
@@ -3735,7 +3770,10 @@ if(new URLSearchParams(location.search).get('preview')==='1'){
   history.replaceState(null,'',location.pathname);
 }
 
-load();applyTheme();render();
+load();applyTheme();
+// Inicia tour se onboarding já foi feito mas tour não, e usuário ainda não tem dados (novo usuário real)
+if(localStorage.getItem(ONBOARDED_KEY)&&!localStorage.getItem(TOUR_KEY)&&db.checkins.length===0) tourStep=1;
+render();
 // Sessão: só conta 1 por hora por dispositivo
 const _lastSession = parseInt(localStorage.getItem('recarregue_last_session')||'0');
 if(Date.now() - _lastSession > 3600000){
@@ -3748,7 +3786,7 @@ if(Date.now() - _lastSession > 3600000){
     platform: navigator.platform || navigator.userAgentData?.platform || 'unknown',
   });
 }
-if(onboardingStep===0&&shouldShowCheckin())setTimeout(openCheckin,700);
+if(onboardingStep===0&&!tourStep&&shouldShowCheckin())setTimeout(openCheckin,700);
 if(db.settings.notifEnabled)scheduleNotifs();
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 
