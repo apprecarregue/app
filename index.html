@@ -711,6 +711,7 @@ body {
 <body data-theme="dark" data-palette="roxo">
 <div id="app"></div>
 <div id="overlays"></div>
+<div id="tour-guide"></div>
 
 <!-- Formulário oculto para detecção do Netlify Forms no build -->
 <form name="feedback" data-netlify="true" netlify style="display:none">
@@ -929,6 +930,7 @@ let helpSheet = null; // 'home' | 'checkin' | 'register' | 'mapa' | 'sos'
 const ONBOARDED_KEY = 'recarregue_v1_onboarded';
 const VISITED_KEY   = 'recarregue_visited_tabs';
 const TOUR_KEY      = 'recarregue_tour_done';
+const TOUR_TABS     = {2:'home', 3:'register', 4:'sintomas', 5:'mapa', 6:'sos'};
 let onboardingStep = localStorage.getItem(ONBOARDED_KEY) ? 0 : 1;
 let tourStep = 0; // initialized after load()
 
@@ -1262,7 +1264,8 @@ function submitCheckin(){
   trackEvent('checkin_completed',{period:p,energy:db.checkins[db.checkins.length-1].energy});
   const h=HUMORS.find(x=>x.id===checkinState.humor);
   toast(`${h?.icon??''} Check-in da ${PERIODS[p]?.label} salvo!`);
-  checkinState=null;render();
+  checkinState=null;
+  if(tourStep===2){ tourStep=3; go('register'); } else { render(); }
 }
 function submitCheckinExpress(){
   if(!checkinState)return;
@@ -1278,7 +1281,8 @@ function submitCheckinExpress(){
   save();
   trackEvent('checkin_completed',{period:p,energy:checkinState.energy,express:true});
   toast(`✅ Energia registrada — cuide-se!`);
-  checkinState=null;render();
+  checkinState=null;
+  if(tourStep===2){ tourStep=3; go('register'); } else { render(); }
 }
 function skipCheckin(){checkinSkipped=true;checkinState=null;renderOverlays();}
 
@@ -3654,56 +3658,80 @@ function catInfoHTML(){
 }
 
 function tourOverlayHTML(){
-  const steps=[
-    {sel:'#tour-energy',  title:'Suas colheres do dia 🥄', text:'Este número mostra sua energia restante. Cada tarefa, barulho e interação custa algumas colheres — quando chegam a zero, é hora de parar.'},
-    {sel:'#tour-checkin', title:'Check-ins diários ✅',     text:'3 vezes por dia (manhã, tarde e noite), registre como você está — energia, humor e bateria social. Leva menos de 2 minutos.'},
-    {sel:'#nav-register',  title:'Registrar ➕',             text:'Aqui você marca o que drenou ou recarregou sua energia: reuniões, barulho, descanso, música... Cada item tem um custo em colheres.'},
-    {sel:'#nav-mapa',     title:'Mapa dos padrões 📊',     text:'Com o tempo, você verá quais atividades mais drenam, qual período do dia é mais pesado, e tendências emocionais.'},
-    {sel:'#nav-sintomas',  title:'Sintomas 🩺',              text:'Registre como seu corpo e mente estão — físico, emocional e cognitivo. Separado dos gastos de energia, porque cada corpo é único.'},
-    {sel:'#nav-sos',      title:'SOS 🆘',                  text:'Para momentos de sobrecarga: técnicas de respiração, ancoragem nos sentidos e o número 188 (CVV) para apoio emocional.'},
-    {sel:null,            title:'',                         text:'', isDone:true},
-  ];
-  const s=steps[tourStep-1];
-  if(!s) return '';
-  if(s.isDone){
-    const nome=db.settings.name?` ${db.settings.name}`:'';
-    return `<div style="position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:24px">
+  const nome=db.settings.name?` ${db.settings.name}`:'';
+  if(tourStep===1) return `
+    <div style="position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;padding:24px">
+      <div style="background:var(--card);border-radius:24px;padding:36px 24px;text-align:center;max-width:340px;width:100%">
+        <div style="font-size:52px;margin-bottom:16px">🗺️</div>
+        <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:12px">Vamos explorar ${g('juntas','juntos','juntes')}!</div>
+        <div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:28px">Em 5 passos você vai <strong style="color:var(--text)">usar de verdade</strong> — não só ver. Toque quando ${g('estiver','estiver','estiver')} ${g('pronta','pronto','prontx')}.</div>
+        <button onclick="tourNext()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit">Vamos lá →</button>
+      </div>
+    </div>`;
+  if(tourStep===7) return `
+    <div style="position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;padding:24px">
       <div style="background:var(--card);border-radius:24px;padding:36px 24px;text-align:center;max-width:340px;width:100%">
         <div style="font-size:56px;margin-bottom:16px">🎉</div>
-        <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:12px">Tudo pronto,${nome}!</div>
-        <div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:24px">Explore o app no seu ritmo. O Recarregue é seu. 💜</div>
+        <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:12px">${g('Pronta','Pronto','Prontx')}${nome}!</div>
+        <div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:28px">O segredo é o hábito: 3 check-ins por dia + um registro quando algo acontece. Os padrões aparecem com o tempo. 💜</div>
         <button onclick="tourNext()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit">Começar ✨</button>
       </div>
     </div>`;
-  }
-  const target=document.querySelector(s.sel);
-  if(!target){ setTimeout(()=>{tourStep++;renderOverlays();},0); return ''; }
-  const r=target.getBoundingClientRect();
-  const pad=8;
-  const st=r.top-pad, sl=r.left-pad, sw=r.width+pad*2, sh=r.height+pad*2;
-  const isAbove=st>window.innerHeight/2;
-  const tipTop=isAbove?'auto':`${r.bottom+pad+14}px`;
-  const tipBot=isAbove?`${window.innerHeight-r.top+pad+14}px`:'auto';
+  return '';
+}
+
+function tourGuideBarHTML(){
+  const guideSteps={
+    2:{num:'1 de 5', title:'Check-in ✅', text:`3× por dia você registra como está: energia, humor e bateria social. Leva menos de 2 minutos. Vamos fazer o de agora?`, cta:'Fazer check-in →', action:'checkin'},
+    3:{num:'2 de 5', title:'Registrar ➕', text:'Aqui você marca o que drenou ou recarregou: reunião, barulho, descanso, música... Toque em uma categoria pra experimentar.', cta:'Próximo →'},
+    4:{num:'3 de 5', title:'Sintomas 🩺', text:'Registre sintomas físicos e emocionais separados do gasto de energia — dor, ansiedade, sobrecarga sensorial. Cada corpo é único.', cta:'Próximo →'},
+    5:{num:'4 de 5', title:'Mapa de padrões 📊', text:'Com o tempo você verá quais atividades mais drenam, qual período pesa mais e suas tendências emocionais. Quanto mais registrar, mais claro fica.', cta:'Próximo →'},
+    6:{num:'5 de 5', title:'SOS 🆘', text:'Para momentos de sobrecarga: respiração guiada, ancoragem nos sentidos e o CVV (188). Sempre aqui quando precisar.', cta:'Próximo →'},
+  };
+  const s=guideSteps[tourStep];
+  if(!s) return '';
+  const dots=[2,3,4,5,6].map(i=>`<span style="width:6px;height:6px;border-radius:50%;background:${i===tourStep?'var(--accent)':'rgba(255,255,255,.2)'};display:inline-block;transition:background .2s"></span>`).join('');
+  const ctaOnclick=s.action==='checkin'?'openCheckin()':'tourNext()';
   return `
-    <div style="position:fixed;top:${st}px;left:${sl}px;width:${sw}px;height:${sh}px;border-radius:16px;box-shadow:0 0 0 9999px rgba(0,0,0,.82);z-index:3001;pointer-events:none;border:2px solid rgba(167,139,250,.7)"></div>
-    <div style="position:fixed;top:${tipTop};bottom:${tipBot};left:14px;right:14px;z-index:3002;background:var(--card);border:1.5px solid rgba(167,139,250,.3);border-radius:20px;padding:20px 18px 16px;box-shadow:0 8px 32px rgba(0,0,0,.5)">
-      <div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:8px">${s.title}</div>
-      <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px">${s.text}</div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div style="display:flex;gap:5px">${[1,2,3,4,5,6].map(i=>`<span style="width:7px;height:7px;border-radius:50%;background:${i===tourStep?'var(--accent)':'var(--border)'};display:inline-block"></span>`).join('')}</div>
-        <button onclick="tourNext()" style="padding:11px 22px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Próximo →</button>
+    <div style="position:fixed;bottom:72px;left:0;right:0;z-index:2000;padding:0 12px 6px">
+      <div style="background:var(--card);border:1.5px solid rgba(167,139,250,.45);border-radius:20px;padding:16px 18px 14px;box-shadow:0 -2px 28px rgba(0,0,0,.55)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:11px;font-weight:700;color:var(--accent-lt);letter-spacing:.5px;text-transform:uppercase">Passo ${s.num}</span>
+          <div style="display:flex;gap:5px">${dots}</div>
+        </div>
+        <div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:6px">${s.title}</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:14px">${s.text}</div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button onclick="tourNext()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:0;font-family:inherit">Pular</button>
+          <button onclick="${ctaOnclick}" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">${s.cta}</button>
+        </div>
       </div>
     </div>`;
 }
+
+function renderTourGuide(){
+  const el=document.getElementById('tour-guide');
+  if(!el) return;
+  el.innerHTML=(tourStep>=2&&tourStep<=6)?tourGuideBarHTML():'';
+}
+
 function tourNext(){
-  if(tourStep<7){ tourStep++; renderOverlays(); }
-  else { tourStep=0; localStorage.setItem(TOUR_KEY,'1'); renderOverlays(); if(shouldShowCheckin())setTimeout(openCheckin,400); }
+  if(tourStep<7){
+    tourStep++;
+    const tab=TOUR_TABS[tourStep];
+    if(tab&&tab!==screen) go(tab);
+    else { renderOverlays(); renderTourGuide(); }
+  } else {
+    tourStep=0; localStorage.setItem(TOUR_KEY,'1');
+    renderOverlays(); renderTourGuide();
+    if(shouldShowCheckin()) setTimeout(openCheckin,400);
+  }
 }
 
 function renderOverlays(){
   const el=document.getElementById('overlays');if(!el)return;
-  if(onboardingStep>0)     el.innerHTML=onboardingHTML();
-  else if(tourStep>0)      el.innerHTML=tourOverlayHTML();
+  if(onboardingStep>0)              el.innerHTML=onboardingHTML();
+  else if(tourStep===1||tourStep===7) el.innerHTML=tourOverlayHTML();
   else if(catInfoId)       el.innerHTML=catInfoHTML();
   else if(helpSheet)       el.innerHTML=helpSheetHTML();
   else if(showPrivacy)     el.innerHTML=privacyHTML();
@@ -3739,6 +3767,7 @@ function render(){
       ${(()=>{const v=getVisitedTabs();return NAV.map(n=>`<button id="nav-${n.id}" class="nav-btn ${n.cls} ${screen===n.id?'on':''}" onclick="go('${n.id}')"><span class="nav-ico" style="position:relative">${n.icon}${n.id==='settings'?`<span class="nav-config-badge" style="display:${needsBackupReminder()?'block':'none'}"></span>`:!v[n.id]?'<span class="nav-new-badge"></span>':''}</span><span>${n.label}</span></button>`).join('');})()}
     </nav>`;
   renderOverlays();
+  renderTourGuide();
   if(screen==='mapa')requestAnimationFrame(initCharts);
   if(screen==='sos')requestAnimationFrame(()=>{if(groundingStep>=0)renderGrounding();});
 }
