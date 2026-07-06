@@ -243,6 +243,7 @@ body {
 }
 .period-card.done  { border-color: rgba(16,185,129,.4); }
 .period-card.active{ border-color: var(--purple); background: var(--purple-bg); cursor: pointer; }
+.period-card.tappable { cursor: pointer; }
 .pc-period-icon { font-size: 18px; }
 .pc-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; font-weight: 700; }
 .pc-energy { font-size: 24px; font-weight: 800; }
@@ -979,12 +980,8 @@ function onboardSetPronoun(p){
   db.settings.pronoun=p; save(); renderOverlays();
 }
 function onboardNext(){
-  if(onboardingStep < 4){ onboardingStep++; renderOverlays(); }
+  if(onboardingStep < 3){ onboardingStep++; renderOverlays(); }
   else {
-    const nameInp=document.getElementById('onboard-name');
-    if(nameInp&&nameInp.value.trim()){ db.settings.name=nameInp.value.trim(); save(); }
-    const ageInp=document.getElementById('onboard-age');
-    if(ageInp&&ageInp.value.trim()){ const a=parseInt(ageInp.value);if(a>0&&a<120){db.settings.age=a;save();} }
     localStorage.setItem(ONBOARDED_KEY,'1'); onboardingStep=0; renderOverlays();
     // Inicia tour para novos usuários
     if(!localStorage.getItem(TOUR_KEY)){ tourStep=1; setTimeout(()=>renderOverlays(),300); }
@@ -1196,8 +1193,8 @@ function go(s){screen=s;sheetState=null;triggerSheetState=null;showReport=false;
 
 // ── CHECK-IN ──────────────────────────────────────────────────────────────────
 
-function openCheckin(){
-  checkinState={step:1, energy:7, sensorial:{barulho:null,toque:null,cheiro:null}, socialBattery:7, humor:null, note:''};
+function openCheckin(pid){
+  checkinState={step:1, energy:7, sensorial:{barulho:null,toque:null,cheiro:null}, socialBattery:7, humor:null, note:'', forcePeriod:pid||null};
   renderOverlays();
 }
 
@@ -1246,7 +1243,7 @@ function pickHumor(id){
 
 function submitCheckin(){
   if(!checkinState||!checkinState.humor)return;
-  const p=currentPeriod();
+  const p=checkinState.forcePeriod||currentPeriod();
   db.checkins.push({
     id:uid(), date:todayStr(), period:p,
     energy:checkinState.energy,
@@ -1264,7 +1261,7 @@ function submitCheckin(){
 }
 function submitCheckinExpress(){
   if(!checkinState)return;
-  const p=currentPeriod();
+  const p=checkinState.forcePeriod||currentPeriod();
   db.checkins.push({
     id:uid(), date:todayStr(), period:p,
     energy:checkinState.energy,
@@ -2066,7 +2063,7 @@ function homeHTML(){
   const periodCards=Object.entries(PERIODS).map(([pid,pd])=>{
     const ci=periodCheckin(pid),isCurrent=currentPeriod()===pid;
     const h=ci?HUMORS.find(x=>x.id===ci.humor):null;
-    return `<div class="period-card ${ci?'done':''} ${isCurrent&&!ci?'active':''}" ${!ci&&isCurrent?'onclick="openCheckin()"':''}>
+    return `<div class="period-card ${ci?'done':''} ${isCurrent&&!ci?'active':''} ${!ci&&!isCurrent?'tappable':''}" ${!ci?`onclick="openCheckin('${pid}')"`:''}>
       <div class="pc-period-icon">${pd.icon}</div>
       <div class="pc-label">${pd.label}</div>
       ${ci
@@ -2075,7 +2072,7 @@ function homeHTML(){
           <div class="pc-done-icon">✅</div>`
         :isCurrent
           ?`<div class="pc-tap">Toque aqui</div>`
-          :`<div style="font-size:10px;color:rgba(255,255,255,.12);margin-top:4px">—</div>`
+          :`<div style="font-size:10px;color:var(--muted);margin-top:4px">registrar</div>`
       }
     </div>`;
   }).join('');
@@ -3071,30 +3068,20 @@ function settingsHTML(){
 function onboardingHTML(){
   const pr=db.settings.pronoun;
   const steps=[
-    // 1 — boas-vindas
+    // 1 — boas-vindas + nome
     {icon:'💜', title:'Seu espaço de autoconhecimento', sub:'Bem-vind@ ao Recarregue.', body:`
       <p>Aqui você registra padrões de energia para se conhecer melhor — no seu ritmo, do seu jeito.</p>
-      <p style="margin-top:10px">Tudo que você anota fica <strong>só no seu aparelho</strong>. Sem login, sem cadastro. O controle é 100% seu.</p>
-      <div style="margin-top:14px;padding:12px 14px;border-radius:12px;background:rgba(139,92,246,.08);border:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.6">
-        🔒 Dados locais · Sem servidor · Apague quando quiser em Configurações
-      </div>
-    `, btn:'Continuar →'},
-    // 2 — nome + idade
-    {icon:'👋', title:'Vamos nos conhecer', sub:'Dois detalhes rápidos.', body:`
-      <div style="margin-bottom:14px">
-        <p style="font-size:13px;color:var(--text2);margin-bottom:8px">Como quer ser chamad@?</p>
+      <div style="margin-top:14px">
+        <p style="font-size:13px;color:var(--text2);margin-bottom:8px">Como prefere ser chamad@? <span style="color:var(--muted);font-size:11px">(opcional)</span></p>
         <input id="onboard-name" type="text" value="${db.settings.name||''}" placeholder="Seu nome ou apelido..." autocomplete="off" autocorrect="off" spellcheck="false"
           style="width:100%;padding:13px 16px;background:var(--card2);border:1.5px solid var(--border);border-radius:12px;font-size:15px;color:var(--text);font-family:inherit;outline:none;box-sizing:border-box"
           oninput="db.settings.name=this.value.trim();save();this.style.borderColor='var(--accent)'">
       </div>
-      <div>
-        <p style="font-size:13px;color:var(--text2);margin-bottom:8px">Qual a sua idade? <span style="color:var(--muted);font-size:11px">(opcional, só para análise interna)</span></p>
-        <input id="onboard-age" type="number" min="1" max="120" value="${db.settings.age||''}" placeholder="Ex: 28"
-          style="width:100%;padding:13px 16px;background:var(--card2);border:1.5px solid var(--border);border-radius:12px;font-size:15px;color:var(--text);font-family:inherit;outline:none;box-sizing:border-box"
-          oninput="this.style.borderColor='var(--accent)'">
+      <div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(139,92,246,.08);border:1px solid var(--border);font-size:11px;color:var(--muted);line-height:1.6">
+        🔒 Dados locais · Sem servidor · Apague quando quiser em Configurações
       </div>
     `, btn:'Continuar →'},
-    // 3 — pronomes
+    // 2 — pronomes
     {icon:'🌈', title:'Como prefere ser chamad@?', sub:'Para o app falar do jeito certo.', body:`
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5">Escolha como prefere que o app se refira a você. Você pode alterar isso depois em Configurações.</p>
       <div style="display:flex;flex-direction:column;gap:10px">
@@ -3132,7 +3119,7 @@ function onboardingHTML(){
   ];
 
   const s=steps[onboardingStep-1];
-  const dots=[1,2,3,4].map(i=>`<span style="width:7px;height:7px;border-radius:50%;background:${i===onboardingStep?'var(--accent)':'var(--border)'};display:inline-block;margin:0 3px;transition:background .2s"></span>`).join('');
+  const dots=[1,2,3].map(i=>`<span style="width:7px;height:7px;border-radius:50%;background:${i===onboardingStep?'var(--accent)':'var(--border)'};display:inline-block;margin:0 3px;transition:background .2s"></span>`).join('');
 
   return `
     <div class="onboard-overlay">
@@ -3648,6 +3635,7 @@ function tourOverlayHTML(){
     {sel:'#tour-checkin', title:'Check-ins diários ✅',     text:'3 vezes por dia (manhã, tarde e noite), registre como você está — energia, humor e bateria social. Leva menos de 2 minutos.'},
     {sel:'#nav-register',  title:'Registrar ➕',             text:'Aqui você marca o que drenou ou recarregou sua energia: reuniões, barulho, descanso, música... Cada item tem um custo em colheres.'},
     {sel:'#nav-mapa',     title:'Mapa dos padrões 📊',     text:'Com o tempo, você verá quais atividades mais drenam, qual período do dia é mais pesado, e tendências emocionais.'},
+    {sel:'#nav-sintomas',  title:'Sintomas 🩺',              text:'Registre como seu corpo e mente estão — físico, emocional e cognitivo. Separado dos gastos de energia, porque cada corpo é único.'},
     {sel:'#nav-sos',      title:'SOS 🆘',                  text:'Para momentos de sobrecarga: técnicas de respiração, ancoragem nos sentidos e o número 188 (CVV) para apoio emocional.'},
     {sel:null,            title:'',                         text:'', isDone:true},
   ];
@@ -3678,13 +3666,13 @@ function tourOverlayHTML(){
       <div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:8px">${s.title}</div>
       <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px">${s.text}</div>
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div style="display:flex;gap:5px">${[1,2,3,4,5].map(i=>`<span style="width:7px;height:7px;border-radius:50%;background:${i===tourStep?'var(--accent)':'var(--border)'};display:inline-block"></span>`).join('')}</div>
+        <div style="display:flex;gap:5px">${[1,2,3,4,5,6].map(i=>`<span style="width:7px;height:7px;border-radius:50%;background:${i===tourStep?'var(--accent)':'var(--border)'};display:inline-block"></span>`).join('')}</div>
         <button onclick="tourNext()" style="padding:11px 22px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Próximo →</button>
       </div>
     </div>`;
 }
 function tourNext(){
-  if(tourStep<6){ tourStep++; renderOverlays(); }
+  if(tourStep<7){ tourStep++; renderOverlays(); }
   else { tourStep=0; localStorage.setItem(TOUR_KEY,'1'); renderOverlays(); if(shouldShowCheckin())setTimeout(openCheckin,400); }
 }
 
@@ -3714,8 +3702,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:none;margin:12px 16px 0;flex-direction:column;gap:10px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.1.0 disponível!</strong>
-        Novo onboarding com perfil, tutorial interativo e linguagem com pronomes. Faça backup antes de atualizar.
+        <strong>✨ Versão 2.2.0 disponível!</strong>
+        Onboarding mais curto, tour inclui Sintomas e check-in disponível para qualquer período do dia. Faça backup antes de atualizar.
       </div>
       <div style="display:flex;gap:8px">
         <button class="update-banner-btn" style="flex:1;background:rgba(255,255,255,.1);color:var(--text);border:1px solid rgba(255,255,255,.15)" onclick="go('settings')">📦 Fazer backup</button>
@@ -3732,7 +3720,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.2.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
