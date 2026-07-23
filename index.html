@@ -3435,7 +3435,7 @@ function triggerSheetHTML(){
           <div class="int-row">
             ${Object.entries(INTS).map(([k,v])=>`<button class="int-btn trig-int-btn ${triggerSheetState.intensity===k?'sel':''}" data-k="${k}" onclick="setTriggerInt('${k}')">${v.label}</button>`).join('')}
           </div>
-          <div class="cost-prev">${triggerSheetState.type==='recuperacao'?'Devolve':'Custa'}: <strong>${Math.round(2*(INTS[triggerSheetState.intensity]?.mult??1)*10)/10} pontos</strong></div>
+          <div class="cost-prev">${triggerSheetState.type==='recuperacao'?'Devolve':'Custa'}: <strong class="trig-cost-val">${Math.round(2*(INTS[triggerSheetState.intensity]?.mult??1)*10)/10} pontos</strong></div>
           <div class="sec">Nota (opcional)</div>
           <textarea class="note" rows="2" placeholder="Contexto, o que aconteceu..." oninput="updateTriggerField('note',this.value)">${triggerSheetState.note}</textarea>
           <button class="btn btn-p" onclick="submitTrigger()">Registrar</button>
@@ -3807,8 +3807,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:none;margin:12px 16px 0;flex-direction:column;gap:10px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.3.0 disponível!</strong>
-        Tour guiado com botão Voltar, nav com destaque claro, botão do onboarding com leitura obrigatória e sobreposições corrigidas. Faça backup antes de atualizar.
+        <strong>✨ Versão 2.4.0 disponível!</strong>
+        Ícones ⓘ em amarelo, info das Colheres, subtítulo no botão Dia Difícil, correção modo claro, gatilho não mapeado com drenou/carregou e pontuação correta. Faça backup antes de atualizar.
       </div>
       <div style="display:flex;gap:8px">
         <button class="update-banner-btn" style="flex:1;background:rgba(255,255,255,.1);color:var(--text);border:1px solid rgba(255,255,255,.15)" onclick="go('settings')">📦 Fazer backup</button>
@@ -3826,7 +3826,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.4.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
