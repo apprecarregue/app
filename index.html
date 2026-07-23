@@ -1690,6 +1690,13 @@ function setSilentMode(hours){
   else toast('🔔 Notificações reativadas');
 }
 
+function _swNotif(id,title,body,tag,delayMs){
+  // Android exige showNotification() via SW — new Notification() da página não funciona
+  navigator.serviceWorker?.ready.then(reg=>{
+    reg.active?.postMessage({type:'SCHEDULE_NOTIF',id,title,body,icon:'./icon-192.png',tag,delayMs});
+  });
+}
+
 function scheduleNotifs(){
   if(typeof Notification==='undefined'||Notification.permission!=='granted')return;
   const now=new Date();
@@ -1698,32 +1705,27 @@ function scheduleNotifs(){
     const fire=new Date();fire.setHours(pd.notifHour,0,0,0);
     const delay=fire-now;
     if(delay>0&&delay<18*60*60*1000){
-      setTimeout(()=>{
-        if(!periodCheckin(pid)&&Notification.permission==='granted'&&Date.now()>silentUntil)
-          new Notification('Recarregue',{body:`Como está sua energia nessa ${pd.label.toLowerCase()}?`,icon:'./icon.png',tag:`checkin-${pid}`});
-      },delay);
+      _swNotif(`checkin-${pid}`,'Recarregue',`Como está sua energia nessa ${pd.label.toLowerCase()}?`,`checkin-${pid}`,delay);
     }
   });
-  // Resumo do dia às 22h
+  // Resumo do dia às 22h — precisa de dados do db, dispara da página mas via SW
   const summary=new Date();summary.setHours(22,0,0,0);
   const summaryDelay=summary-now;
   if(summaryDelay>0&&summaryDelay<24*60*60*1000){
     setTimeout(()=>{
-      if(Notification.permission!=='granted')return;
+      if(Notification.permission!=='granted'||Date.now()<=silentUntil)return;
       const es=db.entries.filter(e=>e.date===todayStr());
       const rem=db.settings.dailyPts-es.reduce((s,e)=>s+entryCost(e),0);
-      const topDrain=()=>{
-        const c={};
-        es.filter(e=>cat(e.categoryId)?.type!=='recuperacao'&&e.categoryId!=='_custom_trigger')
-          .forEach(e=>{c[e.categoryId]=(c[e.categoryId]||0)+1;});
-        const top=Object.entries(c).sort((a,b)=>b[1]-a[1])[0];
-        return top?cat(top[0])?.label:'—';
-      };
+      const counts={};
+      es.filter(e=>cat(e.categoryId)?.type!=='recuperacao'&&e.categoryId!=='_custom_trigger')
+        .forEach(e=>{counts[e.categoryId]=(counts[e.categoryId]||0)+1;});
+      const top=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+      const topLabel=top?cat(top[0])?.label:'—';
       const recoveries=es.filter(e=>cat(e.categoryId)?.type==='recuperacao').length;
-      new Notification('Recarregue — resumo do dia',{
-        body:`Energia restante: ${Math.round(Math.max(0,rem))} pts · Maior dreno: ${topDrain()} · Recuperações: ${recoveries}`,
-        icon:'./icon.png',tag:'resumo-dia'
-      });
+      navigator.serviceWorker?.ready.then(reg=>reg.showNotification('Recarregue — resumo do dia',{
+        body:`Energia restante: ${Math.round(Math.max(0,rem))} pts · Maior dreno: ${topLabel} · Recuperações: ${recoveries}`,
+        icon:'./icon-192.png',tag:'resumo-dia'
+      }));
     },summaryDelay);
   }
 }
@@ -3808,8 +3810,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:10px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.4.2 disponível!</strong>
-        Ícones ⓘ em amarelo, info das Colheres, subtítulo no botão Dia Difícil, correção modo claro, gatilho com drenou/carregou e pontuação por intensidade. Faça backup antes de atualizar.
+        <strong>✨ Versão 2.4.3 disponível!</strong>
+        Notificações corrigidas no Android, banner de atualização persistente, gatilho com drenou/carregou e pontuação por intensidade, modo claro e ícones ⓘ. Faça backup antes de atualizar.
       </div>
       <div style="display:flex;gap:8px">
         <button class="update-banner-btn" style="flex:1;background:rgba(255,255,255,.1);color:var(--text);border:1px solid rgba(255,255,255,.15)" onclick="go('settings')">📦 Fazer backup</button>
@@ -3827,7 +3829,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.4.2';
+const APP_VERSION = '2.4.3';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
