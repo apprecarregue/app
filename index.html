@@ -3808,15 +3808,14 @@ function render(){
       <span class="hdr-title">${TITLES[screen]}</span>
       <div style="display:flex;align-items:center;gap:8px"><span class="beta-badge">beta</span><img src="icon.png" class="hdr-icon" style="width:28px;height:28px;border-radius:7px;object-fit:cover"></div>
     </div>
-    <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:10px;align-items:stretch">
+    <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.4.4 disponível!</strong>
-        Aviso automático de nova versão sem precisar recarregar, notificações corrigidas no Android, gatilho com drenou/carregou e pontuação por intensidade. Faça backup antes de atualizar.
+        <strong>✨ Versão 2.4.5 disponível!</strong>
+        Notificações corrigidas no Android, gatilho com drenou/carregou e pontuação por intensidade, aviso automático de nova versão.
       </div>
-      <div style="display:flex;gap:8px">
-        <button class="update-banner-btn" style="flex:1;background:rgba(255,255,255,.1);color:var(--text);border:1px solid rgba(255,255,255,.15)" onclick="go('settings')">📦 Fazer backup</button>
-        <button class="update-banner-btn" style="flex:1" onclick="dismissUpdate();setTimeout(()=>location.reload(),400)">Atualizar agora</button>
-      </div>
+      <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam salvos localmente — faça backup antes de atualizar.</div>
+      <button class="update-banner-btn" onclick="go('settings')">📦 Fazer backup e voltar</button>
+      <button onclick="dismissUpdate();setTimeout(()=>location.reload(),400)" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px;text-decoration:underline;font-family:inherit">já tenho backup recente → atualizar</button>
     </div>
     <div class="main" id="main">${CONTENT[screen]()}</div>
     <nav class="bnav">
@@ -3829,7 +3828,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.4.4';
+const APP_VERSION = '2.4.5';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
