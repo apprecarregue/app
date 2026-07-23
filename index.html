@@ -1120,6 +1120,7 @@ const cat=id=>CATS.find(c=>c.id===id);
 
 function isHardDay(date){return (db.hardDays||[]).includes(date||todayStr());}
 function entryCost(e){
+  if(e.categoryId==='_custom_trigger') return e._customCost ?? 2;
   const c=cat(e.categoryId);if(!c)return 0;
   return Math.round(c.cost*(INTS[e.intensity]?.mult??1)*10)/10;
 }
@@ -1330,7 +1331,7 @@ function submitSheet(){
 
 // ── CUSTOM TRIGGER SHEET ──────────────────────────────────────────────────────
 
-function openTriggerSheet(){triggerSheetState={description:'',sensation:'',intensity:'normal',note:''};renderOverlays();}
+function openTriggerSheet(){triggerSheetState={description:'',sensation:'',intensity:'normal',note:'',type:'drain'};renderOverlays();}
 function closeTriggerSheet(){triggerSheetState=null;renderOverlays();}
 function setTriggerInt(k){
   if(!triggerSheetState)return;
@@ -1345,7 +1346,9 @@ function submitTrigger(){
   if(!triggerSheetState)return;
   const desc=triggerSheetState.description.trim();
   if(!desc){toast('Descreva o gatilho');return;}
-  const cost=Math.round(2*(INTS[triggerSheetState.intensity]?.mult??1)*10)/10;
+  const baseCost=Math.round(2*(INTS[triggerSheetState.intensity]?.mult??1)*10)/10;
+  const isRecov=triggerSheetState.type==='recuperacao';
+  const cost=isRecov?-baseCost:baseCost;
   const e={
     id:uid(), date:todayStr(), createdAt:new Date().toISOString(),
     categoryId:'_custom_trigger',
@@ -1356,8 +1359,8 @@ function submitTrigger(){
     _customCost:cost,
   };
   db.entries.push(e);save();
-  trackEvent('entry_registered',{type:'gatilho'});
-  toast(`🎯 Gatilho registrado — ${cost} pts`);
+  trackEvent('entry_registered',{type:isRecov?'gatilho_recuperacao':'gatilho'});
+  toast(isRecov?`💚 Registrado — +${baseCost} pts devolvidos`:`🎯 Gatilho registrado — −${baseCost} pts`);
   triggerSheetState=null;go('home');
 }
 
@@ -2115,7 +2118,7 @@ function homeHTML(){
         const cost=isCustom?e._customCost??2:entryCost(e);
         const c=isCustom?null:cat(e.categoryId);
         if(!isCustom&&!c)return'';
-        const isR=!isCustom&&c.type==='recuperacao';
+        const isR=isCustom?(cost<0):c.type==='recuperacao';
         const icon=isCustom?'🎯':c.icon;
         const label=isCustom?e.triggerDesc:c.label;
         const bg=isCustom?TYPE_BG.gatilho:(TYPE_BG[c.type]);
@@ -3412,25 +3415,30 @@ function triggerSheetHTML(){
       <div class="sheet">
         <div class="sh-handle"></div>
         <div class="cat-sh-hdr">
-          <div class="cat-sh-ico" style="background:rgba(248,113,113,.2)">🎯</div>
+          <div class="cat-sh-ico" style="background:${triggerSheetState.type==='recuperacao'?'rgba(16,185,129,.2)':'rgba(248,113,113,.2)'}">${triggerSheetState.type==='recuperacao'?'💚':'🎯'}</div>
           <div>
-            <div class="cat-sh-name">Gatilho não mapeado</div>
-            <div class="cat-sh-type">Gatilho sensorial · drena energia</div>
+            <div class="cat-sh-name">Acontecimento não mapeado</div>
+            <div class="cat-sh-type">${triggerSheetState.type==='recuperacao'?'Devolveu energia ↑':'Drenou energia ↓'}</div>
           </div>
         </div>
         <div class="cat-sh-body">
+          <div class="sec">Isso drenou ou carregou você?</div>
+          <div style="display:flex;gap:8px;margin-bottom:14px">
+            <button onclick="updateTriggerField('type','drain');renderOverlays()" style="flex:1;padding:10px;border-radius:12px;border:2px solid ${triggerSheetState.type==='drain'?'#F87171':'var(--border)'};background:${triggerSheetState.type==='drain'?'rgba(248,113,113,.12)':'transparent'};color:${triggerSheetState.type==='drain'?'#FCA5A5':'var(--muted)'};font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">⬇️ Drenou</button>
+            <button onclick="updateTriggerField('type','recuperacao');renderOverlays()" style="flex:1;padding:10px;border-radius:12px;border:2px solid ${triggerSheetState.type==='recuperacao'?'#10B981':'var(--border)'};background:${triggerSheetState.type==='recuperacao'?'rgba(16,185,129,.12)':'transparent'};color:${triggerSheetState.type==='recuperacao'?'#6EE7B7':'var(--muted)'};font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">⬆️ Carregou</button>
+          </div>
           <div class="sec">O que aconteceu?</div>
-          <input type="text" class="text-input" placeholder="Descreva o gatilho..." oninput="updateTriggerField('description',this.value)" value="${triggerSheetState.description}">
+          <input type="text" class="text-input" placeholder="${triggerSheetState.type==='recuperacao'?'Ex: conversa boa, momento de paz...':'Ex: barulho inesperado, reunião longa...'}" oninput="updateTriggerField('description',this.value)" value="${triggerSheetState.description}">
           <div class="sec">Sensação / emoção sentida</div>
-          <input type="text" class="text-input" placeholder="Ex: aperto no peito, calor, irritação..." oninput="updateTriggerField('sensation',this.value)" value="${triggerSheetState.sensation}">
+          <input type="text" class="text-input" placeholder="Ex: aperto no peito, calor, alívio..." oninput="updateTriggerField('sensation',this.value)" value="${triggerSheetState.sensation}">
           <div class="sec">Intensidade</div>
           <div class="int-row">
             ${Object.entries(INTS).map(([k,v])=>`<button class="int-btn trig-int-btn ${triggerSheetState.intensity===k?'sel':''}" data-k="${k}" onclick="setTriggerInt('${k}')">${v.label}</button>`).join('')}
           </div>
-          <div class="cost-prev">Custa: <strong><span class="trig-cost-val">${Math.round(2*(INTS[triggerSheetState.intensity]?.mult??1)*10)/10} pontos</span></strong></div>
+          <div class="cost-prev">${triggerSheetState.type==='recuperacao'?'Devolve':'Custa'}: <strong>${Math.round(2*(INTS[triggerSheetState.intensity]?.mult??1)*10)/10} pontos</strong></div>
           <div class="sec">Nota (opcional)</div>
-          <textarea class="note" rows="2" placeholder="Contexto, o que ajudou..." oninput="updateTriggerField('note',this.value)">${triggerSheetState.note}</textarea>
-          <button class="btn btn-p" onclick="submitTrigger()">Registrar gatilho</button>
+          <textarea class="note" rows="2" placeholder="Contexto, o que aconteceu..." oninput="updateTriggerField('note',this.value)">${triggerSheetState.note}</textarea>
+          <button class="btn btn-p" onclick="submitTrigger()">Registrar</button>
         </div>
       </div>
     </div>`;
