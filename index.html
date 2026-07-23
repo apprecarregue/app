@@ -925,6 +925,8 @@ const REST_ACTIVITIES = [
 let db = {entries:[], checkins:[], sintomas:{lista:[...SINTOMAS_DEFAULT], registros:[]}, settings:{dailyPts:12, alertAt:3, notifEnabled:false, name:'', theme:'dark', palette:'roxo', pronoun:null, age:null}};
 let screen = 'home';
 let _pendingUpdate = false;
+let _backupDoneForUpdate = false;
+let showBackupSheet = false;
 let checkinState = null;
 let sheetState = null;
 let triggerSheetState = null;
@@ -1672,6 +1674,41 @@ function copyRestoreCode(){
     const el = document.getElementById('restore-code-display');
     if(el){ el.select?.(); document.execCommand('copy'); toast('Código copiado 💜'); }
   });
+}
+
+// ── BACKUP SHEET (do banner de atualização) ───────────────────────────────────
+
+function openBackupSheet(){showBackupSheet=true;renderOverlays();}
+function closeBackupSheet(){showBackupSheet=false;renderOverlays();}
+
+async function backupCloudAndClose(){
+  await backupToCloud();
+  _backupDoneForUpdate=true;
+  closeBackupSheet();
+}
+function exportAndClose(){
+  exportJSON();
+  _backupDoneForUpdate=true;
+  closeBackupSheet();
+}
+
+function backupSheetHTML(){
+  const d=backupAgeDays();
+  const lastLbl=d===null?'Nunca feito':d===0?'Hoje':d===1?'Ontem':`Há ${d} dias`;
+  const lastColor=d===null||d>=30?'var(--amber)':'var(--green)';
+  return`<div class="backdrop" onclick="if(event.target===this)closeBackupSheet()">
+    <div class="sheet">
+      <div class="sh-handle"></div>
+      <div style="padding:0 4px 4px">
+        <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px">📦 Salvar backup</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Seus dados ficam só no seu aparelho. Salve antes de atualizar para não perder nada.</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Último backup na nuvem: <strong style="color:${lastColor}">${lastLbl}</strong></div>
+        <button class="btn btn-p" style="width:100%;margin-bottom:10px" onclick="backupCloudAndClose()">☁️ Salvar na nuvem</button>
+        <button class="btn" style="width:100%;margin-bottom:16px" onclick="exportAndClose()">⬇️ Exportar arquivo JSON</button>
+        <button onclick="closeBackupSheet()" style="width:100%;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:4px;font-family:inherit">Cancelar</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 // ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
@@ -3755,7 +3792,7 @@ function renderTourGuide(){
   const el=document.getElementById('tour-guide');
   if(!el) return;
   // Hide guide bar when any modal/sheet is open
-  const modalOpen=!!(checkinState||sheetState||helpSheet||showFeedback||onboardingStep>0);
+  const modalOpen=!!(checkinState||sheetState||helpSheet||showFeedback||onboardingStep>0||showBackupSheet);
   const active=tourStep>=2&&tourStep<=6&&!modalOpen;
   el.innerHTML=active?tourGuideBarHTML():'';
   const main=document.getElementById('main');
@@ -3795,6 +3832,7 @@ function renderOverlays(){
   else if(triggerSheetState) el.innerHTML=triggerSheetHTML();
   else if(sheetState)      el.innerHTML=categorySheetHTML();
   else if(showReport)      el.innerHTML=reportSheetHTML();
+  else if(showBackupSheet)  el.innerHTML=backupSheetHTML();
   else if(addSintomaSheet)  el.innerHTML=addSintomaSheetHTML();
   else if(sintomaEvolSheet){el.innerHTML=sintomaEvolSheetHTML();initEvolChart();}
   else el.innerHTML='';
@@ -3810,12 +3848,15 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.4.5 disponível!</strong>
+        <strong>✨ Versão 2.4.6 disponível!</strong>
         Notificações corrigidas no Android, gatilho com drenou/carregou e pontuação por intensidade, aviso automático de nova versão.
       </div>
-      <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam salvos localmente — faça backup antes de atualizar.</div>
-      <button class="update-banner-btn" onclick="go('settings')">📦 Fazer backup e voltar</button>
-      <button onclick="dismissUpdate();setTimeout(()=>location.reload(),400)" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px;text-decoration:underline;font-family:inherit">já tenho backup recente → atualizar</button>
+      <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
+      ${_backupDoneForUpdate
+        ? `<button class="update-banner-btn" onclick="dismissUpdate();setTimeout(()=>location.reload(),400)">✅ Atualizar agora</button>`
+        : `<button class="update-banner-btn" onclick="openBackupSheet()">📦 Fazer backup</button>
+           <button onclick="dismissUpdate();setTimeout(()=>location.reload(),400)" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px;text-decoration:underline;font-family:inherit">já tenho backup recente → atualizar</button>`
+      }
     </div>
     <div class="main" id="main">${CONTENT[screen]()}</div>
     <nav class="bnav">
@@ -3828,7 +3869,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.4.5';
+const APP_VERSION = '2.4.6';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
