@@ -924,6 +924,7 @@ const REST_ACTIVITIES = [
 
 let db = {entries:[], checkins:[], sintomas:{lista:[...SINTOMAS_DEFAULT], registros:[]}, settings:{dailyPts:12, alertAt:3, notifEnabled:false, name:'', theme:'dark', palette:'roxo', pronoun:null, age:null}};
 let screen = 'home';
+let _pendingUpdate = false;
 let checkinState = null;
 let sheetState = null;
 let triggerSheetState = null;
@@ -3805,9 +3806,9 @@ function render(){
       <span class="hdr-title">${TITLES[screen]}</span>
       <div style="display:flex;align-items:center;gap:8px"><span class="beta-badge">beta</span><img src="icon.png" class="hdr-icon" style="width:28px;height:28px;border-radius:7px;object-fit:cover"></div>
     </div>
-    <div id="update-banner" class="update-banner" style="display:none;margin:12px 16px 0;flex-direction:column;gap:10px;align-items:stretch">
+    <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:10px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.4.1 disponível!</strong>
+        <strong>✨ Versão 2.4.2 disponível!</strong>
         Ícones ⓘ em amarelo, info das Colheres, subtítulo no botão Dia Difícil, correção modo claro, gatilho com drenou/carregou e pontuação por intensidade. Faça backup antes de atualizar.
       </div>
       <div style="display:flex;gap:8px">
@@ -3826,7 +3827,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.4.1';
+const APP_VERSION = '2.4.2';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
@@ -3836,18 +3837,13 @@ function checkAppUpdate(){
     return;
   }
   if(stored !== APP_VERSION){
-    // só mostra — salva versão só quando a pessoa fechar o banner
-    setTimeout(()=>{
-      const banner = document.getElementById('update-banner');
-      if(banner) banner.style.display='flex';
-    }, 1000);
+    _pendingUpdate = true;
   }
 }
 
 function dismissUpdate(){
   localStorage.setItem(VERSION_KEY, APP_VERSION);
-  const banner = document.getElementById('update-banner');
-  if(banner) banner.style.display='none';
+  _pendingUpdate = false;
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
