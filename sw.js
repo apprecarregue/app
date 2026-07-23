@@ -1,4 +1,4 @@
-const CACHE = 'recarregue-v16';
+const CACHE = 'recarregue-v17';
 const STATIC = [
   'manifest.json', 'icon-192.png', 'icon-512.png',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'
@@ -18,6 +18,7 @@ self.addEventListener('activate', e => {
     caches.keys()
       .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({type:'window'}).then(cls=>cls.forEach(c=>c.postMessage({type:'SW_UPDATED'}))))
   );
 });
 
