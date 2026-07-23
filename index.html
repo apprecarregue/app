@@ -3807,8 +3807,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:none;margin:12px 16px 0;flex-direction:column;gap:10px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.4.0 disponível!</strong>
-        Ícones ⓘ em amarelo, info das Colheres, subtítulo no botão Dia Difícil, correção modo claro, gatilho não mapeado com drenou/carregou e pontuação correta. Faça backup antes de atualizar.
+        <strong>✨ Versão 2.4.1 disponível!</strong>
+        Ícones ⓘ em amarelo, info das Colheres, subtítulo no botão Dia Difícil, correção modo claro, gatilho com drenou/carregou e pontuação por intensidade. Faça backup antes de atualizar.
       </div>
       <div style="display:flex;gap:8px">
         <button class="update-banner-btn" style="flex:1;background:rgba(255,255,255,.1);color:var(--text);border:1px solid rgba(255,255,255,.15)" onclick="go('settings')">📦 Fazer backup</button>
@@ -3826,19 +3826,17 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.4.0';
+const APP_VERSION = '2.4.1';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
   const stored = localStorage.getItem(VERSION_KEY);
   if(!stored){
-    // primeira vez — só salva
     localStorage.setItem(VERSION_KEY, APP_VERSION);
     return;
   }
   if(stored !== APP_VERSION){
-    // nova versão detectada — mostra banner
-    localStorage.setItem(VERSION_KEY, APP_VERSION);
+    // só mostra — salva versão só quando a pessoa fechar o banner
     setTimeout(()=>{
       const banner = document.getElementById('update-banner');
       if(banner) banner.style.display='flex';
@@ -3847,6 +3845,7 @@ function checkAppUpdate(){
 }
 
 function dismissUpdate(){
+  localStorage.setItem(VERSION_KEY, APP_VERSION);
   const banner = document.getElementById('update-banner');
   if(banner) banner.style.display='none';
 }
