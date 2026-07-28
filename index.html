@@ -2171,7 +2171,7 @@ function homeHTML(){
             ${e.note?`<div class="e-note">"${e.note}"</div>`:''}
           </div>
           <div class="e-right">
-            <div class="e-cost ${isR?'r':'d'}">${isR?'−':'+'}${Math.abs(cost)}</div>
+            <div class="e-cost ${isR?'r':'d'}">${isR?'+':'−'}${Math.abs(cost)}</div>
             <button class="e-del" onclick="delEntry('${e.id}')">✕</button>
           </div>
         </div>`;
@@ -3848,7 +3848,7 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.4.6 disponível!</strong>
+        <strong>✨ Versão 2.4.7 disponível!</strong>
         Notificações corrigidas no Android, gatilho com drenou/carregou e pontuação por intensidade, aviso automático de nova versão.
       </div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
@@ -3869,7 +3869,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.4.6';
+const APP_VERSION = '2.4.7';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
