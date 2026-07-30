@@ -1459,6 +1459,7 @@ const BACKUP_KEY = 'recarregue_restore_code';
 const LAST_BACKUP_KEY = 'recarregue_last_backup';
 const DEVICE_ID_KEY = 'recarregue_device_id';
 const SUPABASE_URL = 'https://zlldecmwobbkfnjfbjew.supabase.co';
+const VAPID_PUBLIC_KEY = 'BMqXpv3XGrS5VWZ9ekku0Q1G87ZZHnZgLuNkUCIAB9LUXiq8xIpvczqt_aLjYK08KVoQREKUNWly6I1XpPO22yk';
 const SESSION_ID = crypto.randomUUID();
 
 function getDeviceId(){
@@ -1716,9 +1717,39 @@ function backupSheetHTML(){
 async function requestNotifPermission(){
   if(!('Notification' in window)){toast('Notificações não suportadas');return;}
   const perm=await Notification.requestPermission();
-  if(perm==='granted'){db.settings.notifEnabled=true;save();toast('Notificações ativadas! ✅');scheduleNotifs();}
-  else toast('Permissão negada. Ative nas configurações do celular.');
+  if(perm==='granted'){
+    db.settings.notifEnabled=true;save();
+    toast('Notificações ativadas! ✅');
+    scheduleNotifs();
+    await subscribePush();
+  } else {
+    toast('Permissão negada. Ative nas configurações do celular.');
+  }
   document.getElementById('main').innerHTML=settingsHTML();
+}
+
+async function subscribePush(){
+  if(!('PushManager' in window)||!SUPABASE_URL)return;
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    // Converte VAPID public key de base64url para Uint8Array
+    const key=VAPID_PUBLIC_KEY.replace(/-/g,'+').replace(/_/g,'/');
+    const raw=Uint8Array.from(atob(key),c=>c.charCodeAt(0));
+    const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:raw});
+    const code=getRestoreCode();
+    await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions`,{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'apikey':SUPABASE_ANON,
+        'Authorization':`Bearer ${SUPABASE_ANON}`,
+        'Prefer':'resolution=merge-duplicates'
+      },
+      body:JSON.stringify({restore_code:code,subscription:sub.toJSON(),updated_at:new Date().toISOString()})
+    });
+  }catch(err){
+    console.warn('Push subscription falhou:',err);
+  }
 }
 function setSilentMode(hours){
   silentUntil=hours===0?0:Date.now()+hours*60*60*1000;
@@ -3848,7 +3879,7 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.4.7 disponível!</strong>
+        <strong>✨ Versão 2.5.0 disponível!</strong>
         Notificações corrigidas no Android, gatilho com drenou/carregou e pontuação por intensidade, aviso automático de nova versão.
       </div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
@@ -3869,7 +3900,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.4.7';
+const APP_VERSION = '2.5.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){

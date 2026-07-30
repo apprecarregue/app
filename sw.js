@@ -1,4 +1,4 @@
-const CACHE = 'recarregue-v20';
+const CACHE = 'recarregue-v21';
 const STATIC = [
   'manifest.json', 'icon-192.png', 'icon-512.png',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'
@@ -31,7 +31,26 @@ self.addEventListener('fetch', e => {
   e.respondWith(caches.match(request).then(cached => cached || fetch(request)));
 });
 
-// Agendamento de notificações — recebe da página e dispara via SW (funciona no Android)
+// Push notifications vindas do servidor (Web Push / VAPID)
+self.addEventListener('push', e => {
+  const data = e.data?.json() ?? {};
+  e.waitUntil(
+    self.registration.showNotification(data.title ?? 'Recarregue ⚡', {
+      body: data.body ?? 'Como está sua energia agora?',
+      icon: './icon-192.png',
+      badge: './icon-192.png',
+      tag: data.tag ?? 'recarregue',
+      renotify: true,
+    })
+  );
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(clients.openWindow('./'));
+});
+
+// Agendamento local — recebe da página e dispara via SW (fallback quando app está aberto)
 const _scheduledNotifs = {};
 self.addEventListener('message', e => {
   if (!e.data || e.data.type !== 'SCHEDULE_NOTIF') return;
