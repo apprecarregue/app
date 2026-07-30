@@ -3919,6 +3919,50 @@ if(Date.now() - _lastSession > 3600000){
   });
 }
 if(onboardingStep===0&&!tourStep&&shouldShowCheckin())setTimeout(openCheckin,700);
+
+// Verifica mensagens pendentes do dashboard (NPS, avisos, etc.)
+(async function checkAppMessages(){
+  if(onboardingStep>0) return; // não mostra durante onboarding
+  try {
+    const did = getDeviceId();
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/app_messages?device_id=eq.${did}&read_at=is.null&order=created_at.asc&limit=1`,
+      {headers:{'apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`}}
+    );
+    const msgs = await r.json();
+    if(!Array.isArray(msgs)||!msgs.length) return;
+    const msg = msgs[0];
+    showAppBanner(msg);
+  } catch(_){}
+})();
+
+function showAppBanner(msg){
+  const existing = document.getElementById('app-banner');
+  if(existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'app-banner';
+  el.style.cssText = 'position:fixed;bottom:80px;left:12px;right:12px;z-index:9999;background:linear-gradient(135deg,#8B5CF6,#6d28d9);border-radius:16px;padding:16px 18px;box-shadow:0 8px 32px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:10px;animation:slideUp .3s ease';
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div>
+        <div style="font-size:14px;font-weight:700;color:#fff">${msg.title}</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.8);margin-top:4px">${msg.body}</div>
+      </div>
+      <button onclick="dismissAppBanner('${msg.id}')" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:99px;width:24px;height:24px;font-size:14px;cursor:pointer;flex-shrink:0">×</button>
+    </div>
+    ${msg.url ? `<a href="${msg.url}" target="_blank" onclick="dismissAppBanner('${msg.id}')" style="display:block;text-align:center;background:#fff;color:#6d28d9;border-radius:10px;padding:9px;font-size:13px;font-weight:700;text-decoration:none">Responder agora 💜</a>` : ''}
+  `;
+  document.body.appendChild(el);
+}
+
+async function dismissAppBanner(id){
+  document.getElementById('app-banner')?.remove();
+  await fetch(`${SUPABASE_URL}/rest/v1/app_messages?id=eq.${id}`,{
+    method:'PATCH',
+    headers:{'apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`,'Content-Type':'application/json','Prefer':'return=minimal'},
+    body:JSON.stringify({read_at: new Date().toISOString()})
+  }).catch(()=>{});
+}
 if(db.settings.notifEnabled)scheduleNotifs();
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
