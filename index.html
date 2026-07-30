@@ -3950,7 +3950,7 @@ function showAppBanner(msg){
       </div>
       <button onclick="dismissAppBanner('${msg.id}')" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:99px;width:24px;height:24px;font-size:14px;cursor:pointer;flex-shrink:0">×</button>
     </div>
-    ${msg.url ? `<a href="${msg.url}" target="_blank" onclick="dismissAppBanner('${msg.id}')" style="display:block;text-align:center;background:#fff;color:#6d28d9;border-radius:10px;padding:9px;font-size:13px;font-weight:700;text-decoration:none">Responder agora 💜</a>` : ''}
+    ${msg.url ? `<a href="${msg.url}&msg_id=${msg.id}" target="_blank" onclick="dismissAppBanner('${msg.id}')" style="display:block;text-align:center;background:#fff;color:#6d28d9;border-radius:10px;padding:9px;font-size:13px;font-weight:700;text-decoration:none">Responder agora 💜</a>` : ''}
   `;
   document.body.appendChild(el);
 }
