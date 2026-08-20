@@ -1,4 +1,4 @@
-const CACHE = 'recarregue-v21';
+const CACHE = 'recarregue-v26';
 const STATIC = [
   'manifest.json', 'icon-192.png', 'icon-512.png',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'
@@ -37,8 +37,8 @@ self.addEventListener('push', e => {
   e.waitUntil(
     self.registration.showNotification(data.title ?? 'Recarregue ⚡', {
       body: data.body ?? 'Como está sua energia agora?',
-      icon: './icon-192.png',
-      badge: './icon-192.png',
+      icon: 'https://recarregue.pages.dev/icon-192.png',
+      badge: 'https://recarregue.pages.dev/icon-192.png',
       tag: data.tag ?? 'recarregue',
       renotify: true,
     })
@@ -58,7 +58,7 @@ self.addEventListener('message', e => {
   if (delayMs <= 0 || delayMs > 24 * 60 * 60 * 1000) return;
   if (_scheduledNotifs[id]) clearTimeout(_scheduledNotifs[id]);
   _scheduledNotifs[id] = setTimeout(() => {
-    self.registration.showNotification(title, { body, icon, tag, badge: './icon-192.png' });
+    self.registration.showNotification(title, { body, icon: 'https://recarregue.pages.dev/icon-192.png', tag, badge: 'https://recarregue.pages.dev/icon-192.png' });
     delete _scheduledNotifs[id];
   }, delayMs);
 });

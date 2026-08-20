@@ -1716,6 +1716,13 @@ function backupSheetHTML(){
 
 async function requestNotifPermission(){
   if(!('Notification' in window)){toast('Notificações não suportadas');return;}
+  if(Notification.permission==='granted'){
+    db.settings.notifEnabled=true;save();
+    scheduleNotifs();
+    await subscribePush();
+    toast('Notificações reativadas! ✅');
+    render();return;
+  }
   const perm=await Notification.requestPermission();
   if(perm==='granted'){
     db.settings.notifEnabled=true;save();
@@ -1728,6 +1735,19 @@ async function requestNotifPermission(){
   document.getElementById('main').innerHTML=settingsHTML();
 }
 
+async function deactivateNotifs(){
+  db.settings.notifEnabled=false;save();
+  const code=getRestoreCode();
+  if(SUPABASE_URL&&code){
+    await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions?restore_code=eq.${encodeURIComponent(code)}`,{
+      method:'DELETE',
+      headers:{apikey:SUPABASE_ANON,Authorization:`Bearer ${SUPABASE_ANON}`}
+    }).catch(()=>{});
+  }
+  toast('🔕 Notificações desativadas');
+  render();
+}
+
 async function subscribePush(){
   if(!('PushManager' in window)||!SUPABASE_URL)return;
   try{
@@ -1737,15 +1757,22 @@ async function subscribePush(){
     const raw=Uint8Array.from(atob(key),c=>c.charCodeAt(0));
     const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:raw});
     const code=getRestoreCode();
+    const subJson=sub.toJSON();
     await fetch(`${SUPABASE_URL}/rest/v1/push_subscriptions`,{
       method:'POST',
       headers:{
         'Content-Type':'application/json',
         'apikey':SUPABASE_ANON,
         'Authorization':`Bearer ${SUPABASE_ANON}`,
-        'Prefer':'resolution=merge-duplicates'
+        'Prefer':'resolution=merge-duplicates on_conflict=endpoint'
       },
-      body:JSON.stringify({restore_code:code,subscription:sub.toJSON(),updated_at:new Date().toISOString()})
+      body:JSON.stringify({
+        restore_code:code,
+        endpoint:subJson.endpoint,
+        p256dh:subJson.keys?.p256dh,
+        auth:subJson.keys?.auth,
+        updated_at:new Date().toISOString()
+      })
     });
   }catch(err){
     console.warn('Push subscription falhou:',err);
@@ -3078,8 +3105,11 @@ function settingsHTML(){
       <div class="sec" style="display:flex;align-items:center;gap:6px">Notificações <button class="info-btn" onclick="openHelp('notificacoes')">ⓘ</button></div>
       <div class="s-row">
         <div><div class="s-lbl">Lembretes diários</div><div class="s-desc">8h, 13h e 20h para check-in</div></div>
-        ${notifState==='granted'
-          ?`<span style="color:var(--green);font-weight:700;font-size:13px">✅ Ativo</span>`
+        ${notifState==='granted'&&db.settings.notifEnabled
+          ?`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+              <span style="color:var(--green);font-weight:700;font-size:13px">✅ Ativo</span>
+              <button onclick="deactivateNotifs()" style="background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:0;font-family:inherit;text-decoration:underline">desativar</button>
+            </div>`
           :notifState==='denied'
             ?`<span style="color:var(--red);font-size:12px;text-align:right">Bloqueado<br>Ative no cel.</span>`
             :`<button class="btn btn-p btn-sm" onclick="requestNotifPermission()">Ativar</button>`
@@ -3879,8 +3909,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.5.0 disponível!</strong>
-        Notificações corrigidas no Android, gatilho com drenou/carregou e pontuação por intensidade, aviso automático de nova versão.
+        <strong>✨ Versão 2.5.5 disponível!</strong>
+        Correção das notificações push para todas as usuárias.
       </div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -3900,7 +3930,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.5.0';
+const APP_VERSION = '2.5.5';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
@@ -3933,6 +3963,7 @@ if(new URLSearchParams(location.search).get('preview')==='1'){
 }
 
 load();applyTheme();
+checkAppUpdate();
 // Inicia tour se onboarding já foi feito mas tour não, e usuário ainda não tem dados (novo usuário real)
 if(localStorage.getItem(ONBOARDED_KEY)&&!localStorage.getItem(TOUR_KEY)&&db.checkins.length===0) tourStep=1;
 render();
@@ -3995,6 +4026,7 @@ async function dismissAppBanner(id){
   }).catch(()=>{});
 }
 if(db.settings.notifEnabled)scheduleNotifs();
+if(typeof Notification!=='undefined'&&Notification.permission==='granted')subscribePush();
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
   navigator.serviceWorker.addEventListener('message', e=>{
@@ -4014,8 +4046,7 @@ applyDueScheduled();
 // Verifica a cada 2 min se algum agendamento venceu
 setInterval(applyDueScheduled, 120_000);
 
-// Verifica atualização disponível
-checkAppUpdate();
+
 </script>
 </body>
 </html>
