@@ -1134,10 +1134,10 @@ function autoBackupSilent(){
   _autoBackupTimer=setTimeout(async()=>{
     try{
       const code=getRestoreCode();
-      const res=await fetch(`${SUPABASE_URL}/rest/v1/backups`,{
+      const res=await fetch(`${SUPABASE_URL}/functions/v1/backup-save`,{
         method:'POST',
-        headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`,'Prefer':'resolution=merge-duplicates'},
-        body:JSON.stringify({restore_code:code,data:db,updated_at:new Date().toISOString()})
+        headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`},
+        body:JSON.stringify({restore_code:code,data:db})
       });
       if(res.ok){localStorage.setItem(LAST_BACKUP_KEY,Date.now().toString());renderConfigBadge();}
     }catch(_){}
@@ -1674,11 +1674,10 @@ async function backupToCloud(){
   if(!SUPABASE_URL){ toast('Backup na nuvem não configurado ainda.'); return; }
   const code = getRestoreCode();
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/backups`, {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/backup-save`, {
       method: 'POST',
-      headers: {'Content-Type':'application/json','apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`,
-        'Prefer':'resolution=merge-duplicates'},
-      body: JSON.stringify({restore_code: code, data: db, updated_at: new Date().toISOString()})
+      headers: {'Content-Type':'application/json','apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`},
+      body: JSON.stringify({restore_code: code, data: db})
     });
     if(!res.ok) throw new Error();
     localStorage.setItem(LAST_BACKUP_KEY,Date.now().toString());
@@ -1694,12 +1693,14 @@ async function restoreFromCloud(){
   const code = input?.value.trim();
   if(!code || code.length < 10){ toast('Digite seu código de restauração.'); return; }
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/backups?restore_code=eq.${encodeURIComponent(code)}&select=data`, {
-      headers: {'apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`}
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/backup-restore`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`},
+      body: JSON.stringify({restore_code: code})
     });
-    const rows = await res.json();
-    if(!rows?.length){ toast('Código não encontrado.'); return; }
-    const saved = rows[0].data;
+    if(!res.ok){ toast('Código não encontrado.'); return; }
+    const result = await res.json();
+    const saved = result.data;
     db.entries = saved.entries || [];
     db.checkins = saved.checkins || [];
     db.settings = {...db.settings, ...(saved.settings||{})};
