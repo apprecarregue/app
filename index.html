@@ -1083,7 +1083,7 @@ let catInfoId=null;
 function showCatInfo(id,e){e.stopPropagation();catInfoId=id;renderOverlays();}
 function closeCatInfo(){catInfoId=null;renderOverlays();}
 // ── DIÁRIO ────────────────────────────────────────────────────────────────────
-function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function emptyDiaryDraft(){return {id:null,humor:null,sinto:'',porque:''};}
 function openDiary(){showDiary=true;diaryDraft=emptyDiaryDraft();renderOverlays();trackEvent('diary_opened');}
 function closeDiary(){showDiary=false;render();}
@@ -1625,7 +1625,7 @@ function getRestoreCode(){
 
 function exportPDF(){
   const report=buildReportText();
-  const name=db.settings.name||g('Usuária','Usuário','Usuáriu');
+  const name=esc(db.settings.name||g('Usuária','Usuário','Usuáriu'));
   const date=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const d7=new Date();d7.setDate(d7.getDate()-7);
 
@@ -1668,7 +1668,7 @@ function exportPDF(){
   const lista=db.sintomas?.lista||SINTOMAS_DEFAULT;
   const topSinHTML=Object.entries(sinFreq).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([id,c])=>{
     const s=lista.find(x=>x.id===id);
-    return s?`<span class="chip">${s.icon} ${s.label} <strong>${c}×</strong></span>`:'';
+    return s?`<span class="chip">${esc(s.icon)} ${esc(s.label)} <strong>${c}×</strong></span>`:'';
   }).join('');
 
   // Dias difíceis
@@ -1676,6 +1676,14 @@ function exportPDF(){
   const hardHTML=hardThisWeek.length>0
     ?`<p class="hard-days">🔴 Dias difíceis marcados: <strong>${hardThisWeek.map(d=>new Date(d+'T12:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})).join(' · ')}</strong></p>`
     :'<p style="color:#6b5fa0;font-size:13px">Nenhum dia difícil marcado nessa semana 💚</p>';
+
+  // Diário: só resumo — o texto escrito nunca entra no relatório
+  const dsum=diarySummary(7);
+  const diaryPdfHTML=dsum?`<h2>📔 Diário</h2>
+    <p style="font-size:13px;color:#3d2c6b;margin:0 0 8px">${dsum.n} ${dsum.n===1?'entrada':'entradas'} em ${dsum.days} ${dsum.days===1?'dia':'dias'}.</p>
+    ${dsum.humors.length?`<div>${dsum.humors.map(h=>`<span class="chip">${h.icon} ${esc(h.label)} <strong>${h.n}×</strong></span>`).join('')}</div>`:''}
+    ${dsum.insights.map(i=>`<div class="insight-item">${i}</div>`).join('')}
+    <p style="font-size:11px;color:#9e93c0;margin-top:8px">O que foi escrito no diário fica só no app e não entra neste relatório.</p>`:'';
 
   const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório Recarregue — ${name}</title>
   <style>
@@ -1722,8 +1730,10 @@ function exportPDF(){
 
   ${topSinHTML?`<h2>🩺 Sintomas da semana</h2><div>${topSinHTML}</div>`:''}
 
+  ${diaryPdfHTML}
+
   <h2>📄 Relatório completo</h2>
-  <pre style="background:#f8f6ff;padding:16px;border-radius:8px;white-space:pre-wrap;font-size:11px;color:#3d2c6b;border:1px solid #e0d9ff">${report}</pre>
+  <pre style="background:#f8f6ff;padding:16px;border-radius:8px;white-space:pre-wrap;font-size:11px;color:#3d2c6b;border:1px solid #e0d9ff">${esc(report)}</pre>
 
   <footer>Gerado pelo app Recarregue · Este relatório é de uso pessoal e pode ser compartilhado com profissionais de saúde.</footer>
   </body></html>`;
@@ -1758,7 +1768,9 @@ function importJSON(){
         if(!parsed.entries || !parsed.checkins) throw new Error('Arquivo inválido');
         db.entries = parsed.entries || [];
         db.checkins = parsed.checkins || [];
-        db.diary = parsed.diary || [];
+        if(Array.isArray(parsed.diary)) db.diary = parsed.diary;
+        if(parsed.sintomas) db.sintomas = parsed.sintomas;
+        if(Array.isArray(parsed.hardDays)) db.hardDays = parsed.hardDays;
         db.settings = {...db.settings, ...(parsed.settings||{})};
         save(); applyTheme(); render();
         toast('Dados restaurados com sucesso 💜');
@@ -1803,6 +1815,8 @@ async function restoreFromCloud(){
     db.entries = saved.entries || [];
     db.checkins = saved.checkins || [];
     if((saved.diary||[]).length) db.diary = saved.diary;
+    if(saved.sintomas) db.sintomas = saved.sintomas;
+    if(Array.isArray(saved.hardDays)) db.hardDays = saved.hardDays;
     db.settings = {...db.settings, ...(saved.settings||{})};
     localStorage.setItem(BACKUP_KEY, code);
     save(); applyTheme(); render();
@@ -2112,6 +2126,15 @@ function buildReportText(){
       r+='\n';
     });
     r+='\n';
+  }
+
+  const dsum=diarySummary(7);
+  if(dsum){
+    r+=`DIÁRIO\n`;
+    r+=`• Entradas: ${dsum.n} em ${dsum.days} ${dsum.days===1?'dia':'dias'}\n`;
+    if(dsum.humors.length)r+=`• Humores mais escritos: ${dsum.humors.map(h=>`${h.icon} ${h.label} (${h.n}x)`).join(', ')}\n`;
+    dsum.insights.forEach(i=>r+=`• ${i.replace(/<[^>]+>/g,'').replace(/^📔\s*/,'')}\n`);
+    r+=`• O que foi escrito fica só no app e não entra no relatório.\n\n`;
   }
 
   r+=`${'─'.repeat(36)}\nGerado em ${today.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})}\nApp Recarregue — uso pessoal`;
@@ -2818,6 +2841,89 @@ function sintomasTopHTML(){
   </div>`;
 }
 
+// ── INSIGHTS DO DIÁRIO (tudo local; o texto escrito nunca sai do aparelho) ───────
+const DIARY_HARD_HUMORS=['ansiosa','irritada','exausta','sobrecarregada','cansada'];
+const DIARY_STOPWORDS=new Set(['para','pra','com','uma','umas','uns','por','mais','muito','muita','muitos','muitas','mas','como','estou','estava','estar','esta','estao','ainda','tudo','todo','toda','todos','todas','nada','algo','isso','isto','esse','essa','esses','essas','aquilo','foi','ser','sao','tem','tinha','tive','tenho','hoje','ontem','porque','pois','quando','onde','meu','minha','meus','minhas','seu','sua','sobre','entre','depois','antes','tambem','sempre','nunca','fazer','fiz','ficou','fico','ficar','sinto','sentindo','senti','sentir','acho','acha','cada','quer','queria','pouco','pouca','assim','aqui','dele','dela','eles','elas','voce','quero','poder','pode','podia','vez','vezes','coisa','coisas','muito','mesmo','mesma','so','ate','desde','durante','apenas','quase','agora','porem','entao']);
+function dateKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+// dia LOCAL da entrada (não usar toISOString: é UTC e erra à noite)
+function diaryDay(e){return dateKey(new Date(e.ts));}
+function cutoffKey(days){const c=new Date();c.setDate(c.getDate()-days);return dateKey(c);}
+function diaryWindow(days){const cs=cutoffKey(days);return (db.diary||[]).filter(e=>e.ts&&diaryDay(e)>=cs);}
+function diaryByDay(list){
+  const m={};
+  list.slice().sort((a,b)=>a.ts<b.ts?-1:1).forEach(e=>{
+    const d=diaryDay(e);if(!m[d])m[d]={humor:null,n:0};
+    m[d].n++;if(e.humor)m[d].humor=e.humor; // vale o último humor escolhido no dia
+  });
+  return m;
+}
+function dayLoad(d){return db.entries.filter(e=>e.date===d&&cat(e.categoryId)?.type!=='recuperacao').reduce((s,e)=>s+Math.abs(entryCost(e)),0);}
+function humorName(id){const h=HUMORS.find(x=>x.id===id);return h?humorLabel(h).toLowerCase():String(id);}
+const normWord=w=>w.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+function buildDiaryInsights(days=30,withWords=true){
+  const list=diaryWindow(days);
+  if(!list.length)return[];
+  const out=[],cs=cutoffKey(days),byDay=diaryByDay(list),dayKeys=Object.keys(byDay);
+
+  // 1. Humor do diário × gasto de energia do dia (mín. 3 dias em cada grupo)
+  const hard=[],soft=[];
+  dayKeys.forEach(d=>{const h=byDay[d].humor;if(!h)return;(DIARY_HARD_HUMORS.includes(h)?hard:soft).push(dayLoad(d));});
+  if(hard.length>=3&&soft.length>=3){
+    const avg=a=>a.reduce((x,y)=>x+y,0)/a.length,aH=avg(hard),aS=avg(soft);
+    if(aS>0){
+      const pct=Math.round((aH-aS)/aS*100);
+      if(Math.abs(pct)>=15)out.push(`📔 Nos dias em que o diário mostrou um humor mais pesado (ansiedade, cansaço, irritação…), você gastou <b>${Math.abs(pct)}% ${pct>0?'mais':'menos'}</b> energia do que nos outros dias.`);
+    }
+  }
+
+  // 2. Dias difíceis (marcados ou com sintomas) × ter escrito no diário (mín. 3 dias difíceis)
+  const hardSet=new Set((db.hardDays||[]).filter(d=>d>=cs));
+  (db.sintomas?.registros||[]).forEach(r=>{if(r.date>=cs)hardSet.add(r.date);});
+  if(hardSet.size>=3){
+    const withDiary=[...hardSet].filter(d=>byDay[d]).length;
+    out.push(withDiary===0
+      ?`📔 Nos seus <b>${hardSet.size}</b> dias difíceis ainda não apareceu diário — se quiser, ele pode ser um apoio nesses dias 💜`
+      :`📔 Em <b>${withDiary} de ${hardSet.size}</b> dias difíceis (marcados ou com sintomas) você escreveu no diário.`);
+  }
+
+  // 3. Humor do diário × humor do check-in no mesmo dia (mín. 3 dias que divergem)
+  const ciByDay={};
+  db.checkins.filter(c=>c.humor&&c.date>=cs).slice().sort((a,b)=>(a.createdAt||'')<(b.createdAt||'')?-1:1).forEach(c=>{ciByDay[c.date]=c.humor;});
+  const diff=[];
+  dayKeys.forEach(d=>{
+    const dh=byDay[d].humor,ch=ciByDay[d];
+    if(dh&&ch&&DIARY_HARD_HUMORS.includes(dh)!==DIARY_HARD_HUMORS.includes(ch))diff.push({dh,ch});
+  });
+  if(diff.length>=3)out.push(`📔 Em <b>${diff.length} dias</b> o diário mostrou um humor diferente do check-in (ex.: check-in ${esc(humorName(diff[0].ch))}, diário ${esc(humorName(diff[0].dh))}) — vale olhar com carinho o que só aparece quando você escreve.`);
+
+  // 4. Palavras que mais se repetem (contadas por entrada; mín. 3 entradas)
+  if(withWords){
+    const cnt={},show={};
+    list.forEach(e=>{
+      const seen=new Set();
+      `${e.porque||''} ${e.sinto||''}`.toLowerCase().split(/[^a-zà-ÿ]+/).forEach(w=>{
+        if(w.length<4)return;
+        const k=normWord(w);
+        if(k.length<4||DIARY_STOPWORDS.has(k)||seen.has(k))return;
+        seen.add(k);cnt[k]=(cnt[k]||0)+1;if(!show[k])show[k]=w;
+      });
+    });
+    const top=Object.entries(cnt).filter(([,n])=>n>=3).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    if(top.length)out.push(`📔 Nas suas anotações, o que mais aparece: <b>${top.map(([k])=>esc(show[k])).join('</b>, <b>')}</b>.`);
+  }
+  return out;
+}
+
+// Resumo para relatórios: contagens e humores, sem nenhum texto escrito (e sem as palavras)
+function diarySummary(days=7){
+  const list=diaryWindow(days);
+  if(!list.length)return null;
+  const cnt={};list.forEach(e=>{if(e.humor)cnt[e.humor]=(cnt[e.humor]||0)+1;});
+  const humors=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([id,n])=>{const h=HUMORS.find(x=>x.id===id);return h?{icon:h.icon,label:humorLabel(h),n}:null;}).filter(Boolean);
+  return{n:list.length,days:new Set(list.map(diaryDay)).size,humors,insights:buildDiaryInsights(days,false)};
+}
+
 function buildInsights(){
   const cutoff=new Date();cutoff.setDate(cutoff.getDate()-30);
   const recent=db.entries.filter(e=>new Date(e.date)>=cutoff&&e.categoryId!=='_custom_trigger');
@@ -2879,7 +2985,7 @@ function mapaHTML(){
   const cutoff=new Date();cutoff.setDate(cutoff.getDate()-mapaRange);
   const recent=db.entries.filter(e=>new Date(e.date)>=cutoff);
   const hasData=recent.length>=5;
-  const insights=buildInsights();
+  const insights=[...buildInsights(),...buildDiaryInsights(30,true)];
   const insightSection=insights.length===0?'': `
     <div class="card">
       <div class="sec">✨ Insights</div>
@@ -3458,7 +3564,7 @@ function privacyHTML(){
         <h3>Apagar tudo, quando quiser.</h3>
         <p>Nas configurações do app existe a opção de apagar todos os seus registros, a qualquer momento. Desinstalar o app também remove as informações guardadas.</p>
         <h3>E o feedback?</h3>
-        <p>Se você escolher enviar um feedback pelo formulário do app, o texto que você escrever é processado pelo Netlify Forms, serviço que usamos só pra receber sugestões e relatos de problemas. O formulário é anônimo: não pedimos nome nem e-mail. Enviar feedback é totalmente opcional — se não enviar, nada sai do seu aparelho.</p>
+        <p>Se você escolher enviar um feedback pelo formulário do app, o texto que você escrever é guardado no nosso banco de dados (Supabase), que usamos só pra receber sugestões e relatos de problemas. O formulário é anônimo: não pedimos nome nem e-mail. Enviar feedback é totalmente opcional — se não enviar, nada sai do seu aparelho.</p>
         <h3>Versão de teste.</h3>
         <p>O Recarregue está em fase de testes. Algumas coisas podem mudar, e seu feedback ajuda a melhorar o app.</p>
         <h3>Contato.</h3>
@@ -3707,7 +3813,7 @@ function reportSheetHTML(){
           <button class="ci-skip" onclick="closeReport()">Fechar</button>
         </div>
         <div style="padding:12px 16px">
-          <pre class="report-pre" id="report-text">${buildReportText()}</pre>
+          <pre class="report-pre" id="report-text">${esc(buildReportText())}</pre>
           <button class="btn btn-p" onclick="copyReport()">📋 Copiar relatório</button>
         </div>
       </div>
@@ -3768,6 +3874,7 @@ const HELP = {
       { h: 'Para que serve', p: 'Um espaço para colocar em palavras como você se sente, o que sente e por que talvez sinta isso. Escrever ajuda a organizar a cabeça e, com o tempo, a perceber padrões.' },
       { h: 'Sem regras', p: 'Todos os campos são opcionais. Pode escolher só um humor, escrever só uma palavra ou um textão. Não precisa escrever todo dia.' },
       { h: 'Privacidade', p: 'O diário fica só no seu aparelho e entra no backup em arquivo (exportar). Ele só vai para o backup na nuvem se você ligar essa opção em Configurações → Backup.' },
+      { h: 'No Mapa e no relatório', p: 'O Mapa cruza o que você escreve com sua energia, seus check-ins e seus dias difíceis, sempre no seu aparelho. No relatório entram só contagens e humores — o texto que você escreveu nunca vai junto.' },
     ]
   },
   home: {
@@ -4070,8 +4177,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.6.0 disponível!</strong>
-        Novo Diário: escreva como se sente, o que sente e por quê — só no seu aparelho.
+        <strong>✨ Versão 2.6.1 disponível!</strong>
+        O Diário agora aparece nos insights e relatórios (sem expor o que você escreveu) e restaurar backup traz de volta sintomas e dias difíceis.
       </div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -4091,7 +4198,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.6.0';
+const APP_VERSION = '2.6.1';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
