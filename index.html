@@ -962,7 +962,7 @@ const REST_ACTIVITIES = [
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 
-let db = {entries:[], checkins:[], sintomas:{lista:[...SINTOMAS_DEFAULT], registros:[]}, settings:{dailyPts:12, alertAt:3, notifEnabled:false, name:'', theme:'dark', palette:'roxo', pronoun:null, age:null}};
+let db = {entries:[], checkins:[], diary:[], sintomas:{lista:[...SINTOMAS_DEFAULT], registros:[]}, settings:{dailyPts:12, alertAt:3, notifEnabled:false, name:'', theme:'dark', palette:'roxo', pronoun:null, age:null, diaryCloudBackup:false}};
 let screen = 'home';
 let _pendingUpdate = false;
 let _backupDoneForUpdate = false;
@@ -1020,6 +1020,8 @@ function calcStreak(){
   return streak;
 }
 let showPrivacy = false;
+let showDiary = false;
+let diaryDraft = {id:null, humor:null, sinto:'', porque:''};
 let showFeedback = false;
 let feedbackSent = false;
 let feedbackState = {tipo:'sugestao', mensagem:''};
@@ -1080,6 +1082,100 @@ function closeHelp(){helpSheet=null;renderOverlays();}
 let catInfoId=null;
 function showCatInfo(id,e){e.stopPropagation();catInfoId=id;renderOverlays();}
 function closeCatInfo(){catInfoId=null;renderOverlays();}
+// ── DIÁRIO ────────────────────────────────────────────────────────────────────
+function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function emptyDiaryDraft(){return {id:null,humor:null,sinto:'',porque:''};}
+function openDiary(){showDiary=true;diaryDraft=emptyDiaryDraft();renderOverlays();trackEvent('diary_opened');}
+function closeDiary(){showDiary=false;render();}
+function diaryPickHumor(id){
+  diaryDraft.humor=diaryDraft.humor===id?null:id;
+  document.querySelectorAll('.diary-humor').forEach(b=>{
+    const on=b.dataset.id===diaryDraft.humor;
+    b.classList.toggle('sel',on);
+    b.querySelector('.h-lbl').style.color=on?'var(--purple-lt)':'var(--muted)';
+  });
+}
+function saveDiary(){
+  const sinto=diaryDraft.sinto.trim(),porque=diaryDraft.porque.trim();
+  if(!diaryDraft.humor&&!sinto&&!porque){toast('Escreva ou escolha algo primeiro 💜');return;}
+  if(!db.diary)db.diary=[];
+  if(diaryDraft.id){
+    const e=db.diary.find(x=>x.id===diaryDraft.id);
+    if(e){e.humor=diaryDraft.humor;e.sinto=sinto;e.porque=porque;e.editedAt=new Date().toISOString();}
+  }else{
+    db.diary.unshift({id:uid(),ts:new Date().toISOString(),humor:diaryDraft.humor,sinto,porque});
+    trackEvent('diary_entry_created');
+  }
+  diaryDraft=emptyDiaryDraft();
+  save();toast('Guardado com carinho 💜');renderOverlays();
+}
+function editDiary(id){
+  const e=(db.diary||[]).find(x=>x.id===id);if(!e)return;
+  diaryDraft={id:e.id,humor:e.humor||null,sinto:e.sinto||'',porque:e.porque||''};
+  renderOverlays();
+  document.querySelector('.full-sheet')?.scrollTo?.(0,0);
+}
+function cancelDiaryEdit(){diaryDraft=emptyDiaryDraft();renderOverlays();}
+function deleteDiary(id){
+  if(!confirm('Apagar esta entrada do diário?'))return;
+  db.diary=(db.diary||[]).filter(x=>x.id!==id);
+  if(diaryDraft.id===id)diaryDraft=emptyDiaryDraft();
+  save();toast('Entrada apagada');renderOverlays();
+}
+function setDiaryCloud(on){
+  db.settings.diaryCloudBackup=!!on;save();
+  toast(on?'Diário incluído no backup da nuvem ☁️':'Diário fica só no seu aparelho 🔒');
+}
+
+function diaryHTML(){
+  const list=db.diary||[];
+  const editing=!!diaryDraft.id;
+  const humorBtns=HUMORS.map(h=>`
+    <button class="humor-btn diary-humor ${diaryDraft.humor===h.id?'sel':''}" data-id="${h.id}" onclick="diaryPickHumor('${h.id}')">
+      <span class="h-ico">${h.icon}</span>
+      <span class="h-lbl" style="color:${diaryDraft.humor===h.id?'var(--purple-lt)':'var(--muted)'}">${humorLabel(h)}</span>
+    </button>`).join('');
+  let lastDay='';
+  const entries=list.map(e=>{
+    const d=new Date(e.ts);
+    const day=d.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
+    const head=day!==lastDay?`<div class="sec" style="margin-top:18px;text-transform:capitalize">${day}</div>`:'';
+    lastDay=day;
+    const h=HUMORS.find(x=>x.id===e.humor);
+    return `${head}
+      <div class="card" style="margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:${(e.sinto||e.porque)?'10':'0'}px">
+          <div style="font-size:13px;font-weight:700;color:var(--text)">${h?`${h.icon} Me sinto ${esc(humorLabel(h).toLowerCase())}`:'📔 Anotação'}</div>
+          <div style="font-size:11px;color:var(--muted);white-space:nowrap">${fmtTime(e.ts)}${e.editedAt?' · editada':''}</div>
+        </div>
+        ${e.sinto?`<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.4px;margin-bottom:3px">O QUE SINTO</div><div style="font-size:14px;line-height:1.6;color:var(--text);white-space:pre-wrap;margin-bottom:${e.porque?'10':'0'}px">${esc(e.sinto)}</div>`:''}
+        ${e.porque?`<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.4px;margin-bottom:3px">POR QUE SINTO</div><div style="font-size:14px;line-height:1.6;color:var(--text);white-space:pre-wrap">${esc(e.porque)}</div>`:''}
+        <div style="display:flex;gap:14px;margin-top:12px">
+          <button onclick="editDiary('${e.id}')" style="background:none;border:none;color:var(--accent-lt);font-size:12px;cursor:pointer;padding:0;font-family:inherit">✏️ Editar</button>
+          <button onclick="deleteDiary('${e.id}')" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0;font-family:inherit">🗑️ Apagar</button>
+        </div>
+      </div>`;
+  }).join('');
+  return `
+    <div class="full-sheet">
+      <div class="full-sheet-hdr">
+        <button class="full-sheet-back" onclick="closeDiary()">←</button>
+        <div class="full-sheet-title">📔 Meu diário</div>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Um cantinho só seu. Escreva do seu jeito, no seu tempo — todos os campos são opcionais. 🔒 Fica só no seu aparelho.</p>
+      <div class="sec">${editing?'Editando entrada':'Como você se sente agora?'}</div>
+      <div class="humor-grid">${humorBtns}</div>
+      <div class="sec">O que você está sentindo?</div>
+      <textarea class="note" rows="4" placeholder="No corpo, na cabeça, no coração... pode ser só uma palavra." oninput="diaryDraft.sinto=this.value">${esc(diaryDraft.sinto)}</textarea>
+      <div class="sec" style="margin-top:14px">Por que será que se sente assim?</div>
+      <textarea class="note" rows="4" placeholder="Algo aconteceu? Não sabe ao certo? Tudo bem também." oninput="diaryDraft.porque=this.value">${esc(diaryDraft.porque)}</textarea>
+      <button class="btn btn-p" style="margin-top:14px" onclick="saveDiary()">${editing?'Salvar alterações':'Guardar no diário'}</button>
+      ${editing?`<button class="btn" style="margin-top:8px;background:var(--card2);border:1px solid var(--border);color:var(--text)" onclick="cancelDiaryEdit()">Cancelar edição</button>`:''}
+      ${list.length?`<div style="margin-top:8px">${entries}</div>`:`
+        <div style="text-align:center;margin-top:28px;color:var(--muted);font-size:13px;line-height:1.7">🌱<br>Seu diário ainda está vazio.<br>Sem pressa — quando quiser, ele está aqui.</div>`}
+    </div>`;
+}
+
 function openPrivacy(){showPrivacy=true;renderOverlays();}
 function closePrivacy(){showPrivacy=false;renderOverlays();}
 function openFeedback(){showFeedback=true;feedbackSent=false;feedbackState={tipo:'sugestao',mensagem:''};renderOverlays();}
@@ -1120,12 +1216,14 @@ function applyTheme(){
 function load() {
   try {
     const r=localStorage.getItem(KEY);
-    if(r){const p=JSON.parse(r);db.entries=p.entries||[];db.checkins=p.checkins||[];db.settings={...db.settings,...p.settings};if(p.sintomas)db.sintomas=p.sintomas;if(p.hardDays)db.hardDays=p.hardDays;return;}
+    if(r){const p=JSON.parse(r);db.entries=p.entries||[];db.checkins=p.checkins||[];db.diary=p.diary||[];db.settings={...db.settings,...p.settings};if(p.sintomas)db.sintomas=p.sintomas;if(p.hardDays)db.hardDays=p.hardDays;return;}
     const r1=localStorage.getItem('energia_v1');
     if(r1){const p=JSON.parse(r1);db.entries=p.entries||[];db.settings={...db.settings,...p.settings};}
   } catch(_){}
 }
 function save(){try{localStorage.setItem(KEY,JSON.stringify(db));}catch(_){}autoBackupSilent();}
+// O diário é íntimo: só vai para a nuvem se a pessoa ligar o interruptor nas configurações
+function cloudPayload(){return {...db,diary:db.settings.diaryCloudBackup?(db.diary||[]):[]};}
 
 let _autoBackupTimer=null;
 function autoBackupSilent(){
@@ -1137,7 +1235,7 @@ function autoBackupSilent(){
       const res=await fetch(`${SUPABASE_URL}/functions/v1/backup-save`,{
         method:'POST',
         headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`},
-        body:JSON.stringify({restore_code:code,data:db})
+        body:JSON.stringify({restore_code:code,data:cloudPayload()})
       });
       if(res.ok){localStorage.setItem(LAST_BACKUP_KEY,Date.now().toString());renderConfigBadge();}
     }catch(_){}
@@ -1492,7 +1590,7 @@ function adj(key,delta){
   if(key==='alertAt')db.settings.alertAt=Math.max(1,Math.min(dailyPts-1,alertAt+delta));
   save();document.getElementById('main').innerHTML=settingsHTML();
 }
-function clearData(){if(!confirm('Apagar TODOS os registros permanentemente?'))return;db.entries=[];db.checkins=[];save();toast('Dados apagados');go('home');}
+function clearData(){if(!confirm('Apagar TODOS os registros permanentemente?'))return;db.entries=[];db.checkins=[];db.diary=[];save();toast('Dados apagados');go('home');}
 
 // ── BACKUP ────────────────────────────────────────────────────────────────────
 const BACKUP_KEY = 'recarregue_restore_code';
@@ -1660,6 +1758,7 @@ function importJSON(){
         if(!parsed.entries || !parsed.checkins) throw new Error('Arquivo inválido');
         db.entries = parsed.entries || [];
         db.checkins = parsed.checkins || [];
+        db.diary = parsed.diary || [];
         db.settings = {...db.settings, ...(parsed.settings||{})};
         save(); applyTheme(); render();
         toast('Dados restaurados com sucesso 💜');
@@ -1677,7 +1776,7 @@ async function backupToCloud(){
     const res = await fetch(`${SUPABASE_URL}/functions/v1/backup-save`, {
       method: 'POST',
       headers: {'Content-Type':'application/json','apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`},
-      body: JSON.stringify({restore_code: code, data: db})
+      body: JSON.stringify({restore_code: code, data: cloudPayload()})
     });
     if(!res.ok) throw new Error();
     localStorage.setItem(LAST_BACKUP_KEY,Date.now().toString());
@@ -1703,6 +1802,7 @@ async function restoreFromCloud(){
     const saved = result.data;
     db.entries = saved.entries || [];
     db.checkins = saved.checkins || [];
+    if((saved.diary||[]).length) db.diary = saved.diary;
     db.settings = {...db.settings, ...(saved.settings||{})};
     localStorage.setItem(BACKUP_KEY, code);
     save(); applyTheme(); render();
@@ -2423,6 +2523,10 @@ function homeHTML(){
       <div class="period-row" id="tour-checkin">${periodCards}</div>
     </div>
     ${sintomaHomeCard}
+    <div class="card" style="cursor:pointer" onclick="openDiary()">
+      <div class="sec" style="display:flex;align-items:center;gap:6px">📔 Diário <button class="info-btn" onclick="event.stopPropagation();openHelp('diario')">ⓘ</button></div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6">${(db.diary||[]).length?`Você tem <strong style="color:var(--accent-lt)">${db.diary.length}</strong> ${db.diary.length===1?'entrada':'entradas'}. Toque para escrever mais uma 💜`:'Quer escrever como está se sentindo, o que sente e por quê? Toque aqui 💜'}</div>
+    </div>
     <div class="card">
       <div class="sec">Registros ${isToday?'de hoje':fmtDate(viewDate)} <button class="info-btn" onclick="openHelp('home')">ⓘ</button></div>
       ${entries}
@@ -3225,6 +3329,10 @@ function settingsHTML(){
       </div>
 
       ${SUPABASE_URL ? `
+      <label style="display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:12px;cursor:pointer">
+        <input type="checkbox" ${db.settings.diaryCloudBackup?'checked':''} onchange="setDiaryCloud(this.checked)" style="margin-top:3px;accent-color:var(--purple)">
+        <span style="font-size:12px;color:var(--muted);line-height:1.5"><strong style="color:var(--text)">Incluir meu diário no backup da nuvem</strong><br>Desligado por padrão: o diário é íntimo e fica só no seu aparelho. Ligue se quiser poder restaurá-lo em outro aparelho.</span>
+      </label>
       <button class="btn btn-p" style="width:100%;margin-top:12px;font-size:13px" onclick="backupToCloud()">☁️ Salvar backup na nuvem</button>
       <div style="margin-top:12px">
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Restaurar de outro aparelho</div>
@@ -3337,12 +3445,14 @@ function privacyHTML(){
         <div class="full-sheet-title">Política de Privacidade</div>
       </div>
       <div class="privacy-body">
-        <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Última atualização: junho de 2026</p>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Última atualização: setembro de 2026</p>
         <p>O Recarregue foi feito com uma ideia simples: seus dados são seus. Esta política explica isso sem enrolação.</p>
         <h3>O que coletamos: nada.</h3>
         <p>O Recarregue não pede login, nome, e-mail nem qualquer dado pessoal. Você usa o app sem se identificar.</p>
         <h3>Onde ficam seus registros.</h3>
         <p>Tudo que você anota no app fica armazenado localmente, no seu próprio aparelho. As informações não são enviadas para nenhum servidor e não temos acesso a elas. Se você trocar de aparelho ou apagar o app, esses registros vão junto.</p>
+        <h3>Seu diário é ainda mais íntimo.</h3>
+        <p>O que você escreve no diário fica só no seu aparelho. Ele não vai para a nuvem, a menos que você ligue, por conta própria, a opção "Incluir meu diário no backup da nuvem" em Configurações. Ele sempre entra no backup em arquivo que você mesma exporta.</p>
         <h3>Backup na nuvem — opcional e seu.</h3>
         <p>O Recarregue oferece backup voluntário na nuvem para proteger seus dados contra perda de dispositivo ou limpeza de cache. Nenhum dado sensível ou identificável é armazenado — apenas o conteúdo que você já registrou, acessível exclusivamente pelo seu código de restauração pessoal. Nós não conseguimos abrir seu backup. Você pode não usar essa função e manter tudo só no aparelho.</p>
         <h3>Apagar tudo, quando quiser.</h3>
@@ -3651,6 +3761,15 @@ function initCharts(){
 // ── AJUDA ─────────────────────────────────────────────────────────────────────
 
 const HELP = {
+  diario: {
+    title: 'Seu diário',
+    icon: '📔',
+    items: [
+      { h: 'Para que serve', p: 'Um espaço para colocar em palavras como você se sente, o que sente e por que talvez sinta isso. Escrever ajuda a organizar a cabeça e, com o tempo, a perceber padrões.' },
+      { h: 'Sem regras', p: 'Todos os campos são opcionais. Pode escolher só um humor, escrever só uma palavra ou um textão. Não precisa escrever todo dia.' },
+      { h: 'Privacidade', p: 'O diário fica só no seu aparelho e entra no backup em arquivo (exportar). Ele só vai para o backup na nuvem se você ligar essa opção em Configurações → Backup.' },
+    ]
+  },
   home: {
     title: 'Como funciona a tela Hoje',
     icon: '⚡',
@@ -3894,7 +4013,7 @@ function renderTourGuide(){
   const el=document.getElementById('tour-guide');
   if(!el) return;
   // Hide guide bar when any modal/sheet is open
-  const modalOpen=!!(checkinState||sheetState||helpSheet||showFeedback||onboardingStep>0||showBackupSheet);
+  const modalOpen=!!(checkinState||sheetState||helpSheet||showFeedback||showDiary||onboardingStep>0||showBackupSheet);
   const active=tourStep>=2&&tourStep<=6&&!modalOpen;
   el.innerHTML=active?tourGuideBarHTML():'';
   const main=document.getElementById('main');
@@ -3929,6 +4048,7 @@ function renderOverlays(){
   else if(catInfoId)       el.innerHTML=catInfoHTML();
   else if(helpSheet)       el.innerHTML=helpSheetHTML();
   else if(showPrivacy)     el.innerHTML=privacyHTML();
+  else if(showDiary)       el.innerHTML=diaryHTML();
   else if(showFeedback)    el.innerHTML=feedbackHTML();
   else if(checkinState)    el.innerHTML=checkinOverlayHTML();
   else if(triggerSheetState) el.innerHTML=triggerSheetHTML();
@@ -3950,8 +4070,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.5.5 disponível!</strong>
-        Correção das notificações push para todas as usuárias.
+        <strong>✨ Versão 2.6.0 disponível!</strong>
+        Novo Diário: escreva como se sente, o que sente e por quê — só no seu aparelho.
       </div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -3971,7 +4091,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.5.5';
+const APP_VERSION = '2.6.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
