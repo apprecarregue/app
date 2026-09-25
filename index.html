@@ -978,7 +978,8 @@ let helpSheet = null; // 'home' | 'checkin' | 'register' | 'mapa' | 'sos'
 const ONBOARDED_KEY = 'recarregue_v1_onboarded';
 const VISITED_KEY   = 'recarregue_visited_tabs';
 const TOUR_KEY      = 'recarregue_tour_done';
-const TOUR_TABS     = {2:'home', 3:'register', 4:'sintomas', 5:'mapa', 6:'sos'};
+const TOUR_TABS     = {2:'home', 3:'home', 4:'register', 5:'sintomas', 6:'mapa', 7:'sos'};
+const DIARY_INTRO_KEY = 'recarregue_diary_intro';
 let onboardingStep = localStorage.getItem(ONBOARDED_KEY) ? 0 : 1;
 let onboardReadSet = new Set(); // steps already "read"
 let tourStep = 0; // initialized after load()
@@ -1085,7 +1086,10 @@ function closeCatInfo(){catInfoId=null;renderOverlays();}
 // ── DIÁRIO ────────────────────────────────────────────────────────────────────
 function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function emptyDiaryDraft(){return {id:null,humor:null,sinto:'',porque:''};}
-function openDiary(){showDiary=true;diaryDraft=emptyDiaryDraft();renderOverlays();trackEvent('diary_opened');}
+// Novidade: só para quem já usava o app (quem faz onboarding/tour conhece o Diário pelo tour)
+const diaryIntroPending=()=>!!localStorage.getItem(ONBOARDED_KEY)&&!tourStep&&onboardingStep===0&&!localStorage.getItem(DIARY_INTRO_KEY);
+function dismissDiaryIntro(open){localStorage.setItem(DIARY_INTRO_KEY,'1');if(open)openDiary();else render();}
+function openDiary(){localStorage.setItem(DIARY_INTRO_KEY,'1');showDiary=true;diaryDraft=emptyDiaryDraft();renderOverlays();trackEvent('diary_opened');}
 function closeDiary(){showDiary=false;render();}
 function diaryPickHumor(id){
   diaryDraft.humor=diaryDraft.humor===id?null:id;
@@ -1424,7 +1428,8 @@ function submitCheckin(){
   const h=HUMORS.find(x=>x.id===checkinState.humor);
   toast(`${h?.icon??''} Check-in da ${PERIODS[p]?.label} salvo!`);
   checkinState=null;
-  if(tourStep===2){ tourStep=3; go('register'); } else { render(); }
+  if(tourStep===2)tourStep=3;
+  render();
 }
 function submitCheckinExpress(){
   if(!checkinState)return;
@@ -1441,7 +1446,8 @@ function submitCheckinExpress(){
   trackEvent('checkin_completed',{period:p,energy:checkinState.energy,express:true});
   toast(`✅ Energia registrada — cuide-se!`);
   checkinState=null;
-  if(tourStep===2){ tourStep=3; go('register'); } else { render(); }
+  if(tourStep===2)tourStep=3;
+  render();
 }
 function skipCheckin(){checkinSkipped=true;checkinState=null;renderOverlays();}
 
@@ -2514,8 +2520,19 @@ function homeHTML(){
     ${hard?'':`<span style="font-size:10px;color:var(--muted);opacity:.8">noite mal dormida, ansiedade alta ou corpo pesado desde cedo</span>`}
   </button>`:'';
 
+  const diaryIntro=diaryIntroPending()?`
+    <div class="card" style="border:1.5px solid rgba(167,139,250,.5);background:var(--accent-bg)">
+      <div class="sec">✨ Novidade: Diário</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:12px">Agora você tem um cantinho só seu para escrever como se sente, o que sente e por quê. Ele fica aqui na aba <strong>Hoje</strong>, no card <strong>📔 Diário</strong>, logo abaixo dos check-ins.</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-p" style="flex:1;padding:11px;font-size:13px" onclick="dismissDiaryIntro(true)">Abrir o Diário</button>
+        <button class="btn" style="flex:1;padding:11px;font-size:13px;background:var(--card2);border:1px solid var(--border);color:var(--text)" onclick="dismissDiaryIntro(false)">Entendi</button>
+      </div>
+    </div>`:'';
+
   return `
     ${backupBanner}
+    ${diaryIntro}
     ${dateNav}
     <div class="card" id="tour-energy">
       <div class="nrg">
@@ -2546,7 +2563,7 @@ function homeHTML(){
       <div class="period-row" id="tour-checkin">${periodCards}</div>
     </div>
     ${sintomaHomeCard}
-    <div class="card" style="cursor:pointer" onclick="openDiary()">
+    <div class="card" id="tour-diary" style="cursor:pointer" onclick="openDiary()">
       <div class="sec" style="display:flex;align-items:center;gap:6px">📔 Diário <button class="info-btn" onclick="event.stopPropagation();openHelp('diario')">ⓘ</button></div>
       <div style="font-size:13px;color:var(--muted);line-height:1.6">${(db.diary||[]).length?`Você tem <strong style="color:var(--accent-lt)">${db.diary.length}</strong> ${db.diary.length===1?'entrada':'entradas'}. Toque para escrever mais uma 💜`:'Quer escrever como está se sentindo, o que sente e por quê? Toque aqui 💜'}</div>
     </div>
@@ -3468,6 +3485,7 @@ function onboardingHTML(){
     {icon:'💜', title:'Seu espaço de autoconhecimento', sub:'Bem-vind@ ao Recarregue.', body:`
       <p>Aqui você registra padrões de energia para se conhecer melhor — no seu ritmo, do seu jeito.</p>
       <p style="margin-top:10px">Tudo que você anota fica <strong>só no seu aparelho</strong>. Sem login, sem cadastro.</p>
+      <p style="margin-top:10px">E quando quiser, tem um <strong>📔 diário</strong> só seu para escrever como se sente e por quê.</p>
       <div style="margin-top:14px;padding:10px 12px;border-radius:10px;background:rgba(139,92,246,.08);border:1px solid var(--border);font-size:11px;color:var(--muted);line-height:1.6">
         🔒 Dados locais · Sem servidor · Apague quando quiser em Configurações
       </div>
@@ -3884,6 +3902,7 @@ const HELP = {
       { h: 'A Teoria das Colheres', p: 'Você começa o dia com um número de colheres — 12 por padrão. Cada tarefa, sensação ou situação custa algumas delas. Quando acabam, acabaram. O Recarregue te ajuda a enxergar isso em tempo real.' },
       { h: 'O número grande', p: 'Mostra quantas colheres ainda restam hoje. A cor muda conforme sua energia cai — verde boa, amarela atenção, vermelha crítica.' },
       { h: 'Os check-ins', p: 'Três momentos do dia para você registrar como está: manhã, tarde e noite. Preencher os três ajuda a revelar padrões — quais períodos te drenam mais e por quê.' },
+      { h: 'O diário', p: 'O card 📔 Diário, logo abaixo dos check-ins, abre um espaço só seu para escrever como você se sente, o que sente e por quê. É opcional e fica só no seu aparelho.' },
       { h: 'Os registros', p: 'Lista tudo que foi adicionado hoje, com o custo de energia de cada item. Dá para ver o que pesou mais no dia de um jeito visual e rápido.' },
     ]
   },
@@ -4070,16 +4089,16 @@ function tourOverlayHTML(){
       <div style="background:var(--card);border-radius:24px;padding:36px 24px;text-align:center;max-width:340px;width:100%">
         <div style="font-size:52px;margin-bottom:16px">🗺️</div>
         <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:12px">Vamos explorar ${g('juntas','juntos','juntes')}!</div>
-        <div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:28px">Em 5 passos você vai <strong style="color:var(--text)">usar de verdade</strong> — não só ver. Toque quando ${g('estiver','estiver','estiver')} ${g('pronta','pronto','prontx')}.</div>
+        <div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:28px">Em 6 passos você vai <strong style="color:var(--text)">usar de verdade</strong> — não só ver. Toque quando ${g('estiver','estiver','estiver')} ${g('pronta','pronto','prontx')}.</div>
         <button onclick="tourNext()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit">Vamos lá →</button>
       </div>
     </div>`;
-  if(tourStep===7) return `
+  if(tourStep===8) return `
     <div style="position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;padding:24px">
       <div style="background:var(--card);border-radius:24px;padding:36px 24px;text-align:center;max-width:340px;width:100%">
         <div style="font-size:56px;margin-bottom:16px">🎉</div>
         <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:12px">${g('Pronta','Pronto','Prontx')}${nome}!</div>
-        <div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:28px">O segredo é o hábito: 3 check-ins por dia + um registro quando algo acontece. Os padrões aparecem com o tempo. 💜</div>
+        <div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:28px">O segredo é o hábito: 3 check-ins por dia + um registro quando algo acontece. O diário é para quando você quiser desabafar. Os padrões aparecem com o tempo. 💜</div>
         <button onclick="tourNext()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit">Começar ✨</button>
       </div>
     </div>`;
@@ -4088,15 +4107,16 @@ function tourOverlayHTML(){
 
 function tourGuideBarHTML(){
   const guideSteps={
-    2:{num:'1 de 5', title:'Check-in ✅', text:`3× por dia você registra como está: energia, humor e bateria social. Leva menos de 2 minutos. Vamos fazer o de agora?`, cta:'Fazer check-in →', action:'checkin'},
-    3:{num:'2 de 5', title:'Registrar ➕', text:'Aqui você marca o que drenou ou recarregou: reunião, barulho, descanso, música... Toque em uma categoria pra experimentar.', cta:'Próximo →'},
-    4:{num:'3 de 5', title:'Sintomas 🩺', text:'Registre sintomas físicos e emocionais separados do gasto de energia — dor, ansiedade, sobrecarga sensorial. Cada corpo é único.', cta:'Próximo →'},
-    5:{num:'4 de 5', title:'Mapa de padrões 📊', text:'Com o tempo você verá quais atividades mais drenam, qual período pesa mais e suas tendências emocionais. Quanto mais registrar, mais claro fica.', cta:'Próximo →'},
-    6:{num:'5 de 5', title:'SOS 🆘', text:'Para momentos de sobrecarga: respiração guiada, ancoragem nos sentidos e o CVV (188). Sempre aqui quando precisar.', cta:'Próximo →'},
+    2:{num:'1 de 6', title:'Check-in ✅', text:`3× por dia você registra como está: energia, humor e bateria social. Leva menos de 2 minutos. Vamos fazer o de agora?`, cta:'Fazer check-in →', action:'checkin'},
+    3:{num:'2 de 6', title:'Diário 📔', text:'Um cantinho só seu para escrever como se sente, o que sente e por quê. É opcional, fica só no seu aparelho e, com o tempo, aparece nos insights do Mapa. Ele fica aqui na aba Hoje, logo abaixo dos check-ins.', cta:'Próximo →'},
+    4:{num:'3 de 6', title:'Registrar ➕', text:'Aqui você marca o que drenou ou recarregou: reunião, barulho, descanso, música... Toque em uma categoria pra experimentar.', cta:'Próximo →'},
+    5:{num:'4 de 6', title:'Sintomas 🩺', text:'Registre sintomas físicos e emocionais separados do gasto de energia — dor, ansiedade, sobrecarga sensorial. Cada corpo é único.', cta:'Próximo →'},
+    6:{num:'5 de 6', title:'Mapa de padrões 📊', text:'Com o tempo você verá quais atividades mais drenam, qual período pesa mais e suas tendências emocionais. Quanto mais registrar, mais claro fica.', cta:'Próximo →'},
+    7:{num:'6 de 6', title:'SOS 🆘', text:'Para momentos de sobrecarga: respiração guiada, ancoragem nos sentidos e o CVV (188). Sempre aqui quando precisar.', cta:'Próximo →'},
   };
   const s=guideSteps[tourStep];
   if(!s) return '';
-  const dots=[2,3,4,5,6].map(i=>`<span style="width:6px;height:6px;border-radius:50%;background:${i===tourStep?'var(--accent)':'rgba(255,255,255,.2)'};display:inline-block;transition:background .2s"></span>`).join('');
+  const dots=[2,3,4,5,6,7].map(i=>`<span style="width:6px;height:6px;border-radius:50%;background:${i===tourStep?'var(--accent)':'rgba(255,255,255,.2)'};display:inline-block;transition:background .2s"></span>`).join('');
   const ctaOnclick=s.action==='checkin'?'openCheckin()':'tourNext()';
   return `
     <div style="position:fixed;bottom:72px;left:0;right:0;z-index:2000;padding:0 12px 6px">
@@ -4121,8 +4141,10 @@ function renderTourGuide(){
   if(!el) return;
   // Hide guide bar when any modal/sheet is open
   const modalOpen=!!(checkinState||sheetState||helpSheet||showFeedback||showDiary||onboardingStep>0||showBackupSheet);
-  const active=tourStep>=2&&tourStep<=6&&!modalOpen;
+  const active=tourStep>=2&&tourStep<=7&&!modalOpen;
   el.innerHTML=active?tourGuideBarHTML():'';
+  // passo do Diário: destaca o card e leva até ele
+  if(active&&tourStep===3){const c=document.getElementById('tour-diary');if(c){c.style.borderColor='var(--accent)';c.style.boxShadow='0 0 0 2px rgba(167,139,250,.45)';setTimeout(()=>c.scrollIntoView({behavior:'smooth',block:'center'}),80);}}
   const main=document.getElementById('main');
   if(main) main.style.paddingBottom=active?'210px':'';
 }
@@ -4136,13 +4158,13 @@ function tourPrev(){
   }
 }
 function tourNext(){
-  if(tourStep<7){
+  if(tourStep<8){
     tourStep++;
     const tab=TOUR_TABS[tourStep];
     if(tab&&tab!==screen) go(tab);
     else { renderOverlays(); renderTourGuide(); }
   } else {
-    tourStep=0; localStorage.setItem(TOUR_KEY,'1');
+    tourStep=0; localStorage.setItem(TOUR_KEY,'1'); localStorage.setItem(DIARY_INTRO_KEY,'1');
     renderOverlays(); renderTourGuide();
     if(shouldShowCheckin()) setTimeout(openCheckin,400);
   }
@@ -4151,7 +4173,7 @@ function tourNext(){
 function renderOverlays(){
   const el=document.getElementById('overlays');if(!el)return;
   if(onboardingStep>0)              el.innerHTML=onboardingHTML();
-  else if(tourStep===1||tourStep===7) el.innerHTML=tourOverlayHTML();
+  else if(tourStep===1||tourStep===8) el.innerHTML=tourOverlayHTML();
   else if(catInfoId)       el.innerHTML=catInfoHTML();
   else if(helpSheet)       el.innerHTML=helpSheetHTML();
   else if(showPrivacy)     el.innerHTML=privacyHTML();
@@ -4177,8 +4199,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.6.1 disponível!</strong>
-        O Diário agora aparece nos insights e relatórios (sem expor o que você escreveu) e restaurar backup traz de volta sintomas e dias difíceis.
+        <strong>✨ Versão 2.6.2 disponível!</strong>
+        Novo Diário para escrever como você se sente, o que sente e por quê — fica só no seu aparelho e aparece nos insights do Mapa. Restaurar backup também traz de volta sintomas e dias difíceis.
       </div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -4198,7 +4220,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.6.1';
+const APP_VERSION = '2.6.2';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
