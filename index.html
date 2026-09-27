@@ -740,6 +740,7 @@ const ICO = {
   sos:      ico('<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
   settings: ico('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
   sintomas: ico('<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>'),
+  diary:    ico('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>'),
 };
 
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -1089,7 +1090,7 @@ function emptyDiaryDraft(){return {id:null,humor:null,sinto:'',porque:''};}
 // Novidade: só para quem já usava o app (quem faz onboarding/tour conhece o Diário pelo tour)
 const diaryIntroPending=()=>!!localStorage.getItem(ONBOARDED_KEY)&&!tourStep&&onboardingStep===0&&!localStorage.getItem(DIARY_INTRO_KEY);
 function dismissDiaryIntro(open){localStorage.setItem(DIARY_INTRO_KEY,'1');if(open)openDiary();else render();}
-function openDiary(){localStorage.setItem(DIARY_INTRO_KEY,'1');showDiary=true;diaryDraft=emptyDiaryDraft();renderOverlays();trackEvent('diary_opened');}
+function openDiary(){localStorage.setItem(DIARY_INTRO_KEY,'1');markTabVisited('diary');showDiary=true;diaryDraft=emptyDiaryDraft();renderOverlays();trackEvent('diary_opened');}
 function closeDiary(){showDiary=false;render();}
 function diaryPickHumor(id){
   diaryDraft.humor=diaryDraft.humor===id?null:id;
@@ -1617,7 +1618,7 @@ async function trackEvent(name,meta={}){
     fetch(`${SUPABASE_URL}/rest/v1/events`,{
       method:'POST',
       headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`},
-      body:JSON.stringify({device_id:getDeviceId(),session_id:SESSION_ID,event_name:name,metadata:meta,created_at:new Date().toISOString()})
+      body:JSON.stringify({device_id:getDeviceId(),session_id:SESSION_ID,event_name:name,metadata:meta,restore_code:getRestoreCode(),created_at:new Date().toISOString()})
     });
   }catch(_){}
 }
@@ -2523,7 +2524,7 @@ function homeHTML(){
   const diaryIntro=diaryIntroPending()?`
     <div class="card" style="border:1.5px solid rgba(167,139,250,.5);background:var(--accent-bg)">
       <div class="sec">✨ Novidade: Diário</div>
-      <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:12px">Agora você tem um cantinho só seu para escrever como se sente, o que sente e por quê. Ele fica aqui na aba <strong>Hoje</strong>, no card <strong>📔 Diário</strong>, logo abaixo dos check-ins.</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:12px">Agora você tem um cantinho só seu para escrever como se sente, o que sente e por quê. Ele fica no ícone <strong>📔 Diário</strong>, na barra de baixo.</div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-p" style="flex:1;padding:11px;font-size:13px" onclick="dismissDiaryIntro(true)">Abrir o Diário</button>
         <button class="btn" style="flex:1;padding:11px;font-size:13px;background:var(--card2);border:1px solid var(--border);color:var(--text)" onclick="dismissDiaryIntro(false)">Entendi</button>
@@ -2563,10 +2564,6 @@ function homeHTML(){
       <div class="period-row" id="tour-checkin">${periodCards}</div>
     </div>
     ${sintomaHomeCard}
-    <div class="card" id="tour-diary" style="cursor:pointer" onclick="openDiary()">
-      <div class="sec" style="display:flex;align-items:center;gap:6px">📔 Diário <button class="info-btn" onclick="event.stopPropagation();openHelp('diario')">ⓘ</button></div>
-      <div style="font-size:13px;color:var(--muted);line-height:1.6">${(db.diary||[]).length?`Você tem <strong style="color:var(--accent-lt)">${db.diary.length}</strong> ${db.diary.length===1?'entrada':'entradas'}. Toque para escrever mais uma 💜`:'Quer escrever como está se sentindo, o que sente e por quê? Toque aqui 💜'}</div>
-    </div>
     <div class="card">
       <div class="sec">Registros ${isToday?'de hoje':fmtDate(viewDate)} <button class="info-btn" onclick="openHelp('home')">ⓘ</button></div>
       ${entries}
@@ -2615,7 +2612,14 @@ function registerHTML(){
       <span class="ci-icon">🎯</span>
       <span class="cl">Registrar gatilho novo</span>
       <span class="cc">Algo que ainda não está na lista</span>
-    </button>`;
+    </button>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="sos-module-hdr" onclick="toggleSintomasNoRegistro()">
+        <div class="sos-module-title"><span class="sos-module-ico">🩺</span> Sintomas <button class="info-btn" onclick="event.stopPropagation();openHelp('sintomas')">ⓘ</button></div>
+        <span class="sos-chevron ${sintomasAbertoNoRegistro?'open':''}">▼</span>
+      </div>
+      ${sintomasAbertoNoRegistro?`<div class="sos-module-body" style="padding-top:0">${renderSintomas()}</div>`:''}
+    </div>`;
 }
 
 // ── SINTOMAS ──────────────────────────────────────────────────────────────────
@@ -2626,6 +2630,8 @@ let silentUntil = 0; // timestamp — notificações silenciadas até essa hora
 let mapaRange = 30; // dias visíveis no Mapa (7 | 14 | 30)
 function setMapaRange(n){mapaRange=n;go('mapa');}
 let addSintomaForm = {label:'', icon:''};
+let sintomasAbertoNoRegistro = false;
+function toggleSintomasNoRegistro(){sintomasAbertoNoRegistro=!sintomasAbertoNoRegistro;document.getElementById('main').innerHTML=registerHTML();}
 
 function openSintomaEvol(sintomaId){sintomaEvolSheet={sintomaId};renderOverlays();}
 function closeSintomaEvol(){sintomaEvolSheet=null;renderOverlays();}
@@ -2693,7 +2699,7 @@ function saveAddSintoma(){
   save();
   addSintomaSheet=null;
   renderOverlays();
-  document.getElementById('main').innerHTML=renderSintomas();
+  document.getElementById('main').innerHTML=CONTENT[screen]();
   toast('Sintoma adicionado ✅');
 }
 
@@ -2702,7 +2708,7 @@ function removeSintomaCustom(id){
   db.sintomas.lista=db.sintomas.lista.filter(s=>s.id!==id);
   db.sintomas.registros=(db.sintomas.registros||[]).filter(r=>r.sintomaId!==id);
   save();
-  document.getElementById('main').innerHTML=renderSintomas();
+  document.getElementById('main').innerHTML=CONTENT[screen]();
 }
 
 function addSintomaSheetHTML(){
@@ -2749,7 +2755,7 @@ function toggleSintoma(sintomaId, intensidade){
     trackEvent('sintoma_registrado',{sintomaId,cat:s?.cat||'unknown',intensidade});
   }
   save();
-  document.getElementById('main').innerHTML=renderSintomas();
+  document.getElementById('main').innerHTML=CONTENT[screen]();
 }
 
 function renderSintomas(){
@@ -3902,7 +3908,7 @@ const HELP = {
       { h: 'A Teoria das Colheres', p: 'Você começa o dia com um número de colheres — 12 por padrão. Cada tarefa, sensação ou situação custa algumas delas. Quando acabam, acabaram. O Recarregue te ajuda a enxergar isso em tempo real.' },
       { h: 'O número grande', p: 'Mostra quantas colheres ainda restam hoje. A cor muda conforme sua energia cai — verde boa, amarela atenção, vermelha crítica.' },
       { h: 'Os check-ins', p: 'Três momentos do dia para você registrar como está: manhã, tarde e noite. Preencher os três ajuda a revelar padrões — quais períodos te drenam mais e por quê.' },
-      { h: 'O diário', p: 'O card 📔 Diário, logo abaixo dos check-ins, abre um espaço só seu para escrever como você se sente, o que sente e por quê. É opcional e fica só no seu aparelho.' },
+      { h: 'O diário', p: 'O ícone 📔 Diário, na barra de baixo, abre um espaço só seu para escrever como você se sente, o que sente e por quê. É opcional e fica só no seu aparelho.' },
       { h: 'Os registros', p: 'Lista tudo que foi adicionado hoje, com o custo de energia de cada item. Dá para ver o que pesou mais no dia de um jeito visual e rápido.' },
     ]
   },
@@ -4052,7 +4058,7 @@ const NAV=[
   {id:'home',     icon:ICO.home,     label:'Hoje',      cls:''},
   {id:'register', icon:ICO.plus,     label:'Registrar', cls:''},
   {id:'mapa',     icon:ICO.chart,    label:'Mapa',      cls:''},
-  {id:'sintomas', icon:ICO.sintomas, label:'Sintomas',  cls:''},
+  {id:'diary',    icon:ICO.diary,    label:'Diário',    cls:''},
   {id:'sos',      icon:ICO.sos,      label:'SOS',       cls:'sos-btn'},
   {id:'settings', icon:ICO.settings, label:'Config',    cls:''},
 ];
@@ -4108,7 +4114,7 @@ function tourOverlayHTML(){
 function tourGuideBarHTML(){
   const guideSteps={
     2:{num:'1 de 6', title:'Check-in ✅', text:`3× por dia você registra como está: energia, humor e bateria social. Leva menos de 2 minutos. Vamos fazer o de agora?`, cta:'Fazer check-in →', action:'checkin'},
-    3:{num:'2 de 6', title:'Diário 📔', text:'Um cantinho só seu para escrever como se sente, o que sente e por quê. É opcional, fica só no seu aparelho e, com o tempo, aparece nos insights do Mapa. Ele fica aqui na aba Hoje, logo abaixo dos check-ins.', cta:'Próximo →'},
+    3:{num:'2 de 6', title:'Diário 📔', text:'Um cantinho só seu para escrever como se sente, o que sente e por quê. É opcional, fica só no seu aparelho e, com o tempo, aparece nos insights do Mapa. Ele fica aqui, na barra de baixo.', cta:'Próximo →'},
     4:{num:'3 de 6', title:'Registrar ➕', text:'Aqui você marca o que drenou ou recarregou: reunião, barulho, descanso, música... Toque em uma categoria pra experimentar.', cta:'Próximo →'},
     5:{num:'4 de 6', title:'Sintomas 🩺', text:'Registre sintomas físicos e emocionais separados do gasto de energia — dor, ansiedade, sobrecarga sensorial. Cada corpo é único.', cta:'Próximo →'},
     6:{num:'5 de 6', title:'Mapa de padrões 📊', text:'Com o tempo você verá quais atividades mais drenam, qual período pesa mais e suas tendências emocionais. Quanto mais registrar, mais claro fica.', cta:'Próximo →'},
@@ -4144,7 +4150,8 @@ function renderTourGuide(){
   const active=tourStep>=2&&tourStep<=7&&!modalOpen;
   el.innerHTML=active?tourGuideBarHTML():'';
   // passo do Diário: destaca o card e leva até ele
-  if(active&&tourStep===3){const c=document.getElementById('tour-diary');if(c){c.style.borderColor='var(--accent)';c.style.boxShadow='0 0 0 2px rgba(167,139,250,.45)';setTimeout(()=>c.scrollIntoView({behavior:'smooth',block:'center'}),80);}}
+  if(active&&tourStep===3){const c=document.getElementById('nav-diary');if(c)c.style.boxShadow='0 0 0 3px rgba(167,139,250,.6)';}
+  else{const c=document.getElementById('nav-diary');if(c)c.style.boxShadow='';}
   const main=document.getElementById('main');
   if(main) main.style.paddingBottom=active?'210px':'';
 }
@@ -4199,8 +4206,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.6.2 disponível!</strong>
-        Novo Diário para escrever como você se sente, o que sente e por quê — fica só no seu aparelho e aparece nos insights do Mapa. Restaurar backup também traz de volta sintomas e dias difíceis.
+        <strong>✨ Versão 2.6.3 disponível!</strong>
+        O Diário agora tem ícone próprio na barra de baixo, e Sintomas passou a viver dentro de Registrar.
       </div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -4211,7 +4218,7 @@ function render(){
     </div>
     <div class="main" id="main">${CONTENT[screen]()}</div>
     <nav class="bnav">
-      ${(()=>{const v=getVisitedTabs();return NAV.map(n=>`<button id="nav-${n.id}" class="nav-btn ${n.cls} ${screen===n.id?'on':''}" onclick="go('${n.id}')"><span class="nav-ico" style="position:relative">${n.icon}${n.id==='settings'?`<span class="nav-config-badge" style="display:${needsBackupReminder()?'block':'none'}"></span>`:!v[n.id]?'<span class="nav-new-badge"></span>':''}</span><span>${n.label}</span></button>`).join('');})()}
+      ${(()=>{const v=getVisitedTabs();return NAV.map(n=>`<button id="nav-${n.id}" class="nav-btn ${n.cls} ${screen===n.id?'on':''}" onclick="${n.id==='diary'?'openDiary()':`go('${n.id}')`}"><span class="nav-ico" style="position:relative">${n.icon}${n.id==='settings'?`<span class="nav-config-badge" style="display:${needsBackupReminder()?'block':'none'}"></span>`:!v[n.id]?'<span class="nav-new-badge"></span>':''}</span><span>${n.label}</span></button>`).join('');})()}
     </nav>`;
   renderOverlays();
   renderTourGuide();
@@ -4220,7 +4227,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.6.2';
+const APP_VERSION = '2.6.3';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
