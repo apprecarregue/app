@@ -424,6 +424,17 @@ body {
   background: #fff; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,.4);
 }
 
+/* SELETOR DE COR DE DESTAQUE — círculo nativo, sem sobreposição/hack */
+input.accent-picker {
+  -webkit-appearance: none; appearance: none;
+  width: 44px; height: 44px; flex-shrink: 0;
+  border: 2px solid var(--border); border-radius: 50%;
+  padding: 0; cursor: pointer; background: none;
+}
+input.accent-picker::-webkit-color-swatch-wrapper { padding: 0; border-radius: 50%; }
+input.accent-picker::-webkit-color-swatch { border: none; border-radius: 50%; }
+input.accent-picker::-moz-color-swatch { border: none; border-radius: 50%; }
+
 /* HUMOR GRID — 3 colunas para 6 itens */
 .humor-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
 .humor-btn {
@@ -3646,9 +3657,7 @@ function settingsHTML(){
       <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:10px;margin-top:4px">
         <div class="s-lbl">Cor de destaque</div>
         <div style="display:flex;align-items:center;gap:14px">
-          <label style="width:44px;height:44px;border-radius:50%;display:block;position:relative;border:2px solid var(--border);cursor:pointer;flex-shrink:0;background:${accentColor}">
-            <input type="color" value="${accentColor}" oninput="setAccentColor(this.value)" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;padding:0">
-          </label>
+          <input type="color" class="accent-picker" value="${accentColor}" onchange="setAccentColor(this.value)">
           <div style="display:flex;gap:7px;flex-wrap:wrap">
             ${['#05D9B2','#8B5CF6','#3B82F6','#F472B6','#F59E0B','#EF4444'].map(c=>`<button onclick="setAccentColor('${c}')" style="width:24px;height:24px;border-radius:50%;background:${c};border:2px solid ${accentColor.toLowerCase()===c.toLowerCase()?'var(--text)':'transparent'};cursor:pointer"></button>`).join('')}
           </div>
@@ -4538,8 +4547,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.9.1 disponível!</strong>
-        Correção no seletor de cor de destaque (o círculo não estava clicável/visível direito) e no banner de atualização após fazer backup.
+        <strong>✨ Versão 2.9.2 disponível!</strong>
+        Correção de verdade no seletor de cor: agora não fecha mais assim que você toca nele.
       </div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -4559,7 +4568,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.9.1';
+const APP_VERSION = '2.9.2';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
