@@ -986,6 +986,16 @@ const VISITED_KEY   = 'recarregue_visited_tabs';
 const TOUR_KEY      = 'recarregue_tour_done';
 const TOUR_TABS     = {2:'home', 3:'home', 4:'register', 5:'sintomas', 6:'mapa', 7:'sos'};
 const DIARY_INTRO_KEY = 'recarregue_diary_intro';
+const DIARY_PIN_KEY = 'recarregue_diary_pin';
+const DIARY_THEMES = [
+  {id:'padrao',    label:'Padrão',        bg:null},
+  {id:'lilas',     label:'Lilás',         bg:'linear-gradient(160deg, rgba(167,139,250,.28), rgba(236,72,153,.10) 60%, transparent)'},
+  {id:'oceano',    label:'Oceano',        bg:'linear-gradient(160deg, rgba(34,211,238,.25), rgba(59,130,246,.10) 60%, transparent)'},
+  {id:'pordosol',  label:'Pôr do sol',    bg:'linear-gradient(160deg, rgba(251,146,60,.28), rgba(244,63,94,.10) 60%, transparent)'},
+  {id:'floresta',  label:'Floresta',      bg:'linear-gradient(160deg, rgba(52,211,153,.25), rgba(16,185,129,.08) 60%, transparent)'},
+  {id:'noite',     label:'Noite estrelada', bg:'linear-gradient(160deg, rgba(124,58,237,.32), rgba(15,23,42,.25) 65%, transparent)'},
+];
+function setDiaryTheme(id){db.settings.diaryTheme=id;save();render();}
 let onboardingStep = localStorage.getItem(ONBOARDED_KEY) ? 0 : 1;
 let onboardReadSet = new Set(); // steps already "read"
 let tourStep = 0; // initialized after load()
@@ -1028,12 +1038,39 @@ function calcStreak(){
 }
 let showPrivacy = false;
 let diaryDraft = {id:null, humor:null, sinto:'', porque:''};
+let diaryUnlocked = false;
+let diaryPinMode = null; // null | 'unlock' | 'setup1' | 'setup2'
+let diaryPinBuf = '';
+let diaryPinFirst = '';
 let diaryCalOpen = false;
 let diaryCalMonth = new Date(); diaryCalMonth.setDate(1);
 let diaryCalYear = new Date().getFullYear();
-function diaryToggleCal(){diaryCalOpen=!diaryCalOpen;renderOverlays();}
-function diaryCalShift(delta){diaryCalMonth=new Date(diaryCalMonth.getFullYear(),diaryCalMonth.getMonth()+delta,1);renderOverlays();}
-function diaryYearShift(delta){diaryCalYear+=delta;renderOverlays();}
+let diaryStatsOpen = false;
+function diaryToggleStats(){diaryStatsOpen=!diaryStatsOpen;render();}
+function diaryLongestStreak(){
+  const days=[...new Set((db.diary||[]).map(diaryDay))].sort();
+  let longest=0,cur=0,prev=null;
+  days.forEach(d=>{
+    cur=(prev&&Math.round((new Date(d+'T00:00:00')-new Date(prev+'T00:00:00'))/86400000)===1)?cur+1:1;
+    longest=Math.max(longest,cur);
+    prev=d;
+  });
+  return longest;
+}
+function initDiaryStatsChart(){
+  const el=document.getElementById('diaryStatsChart');if(!el||!diaryStatsOpen)return;
+  if(charts.diaryStatsChart)charts.diaryStatsChart.destroy();
+  const counts={};(db.diary||[]).forEach(e=>{if(e.humor)counts[e.humor]=(counts[e.humor]||0)+1;});
+  const rows=Object.entries(counts).sort((a,b)=>b[1]-a[1]);if(!rows.length)return;
+  const labels=rows.map(([id])=>{const h=HUMORS.find(x=>x.id===id);return h?humorLabel(h):id;});
+  const data=rows.map(([,n])=>n);
+  const colors=rows.map(([id])=>HUMORS.find(x=>x.id===id)?.color||'#999');
+  charts.diaryStatsChart=new Chart(el,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0}]},
+    options:{plugins:{legend:{position:'bottom',labels:{color:getComputedStyle(document.body).getPropertyValue('--text2').trim()||'#ccc',font:{size:11},boxWidth:10}}}}});
+}
+function diaryToggleCal(){diaryCalOpen=!diaryCalOpen;render();}
+function diaryCalShift(delta){diaryCalMonth=new Date(diaryCalMonth.getFullYear(),diaryCalMonth.getMonth()+delta,1);render();}
+function diaryYearShift(delta){diaryCalYear+=delta;render();}
 function diaryEntriesOnDay(ds){return (db.diary||[]).filter(e=>diaryDay(e)===ds).sort((a,b)=>a.ts<b.ts?-1:1);}
 function diaryOpenDay(ds){const es=diaryEntriesOnDay(ds);if(!es.length)return;editDiary(es[es.length-1].id);}
 let showFeedback = false;
@@ -1098,11 +1135,72 @@ function showCatInfo(id,e){e.stopPropagation();catInfoId=id;renderOverlays();}
 function closeCatInfo(){catInfoId=null;renderOverlays();}
 // ── DIÁRIO ────────────────────────────────────────────────────────────────────
 function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-function emptyDiaryDraft(){return {id:null,humor:null,sinto:'',porque:''};}
+function emptyDiaryDraft(){return {id:null,humor:null,sinto:'',porque:'',photos:[]};}
 // Novidade: só para quem já usava o app (quem faz onboarding/tour conhece o Diário pelo tour)
 const diaryIntroPending=()=>!!localStorage.getItem(ONBOARDED_KEY)&&!tourStep&&onboardingStep===0&&!localStorage.getItem(DIARY_INTRO_KEY);
 function dismissDiaryIntro(open){localStorage.setItem(DIARY_INTRO_KEY,'1');if(open)openDiary();else render();}
-function openDiary(){localStorage.setItem(DIARY_INTRO_KEY,'1');diaryDraft=emptyDiaryDraft();go('diary');}
+function getDiaryPin(){try{return localStorage.getItem(DIARY_PIN_KEY)||'';}catch(_){return '';}}
+function diaryLocked(){return !!getDiaryPin()&&!diaryUnlocked;}
+function diaryPinDigit(d){
+  if(diaryPinBuf.length>=4)return;
+  diaryPinBuf+=d;
+  if(diaryPinBuf.length===4)diaryPinSubmit();else render();
+}
+function diaryPinDel(){diaryPinBuf=diaryPinBuf.slice(0,-1);render();}
+function diaryPinSubmit(){
+  if(diaryPinMode==='unlock'){
+    if(diaryPinBuf===getDiaryPin()){diaryUnlocked=true;diaryPinMode=null;diaryPinBuf='';render();}
+    else{toast('PIN incorreto 💜');diaryPinBuf='';render();}
+  } else if(diaryPinMode==='setup1'){
+    diaryPinFirst=diaryPinBuf;diaryPinBuf='';diaryPinMode='setup2';render();
+  } else if(diaryPinMode==='setup2'){
+    if(diaryPinBuf===diaryPinFirst){
+      try{localStorage.setItem(DIARY_PIN_KEY,diaryPinBuf);}catch(_){}
+      diaryPinMode=null;diaryPinBuf='';diaryPinFirst='';diaryUnlocked=true;
+      toast('PIN criado 🔒');
+      render();
+    } else {
+      toast('Os PINs não coincidem — tente de novo');
+      diaryPinBuf='';diaryPinFirst='';diaryPinMode='setup1';render();
+    }
+  }
+}
+function startDiaryPinSetup(){diaryPinMode='setup1';diaryPinBuf='';diaryPinFirst='';diaryUnlocked=true;go('diary');}
+function cancelDiaryPin(){
+  diaryPinMode=null;diaryPinBuf='';diaryPinFirst='';
+  if(screen==='diary')go('home');else render();
+}
+function removeDiaryPin(){
+  if(!confirm('Remover o bloqueio por PIN do diário?'))return;
+  try{localStorage.removeItem(DIARY_PIN_KEY);}catch(_){}
+  diaryUnlocked=true;toast('PIN removido');render();
+}
+function diaryPinForgot(){
+  if(!confirm('Isso remove o bloqueio (seus dados do diário continuam salvos). Continuar?'))return;
+  try{localStorage.removeItem(DIARY_PIN_KEY);}catch(_){}
+  diaryUnlocked=true;diaryPinMode=null;diaryPinBuf='';render();
+}
+function diaryPinScreenHTML(){
+  const setup=diaryPinMode==='setup1'||diaryPinMode==='setup2';
+  const title=diaryPinMode==='setup1'?'Crie um PIN':diaryPinMode==='setup2'?'Confirme o PIN':'Digite o PIN';
+  const sub=diaryPinMode==='setup1'?'4 dígitos para proteger seu diário':diaryPinMode==='setup2'?'Digite de novo pra confirmar':'Só você sabe 💜';
+  const dots=[0,1,2,3].map(i=>`<span style="width:14px;height:14px;border-radius:50%;background:${i<diaryPinBuf.length?'var(--accent)':'var(--border)'};display:inline-block;margin:0 6px"></span>`).join('');
+  const keys=['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  const pad=keys.map(k=>{
+    if(k==='')return '<div></div>';
+    if(k==='⌫')return `<button onclick="diaryPinDel()" style="padding:16px;background:none;border:none;font-size:20px;color:var(--text2);cursor:pointer;font-family:inherit">⌫</button>`;
+    return `<button onclick="diaryPinDigit('${k}')" style="padding:16px;background:var(--card2);border:1px solid var(--border);border-radius:14px;font-size:18px;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit">${k}</button>`;
+  }).join('');
+  return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding-top:40px">
+    <div style="font-size:40px;margin-bottom:10px">🔒</div>
+    <div style="font-size:18px;font-weight:800;color:var(--text);margin-bottom:4px">${title}</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:24px">${sub}</div>
+    <div style="margin-bottom:28px">${dots}</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:220px">${pad}</div>
+    ${!setup?`<button onclick="diaryPinForgot()" style="margin-top:20px;background:none;border:none;color:var(--muted);font-size:12px;text-decoration:underline;cursor:pointer;font-family:inherit">Esqueci o PIN</button>`:`<button onclick="cancelDiaryPin()" style="margin-top:20px;background:none;border:none;color:var(--muted);font-size:12px;text-decoration:underline;cursor:pointer;font-family:inherit">Cancelar</button>`}
+  </div>`;
+}
+function openDiary(){localStorage.setItem(DIARY_INTRO_KEY,'1');diaryDraft=emptyDiaryDraft();if(diaryLocked()){diaryPinMode='unlock';diaryPinBuf='';}go('diary');}
 
 function diaryPickHumor(id){
   diaryDraft.humor=diaryDraft.humor===id?null:id;
@@ -1117,31 +1215,60 @@ function diaryPickHumor(id){
 }
 function saveDiary(){
   const sinto=diaryDraft.sinto.trim(),porque=diaryDraft.porque.trim();
-  if(!diaryDraft.humor&&!sinto&&!porque){toast('Escreva ou escolha algo primeiro 💜');return;}
+  if(!diaryDraft.humor&&!sinto&&!porque&&!(diaryDraft.photos||[]).length){toast('Escreva ou escolha algo primeiro 💜');return;}
   if(!db.diary)db.diary=[];
   if(diaryDraft.id){
     const e=db.diary.find(x=>x.id===diaryDraft.id);
-    if(e){e.humor=diaryDraft.humor;e.sinto=sinto;e.porque=porque;e.editedAt=new Date().toISOString();}
+    if(e){e.humor=diaryDraft.humor;e.sinto=sinto;e.porque=porque;e.photos=diaryDraft.photos||[];e.editedAt=new Date().toISOString();}
   }else{
-    db.diary.unshift({id:uid(),ts:new Date().toISOString(),humor:diaryDraft.humor,sinto,porque});
+    db.diary.unshift({id:uid(),ts:new Date().toISOString(),humor:diaryDraft.humor,sinto,porque,photos:diaryDraft.photos||[]});
     trackEvent('diary_entry_created');
   }
   diaryDraft=emptyDiaryDraft();
-  save();toast('Guardado com carinho 💜');renderOverlays();
+  save();toast('Guardado com carinho 💜');render();
 }
 function editDiary(id){
   const e=(db.diary||[]).find(x=>x.id===id);if(!e)return;
-  diaryDraft={id:e.id,humor:e.humor||null,sinto:e.sinto||'',porque:e.porque||''};
-  renderOverlays();
-  document.querySelector('.full-sheet')?.scrollTo?.(0,0);
+  diaryDraft={id:e.id,humor:e.humor||null,sinto:e.sinto||'',porque:e.porque||'',photos:e.photos?[...e.photos]:[]};
+  render();
+  document.getElementById('main')?.scrollTo?.(0,0);
 }
-function cancelDiaryEdit(){diaryDraft=emptyDiaryDraft();renderOverlays();}
+function cancelDiaryEdit(){diaryDraft=emptyDiaryDraft();render();}
 function deleteDiary(id){
   if(!confirm('Apagar esta entrada do diário?'))return;
   db.diary=(db.diary||[]).filter(x=>x.id!==id);
   if(diaryDraft.id===id)diaryDraft=emptyDiaryDraft();
-  save();toast('Entrada apagada');renderOverlays();
+  save();toast('Entrada apagada');render();
 }
+function compressImageFile(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const img=new Image();
+      img.onload=()=>{
+        const maxDim=900;let w=img.width,h=img.height;
+        if(w>maxDim||h>maxDim){if(w>h){h=Math.round(h*maxDim/w);w=maxDim;}else{w=Math.round(w*maxDim/h);h=maxDim;}}
+        const c=document.createElement('canvas');c.width=w;c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(c.toDataURL('image/jpeg',.6));
+      };
+      img.onerror=reject;img.src=ev.target.result;
+    };
+    reader.onerror=reject;reader.readAsDataURL(file);
+  });
+}
+async function diaryPickPhotos(input){
+  const slots=3-(diaryDraft.photos||[]).length;
+  const files=[...input.files].slice(0,Math.max(0,slots));
+  for(const f of files){
+    try{const url=await compressImageFile(f);(diaryDraft.photos=diaryDraft.photos||[]).push(url);}
+    catch(_){toast('Não consegui ler essa foto 💜');}
+  }
+  input.value='';
+  render();
+}
+function diaryRemovePhoto(idx){(diaryDraft.photos||[]).splice(idx,1);render();}
+
 function setDiaryCloud(on){
   db.settings.diaryCloudBackup=!!on;save();
   toast(on?'Diário incluído no backup da nuvem ☁️':'Diário fica só no seu aparelho 🔒');
@@ -1204,7 +1331,18 @@ function diaryYearGridHTML(){
   ${rows}`;
 }
 
+function diaryMemories(){
+  const today=new Date();
+  const mm=String(today.getMonth()+1).padStart(2,'0'), dd=String(today.getDate()).padStart(2,'0');
+  return (db.diary||[]).filter(e=>{
+    const d=new Date(e.ts);
+    return d.getFullYear()<today.getFullYear() && String(d.getMonth()+1).padStart(2,'0')===mm && String(d.getDate()).padStart(2,'0')===dd;
+  }).sort((a,b)=>a.ts<b.ts?1:-1);
+}
 function diaryHTML(){
+  if(diaryPinMode==='setup1'||diaryPinMode==='setup2')return diaryPinScreenHTML();
+  if(diaryLocked()){diaryPinMode='unlock';return diaryPinScreenHTML();}
+  if(diaryPinMode)diaryPinMode=null; // já destrancado, limpa estado residual de PIN
   const list=db.diary||[];
   const editing=!!diaryDraft.id;
   const humorBtns=HUMORS.map(h=>{
@@ -1223,26 +1361,54 @@ function diaryHTML(){
     const h=HUMORS.find(x=>x.id===e.humor);
     return `${head}
       <div class="card" style="margin-bottom:10px">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:${(e.sinto||e.porque)?'10':'0'}px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:${(e.sinto||e.porque||e.photos?.length)?'10':'0'}px">
           <div style="font-size:13px;font-weight:700;color:var(--text)">${h?`${h.icon} Me sinto ${esc(humorLabel(h).toLowerCase())}`:'📔 Anotação'}</div>
           <div style="font-size:11px;color:var(--muted);white-space:nowrap">${fmtTime(e.ts)}${e.editedAt?' · editada':''}</div>
         </div>
         ${e.sinto?`<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.4px;margin-bottom:3px">O QUE SINTO</div><div style="font-size:14px;line-height:1.6;color:var(--text);white-space:pre-wrap;margin-bottom:${e.porque?'10':'0'}px">${esc(e.sinto)}</div>`:''}
         ${e.porque?`<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.4px;margin-bottom:3px">POR QUE SINTO</div><div style="font-size:14px;line-height:1.6;color:var(--text);white-space:pre-wrap">${esc(e.porque)}</div>`:''}
+        ${e.photos?.length?`<div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">${e.photos.map(src=>`<img src="${src}" style="width:64px;height:64px;object-fit:cover;border-radius:10px">`).join('')}</div>`:''}
         <div style="display:flex;gap:14px;margin-top:12px">
           <button onclick="editDiary('${e.id}')" style="background:none;border:none;color:var(--accent-lt);font-size:12px;cursor:pointer;padding:0;font-family:inherit">✏️ Editar</button>
           <button onclick="deleteDiary('${e.id}')" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0;font-family:inherit">🗑️ Apagar</button>
         </div>
       </div>`;
   }).join('');
+  const curTheme=DIARY_THEMES.find(t=>t.id===db.settings.diaryTheme)||DIARY_THEMES[0];
+  const themeRow=`<div style="display:flex;gap:10px;margin-bottom:16px;overflow-x:auto;padding-bottom:2px">${DIARY_THEMES.map(t=>`
+    <button onclick="setDiaryTheme('${t.id}')" title="${t.label}" style="width:32px;height:32px;border-radius:50%;flex-shrink:0;border:2px solid ${curTheme.id===t.id?'var(--accent)':'var(--border)'};background:${t.bg?t.bg.split(',').slice(0,2).join(',')+')':'var(--card2)'};cursor:pointer"></button>`).join('')}</div>`;
+  const memories=diaryMemories();
+  const memoriesHTML=memories.length?`<div class="card" style="margin-bottom:14px;border:1.5px dashed var(--border)">
+    <div class="sec">🕰️ Nesse dia, no passado</div>
+    ${memories.map(e=>{
+      const yearsAgo=new Date().getFullYear()-new Date(e.ts).getFullYear();
+      const h=HUMORS.find(x=>x.id===e.humor);
+      const preview=(e.sinto||e.porque||'').slice(0,90);
+      return `<div onclick="editDiary('${e.id}')" style="padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Há ${yearsAgo} ${yearsAgo===1?'ano':'anos'}${h?` · ${h.icon} ${esc(humorLabel(h))}`:''}</div>
+        ${preview?`<div style="font-size:13px;color:var(--text)">${esc(preview)}${(e.sinto||e.porque||'').length>90?'…':''}</div>`:''}
+      </div>`;
+    }).join('')}
+  </div>`:'';
   return `
+    <div style="margin:-16px -16px 0;padding:16px 16px 4px;background:${curTheme.bg||'transparent'}">
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Um cantinho só seu. Escreva do seu jeito, no seu tempo — todos os campos são opcionais. 🔒 Fica só no seu aparelho.</p>
+      ${memoriesHTML}
+      ${themeRow}
       <div class="sec">${editing?'Editando entrada':'Como você se sente agora?'}</div>
       <div class="humor-grid">${humorBtns}</div>
       <div class="sec">O que você está sentindo?</div>
       <textarea class="note" rows="4" placeholder="No corpo, na cabeça, no coração... pode ser só uma palavra." oninput="diaryDraft.sinto=this.value">${esc(diaryDraft.sinto)}</textarea>
       <div class="sec" style="margin-top:14px">Por que será que se sente assim?</div>
       <textarea class="note" rows="4" placeholder="Algo aconteceu? Não sabe ao certo? Tudo bem também." oninput="diaryDraft.porque=this.value">${esc(diaryDraft.porque)}</textarea>
+      <div class="sec" style="margin-top:14px">Fotos (opcional, até 3)</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        ${(diaryDraft.photos||[]).map((src,i)=>`<div style="position:relative;width:64px;height:64px">
+          <img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">
+          <button onclick="diaryRemovePhoto(${i})" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;border:none;font-size:12px;cursor:pointer;line-height:1">×</button>
+        </div>`).join('')}
+        ${(diaryDraft.photos||[]).length<3?`<label style="width:64px;height:64px;border:1.5px dashed var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--muted);cursor:pointer">📷<input type="file" accept="image/*" multiple style="display:none" onchange="diaryPickPhotos(this)"></label>`:''}
+      </div>
       <button class="btn btn-p" style="margin-top:14px" onclick="saveDiary()">${editing?'Salvar alterações':'Guardar no diário'}</button>
       ${editing?`<button class="btn" style="margin-top:8px;background:var(--card2);border:1px solid var(--border);color:var(--text)" onclick="cancelDiaryEdit()">Cancelar edição</button>`:''}
       ${list.length?`<div class="card" style="padding:0;overflow:hidden;margin-top:16px">
@@ -1258,8 +1424,23 @@ function diaryHTML(){
           </div>
         </div>`:''}
       </div>`:''}
+      ${list.length?`<div class="card" style="padding:0;overflow:hidden;margin-top:10px">
+        <div class="sos-module-hdr" onclick="diaryToggleStats()">
+          <div class="sos-module-title"><span class="sos-module-ico">📊</span> Estatísticas</div>
+          <span class="sos-chevron ${diaryStatsOpen?'open':''}">▼</span>
+        </div>
+        ${diaryStatsOpen?`<div class="sos-module-body" style="padding-top:12px">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+            <div style="text-align:center"><div style="font-size:20px;font-weight:800;color:var(--accent-lt)">${list.length}</div><div style="font-size:10px;color:var(--muted)">Entradas</div></div>
+            <div style="text-align:center"><div style="font-size:20px;font-weight:800;color:var(--accent-lt)">${new Set(list.map(diaryDay)).size}</div><div style="font-size:10px;color:var(--muted)">Dias</div></div>
+            <div style="text-align:center"><div style="font-size:20px;font-weight:800;color:var(--accent-lt)">🔥${diaryLongestStreak()}</div><div style="font-size:10px;color:var(--muted)">Sequência</div></div>
+          </div>
+          ${list.some(e=>e.humor)?`<div style="height:200px"><canvas id="diaryStatsChart"></canvas></div>`:`<div style="text-align:center;color:var(--muted);font-size:12px">Escolha um humor nas próximas entradas pra ver seu gráfico 💜</div>`}
+        </div>`:''}
+      </div>`:''}
       ${list.length?`<div style="margin-top:8px">${entries}</div>`:`
         <div style="text-align:center;margin-top:28px;color:var(--muted);font-size:13px;line-height:1.7">🌱<br>Seu diário ainda está vazio.<br>Sem pressa — quando quiser, ele está aqui.</div>`}
+    </div>
     `;
 }
 
@@ -1441,7 +1622,7 @@ function toast(msg){
 
 // ── NAV ───────────────────────────────────────────────────────────────────────
 
-function go(s){screen=s;sheetState=null;triggerSheetState=null;showReport=false;viewDate=todayStr();markTabVisited(s);render();trackEvent('screen_viewed',{screen:s});}
+function go(s){if(screen==='diary'&&s!=='diary')diaryUnlocked=false;screen=s;sheetState=null;triggerSheetState=null;showReport=false;viewDate=todayStr();markTabVisited(s);render();trackEvent('screen_viewed',{screen:s});}
 
 // ── CHECK-IN ──────────────────────────────────────────────────────────────────
 
@@ -3544,6 +3725,10 @@ function settingsHTML(){
         <input type="checkbox" ${db.settings.diaryCloudBackup?'checked':''} onchange="setDiaryCloud(this.checked)" style="margin-top:3px;accent-color:var(--purple)">
         <span style="font-size:12px;color:var(--muted);line-height:1.5"><strong style="color:var(--text)">Incluir meu diário no backup da nuvem</strong><br>Desligado por padrão: o diário é íntimo e fica só no seu aparelho. Ligue se quiser poder restaurá-lo em outro aparelho.</span>
       </label>
+      <div class="s-row" style="margin-top:4px">
+        <div><div class="s-lbl">🔒 Bloquear diário com PIN</div><div class="s-desc">Pede um código de 4 dígitos toda vez que você abrir o diário</div></div>
+        ${getDiaryPin()?`<button class="btn btn-d btn-sm" onclick="removeDiaryPin()">Remover</button>`:`<button class="btn btn-p btn-sm" onclick="startDiaryPinSetup()">Definir</button>`}
+      </div>
       <button class="btn btn-p" style="width:100%;margin-top:12px;font-size:13px" onclick="backupToCloud()">☁️ Salvar backup na nuvem</button>
       <div style="margin-top:12px">
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Restaurar de outro aparelho</div>
@@ -4287,8 +4472,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.6.5 disponível!</strong>
-        O Diário ganhou um calendário de humor do mês e um "ano em pixels" — toque num dia colorido pra reabrir o que você escreveu.
+        <strong>✨ Versão 2.7.0 disponível!</strong>
+        O Diário ganhou fotos, bloqueio por PIN, capas coloridas, memórias de anos anteriores e uma tela de estatísticas.
       </div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -4304,11 +4489,12 @@ function render(){
   renderOverlays();
   renderTourGuide();
   if(screen==='mapa')requestAnimationFrame(initCharts);
+  if(screen==='diary')requestAnimationFrame(initDiaryStatsChart);
   if(screen==='sos')requestAnimationFrame(()=>{if(groundingStep>=0)renderGrounding();});
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.6.5';
+const APP_VERSION = '2.7.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
