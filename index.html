@@ -453,6 +453,10 @@ body {
 .humor-btn .h-lbl { font-size: 11px; color: var(--muted); font-weight: 600; line-height: 1.2; }
 .humor-btn.sel { border-color: var(--purple); background: var(--purple-bg); }
 .humor-btn.sel .h-lbl { color: var(--purple-lt); }
+/* Seletor divertido do Diário: maior, com cor própria por humor */
+.diary-humor { padding: 14px 6px; border-radius: 18px; transition: transform .15s, border-color .15s, background .15s; }
+.diary-humor .h-ico { font-size: 32px; }
+.diary-humor.sel { transform: scale(1.06); }
 
 /* CATEGORY SHEET */
 .cat-sh-hdr { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
@@ -748,19 +752,20 @@ const ICO = {
 const KEY = 'energia_v2';
 
 const HUMORS = [
-  {id:'animada',     label:'Animada',     icon:'✨'},
-  {id:'alegre',      label:'Alegre',      icon:'😄'},
-  {id:'grata',       label:'Grata',       icon:'🙏'},
-  {id:'focada',      label:'Focada',      icon:'🎯'},
-  {id:'tranquila',   label:'Tranquila',   icon:'🌊'},
-  {id:'equilibrada', label:'Equilibrada', icon:'😌'},
-  {id:'sonolenta',   label:'Sonolenta',   icon:'💤'},
-  {id:'cansada',     label:'Cansada',     icon:'🥱'},
-  {id:'ansiosa',     label:'Ansiosa',     icon:'😰'},
-  {id:'irritada',    label:'Irritada',    icon:'😤'},
-  {id:'exausta',     label:'Exausta',     icon:'😩'},
-  {id:'sobrecarregada', label:'Sobrecarregada', icon:'🌋'},
+  {id:'animada',     label:'Animada',     icon:'✨', color:'#F472B6'},
+  {id:'alegre',      label:'Alegre',      icon:'😄', color:'#FBBF24'},
+  {id:'grata',       label:'Grata',       icon:'🙏', color:'#34D399'},
+  {id:'focada',      label:'Focada',      icon:'🎯', color:'#60A5FA'},
+  {id:'tranquila',   label:'Tranquila',   icon:'🌊', color:'#22D3EE'},
+  {id:'equilibrada', label:'Equilibrada', icon:'😌', color:'#A78BFA'},
+  {id:'sonolenta',   label:'Sonolenta',   icon:'💤', color:'#94A3B8'},
+  {id:'cansada',     label:'Cansada',     icon:'🥱', color:'#F59E0B'},
+  {id:'ansiosa',     label:'Ansiosa',     icon:'😰', color:'#FB7185'},
+  {id:'irritada',    label:'Irritada',    icon:'😤', color:'#EF4444'},
+  {id:'exausta',     label:'Exausta',     icon:'😩', color:'#DC2626'},
+  {id:'sobrecarregada', label:'Sobrecarregada', icon:'🌋', color:'#7C3AED'},
 ];
+function hexToRgba(hex,alpha){const n=parseInt(hex.slice(1),16);return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;}
 
 const PERIODS = {
   manha: {label:'Manhã',  icon:'🌅', notifHour:8},
@@ -1095,9 +1100,12 @@ function closeDiary(){showDiary=false;render();}
 function diaryPickHumor(id){
   diaryDraft.humor=diaryDraft.humor===id?null:id;
   document.querySelectorAll('.diary-humor').forEach(b=>{
+    const h=HUMORS.find(x=>x.id===b.dataset.id);
     const on=b.dataset.id===diaryDraft.humor;
     b.classList.toggle('sel',on);
-    b.querySelector('.h-lbl').style.color=on?'var(--purple-lt)':'var(--muted)';
+    b.style.borderColor=on?h.color:'var(--border)';
+    b.style.background=on?hexToRgba(h.color,.16):'var(--card2)';
+    b.querySelector('.h-lbl').style.color=on?h.color:'var(--muted)';
   });
 }
 function saveDiary(){
@@ -1135,11 +1143,13 @@ function setDiaryCloud(on){
 function diaryHTML(){
   const list=db.diary||[];
   const editing=!!diaryDraft.id;
-  const humorBtns=HUMORS.map(h=>`
-    <button class="humor-btn diary-humor ${diaryDraft.humor===h.id?'sel':''}" data-id="${h.id}" onclick="diaryPickHumor('${h.id}')">
+  const humorBtns=HUMORS.map(h=>{
+    const on=diaryDraft.humor===h.id;
+    return `<button class="humor-btn diary-humor ${on?'sel':''}" data-id="${h.id}" onclick="diaryPickHumor('${h.id}')" style="border-color:${on?h.color:'var(--border)'};background:${on?hexToRgba(h.color,.16):'var(--card2)'}">
       <span class="h-ico">${h.icon}</span>
-      <span class="h-lbl" style="color:${diaryDraft.humor===h.id?'var(--purple-lt)':'var(--muted)'}">${humorLabel(h)}</span>
-    </button>`).join('');
+      <span class="h-lbl" style="color:${on?h.color:'var(--muted)'}">${humorLabel(h)}</span>
+    </button>`;
+  }).join('');
   let lastDay='';
   const entries=list.map(e=>{
     const d=new Date(e.ts);
