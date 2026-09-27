@@ -23,40 +23,23 @@
   --amber-bg:  rgba(245,158,11,.15);
   --red:       #F87171;
   --red-bg:    rgba(248,113,113,.15);
-  --r:         16px;
+  --r:         10px;
   --sh:        0 4px 24px rgba(0,0,0,.5);
 }
 
-/* ── PALETAS ──────────────────────────────────────────── */
-/* ROXO (padrão) */
-body[data-palette="roxo"] {
-  --accent:    #8B5CF6;
-  --accent-lt: #A78BFA;
-  --accent-dk: #7C3AED;
-  --accent-bg: rgba(139,92,246,.15);
-  --border-c:  rgba(139,92,246,.2);
-  --bg-d:    #0e0a1f; --card-d:  #1c1535; --card2-d: #251d42;
-  --bg-l:    #f5f3ff; --card-l:  #ffffff; --card2-l: #ede9fe;
-}
-/* PRETO */
-body[data-palette="preto"] {
-  --accent:    #A3A3A3;
-  --accent-lt: #D4D4D4;
-  --accent-dk: #737373;
-  --accent-bg: rgba(163,163,163,.12);
-  --border-c:  rgba(163,163,163,.18);
-  --bg-d:    #0a0a0a; --card-d:  #141414; --card2-d: #1f1f1f;
-  --bg-l:    #f5f5f5; --card-l:  #ffffff; --card2-l: #e5e5e5;
-}
-/* AZUL */
-body[data-palette="azul"] {
-  --accent:    #3B82F6;
-  --accent-lt: #60A5FA;
-  --accent-dk: #2563EB;
-  --accent-bg: rgba(59,130,246,.15);
-  --border-c:  rgba(59,130,246,.2);
-  --bg-d:    #09111e; --card-d:  #0f1d30; --card2-d: #162740;
-  --bg-l:    #eff6ff; --card-l:  #ffffff; --card2-l: #dbeafe;
+/* ── IDENTIDADE ───────────────────────────────────────────
+   Base neutra (preto/branco), inspirada no site carlamancini.com.br.
+   A cor de destaque (--accent*) é escolhida livremente pela pessoa e
+   aplicada via JS (ver applyAccentColor) — não depende de paleta fixa. */
+body {
+  --bg-d:    #000000; --card-d:  #121212; --card2-d: #1c1c1c;
+  --bg-l:    #f5f5f5; --card-l:  #ffffff; --card2-l: #e8e8e8;
+  /* fallback antes do JS aplicar a cor escolhida — teal da CM */
+  --accent:    #05D9B2;
+  --accent-lt: #14B8A6;
+  --accent-dk: #0D9488;
+  --accent-bg: rgba(5,217,178,.15);
+  --border-c:  rgba(5,217,178,.22);
 }
 
 /* ── TEMAS ────────────────────────────────────────────── */
@@ -284,7 +267,7 @@ body {
 .type-hdr { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; padding: 4px 2px 8px; }
 .cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
 .cat-btn {
-  border: 1.5px solid var(--border); background: var(--card2); border-radius: 12px;
+  border: 1.5px solid var(--border); background: var(--card2); border-radius: 8px;
   padding: 11px 10px; cursor: pointer; text-align: left;
   display: flex; flex-direction: column; gap: 4px; position: relative;
   transition: border-color .15s, background .15s, transform .1s; font-family: inherit;
@@ -324,7 +307,7 @@ body {
 .note:focus { border-color: var(--purple); }
 
 /* BUTTONS */
-.btn { width: 100%; padding: 15px; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; transition: opacity .15s, transform .1s; }
+.btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; transition: opacity .15s, transform .1s; }
 .btn:active { transform: scale(.98); }
 .btn:disabled { opacity: .3; cursor: not-allowed; transform: none; }
 .btn-p { background: linear-gradient(135deg, var(--purple-dk), var(--purple-lt)); color: #fff; }
@@ -444,7 +427,7 @@ body {
 /* HUMOR GRID — 3 colunas para 6 itens */
 .humor-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
 .humor-btn {
-  border: 1.5px solid var(--border); background: var(--card2); border-radius: 12px;
+  border: 1.5px solid var(--border); background: var(--card2); border-radius: 8px;
   padding: 10px 6px; cursor: pointer; text-align: center; font-family: inherit;
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   transition: all .15s;
@@ -717,7 +700,7 @@ body[data-theme="dark"] .info-btn { color: #FCD34D; }
 .suggest-btn { background: none; border: 1.5px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--muted); cursor: pointer; font-family: inherit; }
 </style>
 </head>
-<body data-theme="dark" data-palette="roxo">
+<body data-theme="dark">
 <div id="app"></div>
 <div id="overlays"></div>
 <div id="tour-guide"></div>
@@ -968,7 +951,7 @@ const REST_ACTIVITIES = [
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 
-let db = {entries:[], checkins:[], diary:[], sintomas:{lista:[...SINTOMAS_DEFAULT], registros:[]}, settings:{dailyPts:12, alertAt:3, notifEnabled:false, name:'', theme:'dark', palette:'roxo', pronoun:null, age:null, diaryCloudBackup:false}};
+let db = {entries:[], checkins:[], diary:[], sintomas:{lista:[...SINTOMAS_DEFAULT], registros:[]}, settings:{dailyPts:12, alertAt:3, notifEnabled:false, name:'', theme:'dark', accentColor:'#05D9B2', pronoun:null, age:null, diaryCloudBackup:false}};
 let screen = 'home';
 let _pendingUpdate = false;
 let _backupDoneForUpdate = false;
@@ -987,15 +970,6 @@ const TOUR_KEY      = 'recarregue_tour_done';
 const TOUR_TABS     = {2:'home', 3:'home', 4:'register', 5:'sintomas', 6:'mapa', 7:'sos'};
 const DIARY_INTRO_KEY = 'recarregue_diary_intro';
 const DIARY_PIN_KEY = 'recarregue_diary_pin';
-const DIARY_THEMES = [
-  {id:'padrao',    label:'Padrão',        swatch:null,       bg:null},
-  {id:'lilas',     label:'Lilás',         swatch:'#A78BFA', bg:'linear-gradient(160deg, rgba(167,139,250,.28), rgba(236,72,153,.10) 60%, transparent)'},
-  {id:'oceano',    label:'Oceano',        swatch:'#22D3EE', bg:'linear-gradient(160deg, rgba(34,211,238,.25), rgba(59,130,246,.10) 60%, transparent)'},
-  {id:'pordosol',  label:'Pôr do sol',    swatch:'#FB923C', bg:'linear-gradient(160deg, rgba(251,146,60,.28), rgba(244,63,94,.10) 60%, transparent)'},
-  {id:'floresta',  label:'Floresta',      swatch:'#34D399', bg:'linear-gradient(160deg, rgba(52,211,153,.25), rgba(16,185,129,.08) 60%, transparent)'},
-  {id:'noite',     label:'Noite estrelada', swatch:'#7C3AED', bg:'linear-gradient(160deg, rgba(124,58,237,.32), rgba(15,23,42,.25) 65%, transparent)'},
-];
-function setDiaryTheme(id){db.settings.diaryTheme=id;save();render();}
 let onboardingStep = localStorage.getItem(ONBOARDED_KEY) ? 0 : 1;
 let onboardReadSet = new Set(); // steps already "read"
 let tourStep = 0; // initialized after load()
@@ -1105,7 +1079,6 @@ function onboardSetEnergy(pts){
   });
 }
 function setTheme(t){db.settings.theme=t;save();applyTheme();render();}
-function setPalette(p){db.settings.palette=p;save();applyTheme();render();}
 function openHelp(key){helpSheet=key;renderOverlays();}
 function closeHelp(){helpSheet=null;renderOverlays();}
 
@@ -1472,9 +1445,8 @@ function diaryHTML(){
   if(diaryLocked()){diaryPinMode='unlock';return diaryPinScreenHTML();}
   if(diaryPinMode)diaryPinMode=null; // já destrancado, limpa estado residual de PIN
   const list=db.diary||[];
-  const curTheme=DIARY_THEMES.find(t=>t.id===db.settings.diaryTheme)||DIARY_THEMES[0];
   return `
-    <div style="margin:-16px -16px 0;padding:16px 16px 4px;background:${curTheme.bg||'transparent'}">
+    <div>
       <div class="card" style="padding:12px;margin-bottom:12px">
         <div style="display:flex;align-items:center;justify-content:space-between">
           <span style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px">MEU DIÁRIO</span>
@@ -1526,14 +1498,52 @@ let openModules = {crise:true, sobrecarga:false, conforto:false};
 
 // ── PERSISTENCE ───────────────────────────────────────────────────────────────
 
+// ── COR DE DESTAQUE (círculo cromático livre) ──────────────────────────────────
+function hexToHsl(hex){
+  const r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255;
+  const max=Math.max(r,g,b),min=Math.min(r,g,b);
+  let h=0,s=0;const l=(max+min)/2;
+  if(max!==min){
+    const d=max-min;
+    s=l>0.5?d/(2-max-min):d/(max+min);
+    if(max===r)h=(g-b)/d+(g<b?6:0);
+    else if(max===g)h=(b-r)/d+2;
+    else h=(r-g)/d+4;
+    h/=6;
+  }
+  return [h*360,s*100,l*100];
+}
+function hslToHex(h,s,l){
+  s/=100;l/=100;
+  const k=n=>(n+h/30)%12;
+  const a=s*Math.min(l,1-l);
+  const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
+  const toHex=x=>Math.round(255*Math.max(0,Math.min(1,x))).toString(16).padStart(2,'0');
+  return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+}
+function applyAccentColor(hex){
+  if(!/^#[0-9a-fA-F]{6}$/.test(hex))hex='#05D9B2';
+  const[h,s]=hexToHsl(hex);
+  // saturação/luminosidade fixas em --accent-lt/--accent-dk (usadas como TEXTO em fundo
+  // claro e escuro): preservam o tom escolhido, mas nunca ficam claras/escuras demais
+  // pra ler — diferente da cor sólida (--accent), que segue exatamente o que a pessoa
+  // escolheu e é usada em botões/preenchimentos, não como texto
+  const sat=Math.max(45,Math.min(85,s));
+  const lt=hslToHex(h,sat,58);
+  const dk=hslToHex(h,sat,38);
+  const b=document.body.style;
+  b.setProperty('--accent',hex);
+  b.setProperty('--accent-lt',lt);
+  b.setProperty('--accent-dk',dk);
+  b.setProperty('--accent-bg',hexToRgba(hex,.15));
+  b.setProperty('--border-c',hexToRgba(hex,.22));
+}
+function setAccentColor(hex){db.settings.accentColor=hex;save();applyAccentColor(hex);render();}
 function applyTheme(){
   const t=db.settings.theme||'dark';
-  const p=db.settings.palette||'roxo';
   document.body.setAttribute('data-theme', t);
-  document.body.setAttribute('data-palette', p);
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content',
-    t==='light' ? (p==='azul'?'#eff6ff':p==='preto'?'#f1f5f9':'#f5f3ff') : (p==='azul'?'#09111e':p==='preto'?'#0a0a0f':'#0e0a1f')
-  );
+  applyAccentColor(db.settings.accentColor||'#05D9B2');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t==='light'?'#f5f5f5':'#000000');
 }
 function load() {
   try {
@@ -3595,16 +3605,9 @@ function sosHTML(){
 }
 
 function settingsHTML(){
-  const{dailyPts,alertAt,name,theme,palette}=db.settings;
+  const{dailyPts,alertAt,name,theme}=db.settings;
   const notifState=('Notification' in window)?Notification.permission:'unsupported';
-
-  function paletteBtn(id,label,color){
-    const sel=palette===id;
-    return `<button onclick="setPalette('${id}')" style="flex:1;padding:10px 6px;border-radius:10px;border:2px solid ${sel?color:'var(--border)'};background:${sel?`${color}22`:'transparent'};cursor:pointer;transition:all .2s">
-      <div style="width:20px;height:20px;border-radius:50%;background:${color};margin:0 auto 5px"></div>
-      <div style="font-size:11px;color:${sel?color:'var(--muted)'};font-weight:${sel?700:400}">${label}</div>
-    </button>`;
-  }
+  const accentColor=db.settings.accentColor||'#05D9B2';
 
   return `
     <div class="card">
@@ -3638,21 +3641,17 @@ function settingsHTML(){
           </button>
         </div>
       </div>
-      <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:8px;margin-top:4px">
-        <div class="s-lbl">Paleta de cores</div>
-        <div style="display:flex;gap:8px;width:100%">
-          ${paletteBtn('roxo','Roxo','#8B5CF6')}
-          ${paletteBtn('preto','Preto','#A3A3A3')}
-          ${paletteBtn('azul','Azul','#3B82F6')}
+      <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:10px;margin-top:4px">
+        <div class="s-lbl">Cor de destaque</div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <label style="width:44px;height:44px;border-radius:50%;display:block;overflow:hidden;border:2px solid var(--border);cursor:pointer;flex-shrink:0">
+            <input type="color" value="${accentColor}" oninput="setAccentColor(this.value)" style="width:135%;height:135%;margin:-17.5%;border:none;cursor:pointer;padding:0">
+          </label>
+          <div style="display:flex;gap:7px;flex-wrap:wrap">
+            ${['#05D9B2','#8B5CF6','#3B82F6','#F472B6','#F59E0B','#EF4444'].map(c=>`<button onclick="setAccentColor('${c}')" style="width:24px;height:24px;border-radius:50%;background:${c};border:2px solid ${accentColor.toLowerCase()===c.toLowerCase()?'var(--text)':'transparent'};cursor:pointer"></button>`).join('')}
+          </div>
         </div>
-      </div>
-      <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:8px;margin-top:4px">
-        <div class="s-lbl">📔 Capa do diário</div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">${(()=>{const curTheme=DIARY_THEMES.find(t=>t.id===db.settings.diaryTheme)||DIARY_THEMES[0];return DIARY_THEMES.map(t=>`
-          <button onclick="setDiaryTheme('${t.id}')" style="display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;font-family:inherit">
-            <span style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid ${curTheme.id===t.id?'var(--accent)':'var(--border)'};background:${t.swatch||'var(--card2)'}">${!t.swatch?'✕':''}</span>
-            <span style="font-size:9px;color:${curTheme.id===t.id?'var(--accent-lt)':'var(--muted)'};font-weight:${curTheme.id===t.id?700:400}">${t.label}</span>
-          </button>`).join('');})()}</div>
+        <div style="font-size:11px;color:var(--muted)">Toque no círculo grande pra escolher qualquer cor que você quiser</div>
       </div>
       <div class="s-row" style="margin-top:4px">
         <div><div class="s-lbl">🔒 Bloquear diário com PIN</div><div class="s-desc">Pede um código de 4 dígitos toda vez que você abrir o diário</div></div>
@@ -4306,7 +4305,7 @@ const HELP = {
     items: [
       { h: 'Nome ou apelido', p: 'Usado para tornar o app mais pessoal. Fica só no seu aparelho — não é enviado para nenhum servidor.' },
       { h: 'Tema escuro ou claro', p: 'Escolha o que é mais confortável para seus olhos. Tema escuro costuma ser mais suave para quem tem sensibilidade à luz.' },
-      { h: 'Paleta de cores', p: 'Roxo, preto ou azul — muda a cor de destaque do app inteiro. Escolha o que te agrada visualmente e deixa a experiência mais sua.' },
+      { h: 'Cor de destaque', p: 'Escolha qualquer cor no círculo, ou toque num dos atalhos rápidos. Ela muda o destaque do app inteiro — deixa a experiência mais sua.' },
     ]
   },
   pontos: {
@@ -4537,8 +4536,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.8.2 disponível!</strong>
-        Diário: capa de cor e PIN agora ficam em Configurações → Personalização, junto de tudo, e a aba ganhou a dica ⓘ que faltava.
+        <strong>✨ Versão 2.9.0 disponível!</strong>
+        Nova identidade visual: preto e branco com um teal de destaque, cantos menos arredondados, e agora você escolhe QUALQUER cor no círculo cromático em Configurações.
       </div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -4558,7 +4557,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.8.2';
+const APP_VERSION = '2.9.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
