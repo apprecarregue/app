@@ -1336,16 +1336,16 @@ function diaryYearGridHTML(){
     const daysInMonth=new Date(y,mi+1,0).getDate();
     let cells='';
     for(let d=1;d<=31;d++){
-      if(d>daysInMonth){cells+='<div style="width:9px;height:9px;flex-shrink:0"></div>';continue;}
+      if(d>daysInMonth){cells+='<div></div>';continue;}
       const ds=`${y}-${String(mi+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const info=byDay[ds];
       const h=info&&info.humor?HUMORS.find(x=>x.id===info.humor):null;
       const bg=h?h.color:(info?'var(--border)':'var(--card2)');
-      cells+=`<div title="${ds}" style="width:9px;height:9px;border-radius:2px;background:${bg};flex-shrink:0"></div>`;
+      cells+=`<div title="${ds}" style="aspect-ratio:1;border-radius:2px;background:${bg}"></div>`;
     }
     return `<div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
-      <span style="width:24px;font-size:10px;color:var(--muted);flex-shrink:0">${label}</span>
-      <div style="display:flex;gap:2px;overflow-x:auto">${cells}</div>
+      <span style="width:22px;font-size:10px;color:var(--muted);flex-shrink:0">${label}</span>
+      <div style="flex:1;display:grid;grid-template-columns:repeat(31,1fr);gap:2px">${cells}</div>
     </div>`;
   }).join('');
   return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -1494,12 +1494,9 @@ function diaryHTML(){
   if(diaryPinMode)diaryPinMode=null; // já destrancado, limpa estado residual de PIN
   const list=db.diary||[];
   const curTheme=DIARY_THEMES.find(t=>t.id===db.settings.diaryTheme)||DIARY_THEMES[0];
-  const themeRow=`<div style="display:flex;gap:10px;margin-bottom:16px;overflow-x:auto;padding-bottom:2px">${DIARY_THEMES.map(t=>`
-    <button onclick="setDiaryTheme('${t.id}')" title="${t.label}" style="width:32px;height:32px;border-radius:50%;flex-shrink:0;border:2px solid ${curTheme.id===t.id?'var(--accent)':'var(--border)'};background:${t.bg?t.bg.split(',').slice(0,2).join(',')+')':'var(--card2)'};cursor:pointer"></button>`).join('')}</div>`;
   return `
     <div style="margin:-16px -16px 0;padding:16px 16px 4px;background:${curTheme.bg||'transparent'}">
       <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">Um cantinho só seu — todos os campos são opcionais. 🔒 Fica só no seu aparelho.</p>
-      ${themeRow}
       <button class="btn btn-p" onclick="openDiaryRegister()">✍️ Registre o seu dia</button>
       <div class="card" style="margin-top:16px">
         ${diaryMonthGridHTML()}
@@ -3812,6 +3809,14 @@ function settingsHTML(){
         <div><div class="s-lbl">🔒 Bloquear diário com PIN</div><div class="s-desc">Pede um código de 4 dígitos toda vez que você abrir o diário</div></div>
         ${getDiaryPin()?`<button class="btn btn-d btn-sm" onclick="removeDiaryPin()">Remover</button>`:`<button class="btn btn-p btn-sm" onclick="startDiaryPinSetup()">Definir</button>`}
       </div>
+      <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:8px;margin-top:4px">
+        <div class="s-lbl">🎨 Capa do diário</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">${(()=>{const curTheme=DIARY_THEMES.find(t=>t.id===db.settings.diaryTheme)||DIARY_THEMES[0];return DIARY_THEMES.map(t=>`
+          <button onclick="setDiaryTheme('${t.id}')" style="display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;font-family:inherit">
+            <span style="width:32px;height:32px;border-radius:50%;display:block;border:2px solid ${curTheme.id===t.id?'var(--accent)':'var(--border)'};background:${t.bg?t.bg.split(',').slice(0,2).join(',')+')':'var(--card2)'}"></span>
+            <span style="font-size:9px;color:${curTheme.id===t.id?'var(--accent-lt)':'var(--muted)'}">${t.label}</span>
+          </button>`).join('');})()}</div>
+      </div>
       <button class="btn btn-p" style="width:100%;margin-top:12px;font-size:13px" onclick="backupToCloud()">☁️ Salvar backup na nuvem</button>
       <div style="margin-top:12px">
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Restaurar de outro aparelho</div>
@@ -4556,8 +4561,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.8.0 disponível!</strong>
-        O Diário ficou mais fluido: calendário na frente, "Registre o seu dia" abre humor/escrita/foto/stickers numa janela só, e cada dia mostra recordações ou pequenas vitórias.
+        <strong>✨ Versão 2.8.1 disponível!</strong>
+        Ajustes no Diário: ano em pixels sem barra de rolagem, e a capa (cor de fundo) agora se escolhe em Configurações.
       </div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -4578,7 +4583,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.8.0';
+const APP_VERSION = '2.8.1';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
