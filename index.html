@@ -988,12 +988,12 @@ const TOUR_TABS     = {2:'home', 3:'home', 4:'register', 5:'sintomas', 6:'mapa',
 const DIARY_INTRO_KEY = 'recarregue_diary_intro';
 const DIARY_PIN_KEY = 'recarregue_diary_pin';
 const DIARY_THEMES = [
-  {id:'padrao',    label:'Padrão',        bg:null},
-  {id:'lilas',     label:'Lilás',         bg:'linear-gradient(160deg, rgba(167,139,250,.28), rgba(236,72,153,.10) 60%, transparent)'},
-  {id:'oceano',    label:'Oceano',        bg:'linear-gradient(160deg, rgba(34,211,238,.25), rgba(59,130,246,.10) 60%, transparent)'},
-  {id:'pordosol',  label:'Pôr do sol',    bg:'linear-gradient(160deg, rgba(251,146,60,.28), rgba(244,63,94,.10) 60%, transparent)'},
-  {id:'floresta',  label:'Floresta',      bg:'linear-gradient(160deg, rgba(52,211,153,.25), rgba(16,185,129,.08) 60%, transparent)'},
-  {id:'noite',     label:'Noite estrelada', bg:'linear-gradient(160deg, rgba(124,58,237,.32), rgba(15,23,42,.25) 65%, transparent)'},
+  {id:'padrao',    label:'Padrão',        swatch:null,       bg:null},
+  {id:'lilas',     label:'Lilás',         swatch:'#A78BFA', bg:'linear-gradient(160deg, rgba(167,139,250,.28), rgba(236,72,153,.10) 60%, transparent)'},
+  {id:'oceano',    label:'Oceano',        swatch:'#22D3EE', bg:'linear-gradient(160deg, rgba(34,211,238,.25), rgba(59,130,246,.10) 60%, transparent)'},
+  {id:'pordosol',  label:'Pôr do sol',    swatch:'#FB923C', bg:'linear-gradient(160deg, rgba(251,146,60,.28), rgba(244,63,94,.10) 60%, transparent)'},
+  {id:'floresta',  label:'Floresta',      swatch:'#34D399', bg:'linear-gradient(160deg, rgba(52,211,153,.25), rgba(16,185,129,.08) 60%, transparent)'},
+  {id:'noite',     label:'Noite estrelada', swatch:'#7C3AED', bg:'linear-gradient(160deg, rgba(124,58,237,.32), rgba(15,23,42,.25) 65%, transparent)'},
 ];
 function setDiaryTheme(id){db.settings.diaryTheme=id;save();render();}
 let onboardingStep = localStorage.getItem(ONBOARDED_KEY) ? 0 : 1;
@@ -1045,29 +1045,8 @@ let diaryPinFirst = '';
 let diaryCalOpen = false;
 let diaryCalMonth = new Date(); diaryCalMonth.setDate(1);
 let diaryCalYear = new Date().getFullYear();
-let diaryStatsOpen = false;
-function diaryToggleStats(){diaryStatsOpen=!diaryStatsOpen;render();}
-function diaryLongestStreak(){
-  const days=[...new Set((db.diary||[]).map(diaryDay))].sort();
-  let longest=0,cur=0,prev=null;
-  days.forEach(d=>{
-    cur=(prev&&Math.round((new Date(d+'T00:00:00')-new Date(prev+'T00:00:00'))/86400000)===1)?cur+1:1;
-    longest=Math.max(longest,cur);
-    prev=d;
-  });
-  return longest;
-}
-function initDiaryStatsChart(){
-  const el=document.getElementById('diaryStatsChart');if(!el||!diaryStatsOpen)return;
-  if(charts.diaryStatsChart)charts.diaryStatsChart.destroy();
-  const counts={};(db.diary||[]).forEach(e=>{if(e.humor)counts[e.humor]=(counts[e.humor]||0)+1;});
-  const rows=Object.entries(counts).sort((a,b)=>b[1]-a[1]);if(!rows.length)return;
-  const labels=rows.map(([id])=>{const h=HUMORS.find(x=>x.id===id);return h?humorLabel(h):id;});
-  const data=rows.map(([,n])=>n);
-  const colors=rows.map(([id])=>HUMORS.find(x=>x.id===id)?.color||'#999');
-  charts.diaryStatsChart=new Chart(el,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0}]},
-    options:{plugins:{legend:{position:'bottom',labels:{color:getComputedStyle(document.body).getPropertyValue('--text2').trim()||'#ccc',font:{size:11},boxWidth:10}}}}});
-}
+let diaryYearOpen = false;
+function diaryToggleYear(){diaryYearOpen=!diaryYearOpen;render();}
 function diaryToggleCal(){diaryCalOpen=!diaryCalOpen;render();}
 function diaryCalShift(delta){diaryCalMonth=new Date(diaryCalMonth.getFullYear(),diaryCalMonth.getMonth()+delta,1);render();}
 function diaryYearShift(delta){diaryCalYear+=delta;render();}
@@ -1496,29 +1475,24 @@ function diaryHTML(){
   const curTheme=DIARY_THEMES.find(t=>t.id===db.settings.diaryTheme)||DIARY_THEMES[0];
   return `
     <div style="margin:-16px -16px 0;padding:16px 16px 4px;background:${curTheme.bg||'transparent'}">
-      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">Um cantinho só seu — todos os campos são opcionais. 🔒 Fica só no seu aparelho.</p>
+      <div class="card" style="padding:12px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px">MEU DIÁRIO</span>
+          <button class="info-btn" onclick="openHelp('diario')">ⓘ</button>
+        </div>
+        <p style="font-size:13px;color:var(--muted);margin-top:6px;line-height:1.6">Um cantinho só seu — todos os campos são opcionais. 🔒 Fica só no seu aparelho.</p>
+      </div>
       <button class="btn btn-p" onclick="openDiaryRegister()">✍️ Registre o seu dia</button>
       <div class="card" style="margin-top:16px">
         ${diaryMonthGridHTML()}
       </div>
       ${diaryDayView?diaryDayDetailHTML(diaryDayView):''}
       <div class="card" style="padding:0;overflow:hidden;margin-top:14px">
-        <div class="sos-module-hdr" onclick="diaryToggleStats()">
-          <div class="sos-module-title"><span class="sos-module-ico">✨</span> Ano em pixels &amp; estatísticas</div>
-          <span class="sos-chevron ${diaryStatsOpen?'open':''}">▼</span>
+        <div class="sos-module-hdr" onclick="diaryToggleYear()">
+          <div class="sos-module-title"><span class="sos-module-ico">✨</span> Ano em pixels</div>
+          <span class="sos-chevron ${diaryYearOpen?'open':''}">▼</span>
         </div>
-        ${diaryStatsOpen?`<div class="sos-module-body" style="padding-top:12px">
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
-            <div style="text-align:center"><div style="font-size:20px;font-weight:800;color:var(--accent-lt)">${list.length}</div><div style="font-size:10px;color:var(--muted)">Entradas</div></div>
-            <div style="text-align:center"><div style="font-size:20px;font-weight:800;color:var(--accent-lt)">${new Set(list.map(diaryDay)).size}</div><div style="font-size:10px;color:var(--muted)">Dias</div></div>
-            <div style="text-align:center"><div style="font-size:20px;font-weight:800;color:var(--accent-lt)">🔥${diaryLongestStreak()}</div><div style="font-size:10px;color:var(--muted)">Sequência</div></div>
-          </div>
-          ${list.some(e=>e.humor)?`<div style="height:200px;margin-bottom:18px"><canvas id="diaryStatsChart"></canvas></div>`:''}
-          <div style="border-top:1px solid var(--border);padding-top:14px">
-            <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px;margin-bottom:10px">ANO EM PIXELS</div>
-            ${diaryYearGridHTML()}
-          </div>
-        </div>`:''}
+        ${diaryYearOpen?`<div class="sos-module-body" style="padding-top:12px">${diaryYearGridHTML()}</div>`:''}
       </div>
       ${list.length?'':`<div style="text-align:center;margin-top:24px;color:var(--muted);font-size:13px;line-height:1.7">🌱<br>Seu diário ainda está vazio.<br>Toque em "Registre o seu dia" quando quiser começar.</div>`}
     </div>
@@ -3672,6 +3646,18 @@ function settingsHTML(){
           ${paletteBtn('azul','Azul','#3B82F6')}
         </div>
       </div>
+      <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:8px;margin-top:4px">
+        <div class="s-lbl">📔 Capa do diário</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">${(()=>{const curTheme=DIARY_THEMES.find(t=>t.id===db.settings.diaryTheme)||DIARY_THEMES[0];return DIARY_THEMES.map(t=>`
+          <button onclick="setDiaryTheme('${t.id}')" style="display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;font-family:inherit">
+            <span style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid ${curTheme.id===t.id?'var(--accent)':'var(--border)'};background:${t.swatch||'var(--card2)'}">${!t.swatch?'✕':''}</span>
+            <span style="font-size:9px;color:${curTheme.id===t.id?'var(--accent-lt)':'var(--muted)'};font-weight:${curTheme.id===t.id?700:400}">${t.label}</span>
+          </button>`).join('');})()}</div>
+      </div>
+      <div class="s-row" style="margin-top:4px">
+        <div><div class="s-lbl">🔒 Bloquear diário com PIN</div><div class="s-desc">Pede um código de 4 dígitos toda vez que você abrir o diário</div></div>
+        ${getDiaryPin()?`<button class="btn btn-d btn-sm" onclick="removeDiaryPin()">Remover</button>`:`<button class="btn btn-p btn-sm" onclick="startDiaryPinSetup()">Definir</button>`}
+      </div>
     </div>
     <div class="card">
       <div class="sec">Frase pessoal</div>
@@ -3805,18 +3791,6 @@ function settingsHTML(){
         <input type="checkbox" ${db.settings.diaryCloudBackup?'checked':''} onchange="setDiaryCloud(this.checked)" style="margin-top:3px;accent-color:var(--purple)">
         <span style="font-size:12px;color:var(--muted);line-height:1.5"><strong style="color:var(--text)">Incluir meu diário no backup da nuvem</strong><br>Desligado por padrão: o diário é íntimo e fica só no seu aparelho. Ligue se quiser poder restaurá-lo em outro aparelho.</span>
       </label>
-      <div class="s-row" style="margin-top:4px">
-        <div><div class="s-lbl">🔒 Bloquear diário com PIN</div><div class="s-desc">Pede um código de 4 dígitos toda vez que você abrir o diário</div></div>
-        ${getDiaryPin()?`<button class="btn btn-d btn-sm" onclick="removeDiaryPin()">Remover</button>`:`<button class="btn btn-p btn-sm" onclick="startDiaryPinSetup()">Definir</button>`}
-      </div>
-      <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:8px;margin-top:4px">
-        <div class="s-lbl">🎨 Capa do diário</div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">${(()=>{const curTheme=DIARY_THEMES.find(t=>t.id===db.settings.diaryTheme)||DIARY_THEMES[0];return DIARY_THEMES.map(t=>`
-          <button onclick="setDiaryTheme('${t.id}')" style="display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;font-family:inherit">
-            <span style="width:32px;height:32px;border-radius:50%;display:block;border:2px solid ${curTheme.id===t.id?'var(--accent)':'var(--border)'};background:${t.bg?t.bg.split(',').slice(0,2).join(',')+')':'var(--card2)'}"></span>
-            <span style="font-size:9px;color:${curTheme.id===t.id?'var(--accent-lt)':'var(--muted)'}">${t.label}</span>
-          </button>`).join('');})()}</div>
-      </div>
       <button class="btn btn-p" style="width:100%;margin-top:12px;font-size:13px" onclick="backupToCloud()">☁️ Salvar backup na nuvem</button>
       <div style="margin-top:12px">
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Restaurar de outro aparelho</div>
@@ -4251,7 +4225,9 @@ const HELP = {
     icon: '📔',
     items: [
       { h: 'Para que serve', p: 'Um espaço para colocar em palavras como você se sente, o que sente e por que talvez sinta isso. Escrever ajuda a organizar a cabeça e, com o tempo, a perceber padrões.' },
-      { h: 'Sem regras', p: 'Todos os campos são opcionais. Pode escolher só um humor, escrever só uma palavra ou um textão. Não precisa escrever todo dia.' },
+      { h: 'Como registrar', p: 'Toque em "Registre o seu dia" para escolher um humor, escrever, colocar fotos ou adesivos divertidos. Todos os campos são opcionais — não precisa escrever todo dia.' },
+      { h: 'O calendário', p: 'Toque num dia para ver o que foi salvo. Dias leves mostram uma recordação de anos anteriores; dias mais difíceis convidam a guardar uma pequena vitória, pra reler depois.' },
+      { h: 'Personalização', p: 'Em Configurações → Personalização dá pra escolher a capa de cor do diário e ativar um PIN de 4 dígitos para bloqueá-lo.' },
       { h: 'Privacidade', p: 'O diário fica só no seu aparelho e entra no backup em arquivo (exportar). Ele só vai para o backup na nuvem se você ligar essa opção em Configurações → Backup.' },
       { h: 'No Mapa e no relatório', p: 'O Mapa cruza o que você escreve com sua energia, seus check-ins e seus dias difíceis, sempre no seu aparelho. No relatório entram só contagens e humores — o texto que você escreveu nunca vai junto.' },
     ]
@@ -4561,8 +4537,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.8.1 disponível!</strong>
-        Ajustes no Diário: ano em pixels sem barra de rolagem, e a capa (cor de fundo) agora se escolhe em Configurações.
+        <strong>✨ Versão 2.8.2 disponível!</strong>
+        Diário: capa de cor e PIN agora ficam em Configurações → Personalização, junto de tudo, e a aba ganhou a dica ⓘ que faltava.
       </div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -4578,12 +4554,11 @@ function render(){
   renderOverlays();
   renderTourGuide();
   if(screen==='mapa')requestAnimationFrame(initCharts);
-  if(screen==='diary')requestAnimationFrame(initDiaryStatsChart);
   if(screen==='sos')requestAnimationFrame(()=>{if(groundingStep>=0)renderGrounding();});
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.8.1';
+const APP_VERSION = '2.8.2';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
