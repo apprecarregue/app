@@ -2174,12 +2174,14 @@ function closeBackupSheet(){showBackupSheet=false;renderOverlays();}
 async function backupCloudAndClose(){
   await backupToCloud();
   _backupDoneForUpdate=true;
-  closeBackupSheet();
+  showBackupSheet=false;
+  render();
 }
 function exportAndClose(){
   exportJSON();
   _backupDoneForUpdate=true;
-  closeBackupSheet();
+  showBackupSheet=false;
+  render();
 }
 
 function backupSheetHTML(){
@@ -3644,8 +3646,8 @@ function settingsHTML(){
       <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:10px;margin-top:4px">
         <div class="s-lbl">Cor de destaque</div>
         <div style="display:flex;align-items:center;gap:14px">
-          <label style="width:44px;height:44px;border-radius:50%;display:block;overflow:hidden;border:2px solid var(--border);cursor:pointer;flex-shrink:0">
-            <input type="color" value="${accentColor}" oninput="setAccentColor(this.value)" style="width:135%;height:135%;margin:-17.5%;border:none;cursor:pointer;padding:0">
+          <label style="width:44px;height:44px;border-radius:50%;display:block;position:relative;border:2px solid var(--border);cursor:pointer;flex-shrink:0;background:${accentColor}">
+            <input type="color" value="${accentColor}" oninput="setAccentColor(this.value)" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;padding:0">
           </label>
           <div style="display:flex;gap:7px;flex-wrap:wrap">
             ${['#05D9B2','#8B5CF6','#3B82F6','#F472B6','#F59E0B','#EF4444'].map(c=>`<button onclick="setAccentColor('${c}')" style="width:24px;height:24px;border-radius:50%;background:${c};border:2px solid ${accentColor.toLowerCase()===c.toLowerCase()?'var(--text)':'transparent'};cursor:pointer"></button>`).join('')}
@@ -4536,8 +4538,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.9.0 disponível!</strong>
-        Nova identidade visual: preto e branco com um teal de destaque, cantos menos arredondados, e agora você escolhe QUALQUER cor no círculo cromático em Configurações.
+        <strong>✨ Versão 2.9.1 disponível!</strong>
+        Correção no seletor de cor de destaque (o círculo não estava clicável/visível direito) e no banner de atualização após fazer backup.
       </div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -4557,7 +4559,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.9.0';
+const APP_VERSION = '2.9.1';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
