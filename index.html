@@ -1029,6 +1029,14 @@ function calcStreak(){
 let showPrivacy = false;
 let showDiary = false;
 let diaryDraft = {id:null, humor:null, sinto:'', porque:''};
+let diaryCalOpen = false;
+let diaryCalMonth = new Date(); diaryCalMonth.setDate(1);
+let diaryCalYear = new Date().getFullYear();
+function diaryToggleCal(){diaryCalOpen=!diaryCalOpen;renderOverlays();}
+function diaryCalShift(delta){diaryCalMonth=new Date(diaryCalMonth.getFullYear(),diaryCalMonth.getMonth()+delta,1);renderOverlays();}
+function diaryYearShift(delta){diaryCalYear+=delta;renderOverlays();}
+function diaryEntriesOnDay(ds){return (db.diary||[]).filter(e=>diaryDay(e)===ds).sort((a,b)=>a.ts<b.ts?-1:1);}
+function diaryOpenDay(ds){const es=diaryEntriesOnDay(ds);if(!es.length)return;editDiary(es[es.length-1].id);}
 let showFeedback = false;
 let feedbackSent = false;
 let feedbackState = {tipo:'sugestao', mensagem:''};
@@ -1140,6 +1148,63 @@ function setDiaryCloud(on){
   toast(on?'Diário incluído no backup da nuvem ☁️':'Diário fica só no seu aparelho 🔒');
 }
 
+function diaryMonthGridHTML(){
+  const y=diaryCalMonth.getFullYear(), m=diaryCalMonth.getMonth();
+  const monthLabel=diaryCalMonth.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const startOffset=new Date(y,m,1).getDay();
+  const daysInMonth=new Date(y,m+1,0).getDate();
+  const byDay=diaryByDay(db.diary||[]);
+  const todayKey=todayStr();
+  const weekHead=['D','S','T','Q','Q','S','S'].map(l=>`<div style="text-align:center;font-size:10px;color:var(--muted);font-weight:700">${l}</div>`).join('');
+  let cells='';
+  for(let i=0;i<startOffset;i++)cells+='<div></div>';
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const info=byDay[ds];
+    const h=info&&info.humor?HUMORS.find(x=>x.id===info.humor):null;
+    const isToday=ds===todayKey;
+    const bg=h?hexToRgba(h.color,.3):(info?'var(--card2)':'transparent');
+    const color=h?h.color:'var(--text2)';
+    cells+=`<div ${info?`onclick="diaryOpenDay('${ds}')"`:''} style="aspect-ratio:1;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;cursor:${info?'pointer':'default'};background:${bg};border:1.5px solid ${isToday?'var(--accent)':'transparent'};color:${color}">${h?h.icon:d}</div>`;
+  }
+  return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <button onclick="diaryCalShift(-1)" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px">‹</button>
+    <span style="font-size:13px;font-weight:700;color:var(--text);text-transform:capitalize">${monthLabel}</span>
+    <button onclick="diaryCalShift(1)" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px">›</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">${weekHead}</div>
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">${cells}</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center">Toque num dia colorido para reabrir a anotação</div>`;
+}
+
+function diaryYearGridHTML(){
+  const y=diaryCalYear;
+  const byDay=diaryByDay(db.diary||[]);
+  const monthsPt=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const rows=monthsPt.map((label,mi)=>{
+    const daysInMonth=new Date(y,mi+1,0).getDate();
+    let cells='';
+    for(let d=1;d<=31;d++){
+      if(d>daysInMonth){cells+='<div style="width:9px;height:9px;flex-shrink:0"></div>';continue;}
+      const ds=`${y}-${String(mi+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const info=byDay[ds];
+      const h=info&&info.humor?HUMORS.find(x=>x.id===info.humor):null;
+      const bg=h?h.color:(info?'var(--border)':'var(--card2)');
+      cells+=`<div title="${ds}" style="width:9px;height:9px;border-radius:2px;background:${bg};flex-shrink:0"></div>`;
+    }
+    return `<div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+      <span style="width:24px;font-size:10px;color:var(--muted);flex-shrink:0">${label}</span>
+      <div style="display:flex;gap:2px;overflow-x:auto">${cells}</div>
+    </div>`;
+  }).join('');
+  return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <button onclick="diaryYearShift(-1)" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px">‹</button>
+    <span style="font-size:13px;font-weight:700;color:var(--text)">${y}</span>
+    <button onclick="diaryYearShift(1)" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px">›</button>
+  </div>
+  ${rows}`;
+}
+
 function diaryHTML(){
   const list=db.diary||[];
   const editing=!!diaryDraft.id;
@@ -1186,6 +1251,19 @@ function diaryHTML(){
       <textarea class="note" rows="4" placeholder="Algo aconteceu? Não sabe ao certo? Tudo bem também." oninput="diaryDraft.porque=this.value">${esc(diaryDraft.porque)}</textarea>
       <button class="btn btn-p" style="margin-top:14px" onclick="saveDiary()">${editing?'Salvar alterações':'Guardar no diário'}</button>
       ${editing?`<button class="btn" style="margin-top:8px;background:var(--card2);border:1px solid var(--border);color:var(--text)" onclick="cancelDiaryEdit()">Cancelar edição</button>`:''}
+      ${list.length?`<div class="card" style="padding:0;overflow:hidden;margin-top:16px">
+        <div class="sos-module-hdr" onclick="diaryToggleCal()">
+          <div class="sos-module-title"><span class="sos-module-ico">📅</span> Calendário de humor</div>
+          <span class="sos-chevron ${diaryCalOpen?'open':''}">▼</span>
+        </div>
+        ${diaryCalOpen?`<div class="sos-module-body" style="padding-top:12px">
+          ${diaryMonthGridHTML()}
+          <div style="border-top:1px solid var(--border);margin:18px 0 4px;padding-top:14px">
+            <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.5px;margin-bottom:10px">✨ ANO EM PIXELS</div>
+            ${diaryYearGridHTML()}
+          </div>
+        </div>`:''}
+      </div>`:''}
       ${list.length?`<div style="margin-top:8px">${entries}</div>`:`
         <div style="text-align:center;margin-top:28px;color:var(--muted);font-size:13px;line-height:1.7">🌱<br>Seu diário ainda está vazio.<br>Sem pressa — quando quiser, ele está aqui.</div>`}
     </div>`;
@@ -4216,8 +4294,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.6.4 disponível!</strong>
-        O seletor de humor do Diário ficou maior e ganhou uma cor para cada sentimento.
+        <strong>✨ Versão 2.6.5 disponível!</strong>
+        O Diário ganhou um calendário de humor do mês e um "ano em pixels" — toque num dia colorido pra reabrir o que você escreveu.
       </div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -4237,7 +4315,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.6.4';
+const APP_VERSION = '2.6.5';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
