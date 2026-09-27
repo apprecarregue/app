@@ -1027,7 +1027,6 @@ function calcStreak(){
   return streak;
 }
 let showPrivacy = false;
-let showDiary = false;
 let diaryDraft = {id:null, humor:null, sinto:'', porque:''};
 let diaryCalOpen = false;
 let diaryCalMonth = new Date(); diaryCalMonth.setDate(1);
@@ -1103,8 +1102,8 @@ function emptyDiaryDraft(){return {id:null,humor:null,sinto:'',porque:''};}
 // Novidade: só para quem já usava o app (quem faz onboarding/tour conhece o Diário pelo tour)
 const diaryIntroPending=()=>!!localStorage.getItem(ONBOARDED_KEY)&&!tourStep&&onboardingStep===0&&!localStorage.getItem(DIARY_INTRO_KEY);
 function dismissDiaryIntro(open){localStorage.setItem(DIARY_INTRO_KEY,'1');if(open)openDiary();else render();}
-function openDiary(){localStorage.setItem(DIARY_INTRO_KEY,'1');markTabVisited('diary');showDiary=true;diaryDraft=emptyDiaryDraft();renderOverlays();trackEvent('diary_opened');}
-function closeDiary(){showDiary=false;render();}
+function openDiary(){localStorage.setItem(DIARY_INTRO_KEY,'1');diaryDraft=emptyDiaryDraft();go('diary');}
+
 function diaryPickHumor(id){
   diaryDraft.humor=diaryDraft.humor===id?null:id;
   document.querySelectorAll('.diary-humor').forEach(b=>{
@@ -1237,11 +1236,6 @@ function diaryHTML(){
       </div>`;
   }).join('');
   return `
-    <div class="full-sheet">
-      <div class="full-sheet-hdr">
-        <button class="full-sheet-back" onclick="closeDiary()">←</button>
-        <div class="full-sheet-title">📔 Meu diário</div>
-      </div>
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Um cantinho só seu. Escreva do seu jeito, no seu tempo — todos os campos são opcionais. 🔒 Fica só no seu aparelho.</p>
       <div class="sec">${editing?'Editando entrada':'Como você se sente agora?'}</div>
       <div class="humor-grid">${humorBtns}</div>
@@ -1266,7 +1260,7 @@ function diaryHTML(){
       </div>`:''}
       ${list.length?`<div style="margin-top:8px">${entries}</div>`:`
         <div style="text-align:center;margin-top:28px;color:var(--muted);font-size:13px;line-height:1.7">🌱<br>Seu diário ainda está vazio.<br>Sem pressa — quando quiser, ele está aqui.</div>`}
-    </div>`;
+    `;
 }
 
 function openPrivacy(){showPrivacy=true;renderOverlays();}
@@ -4150,8 +4144,8 @@ const NAV=[
   {id:'sos',      icon:ICO.sos,      label:'SOS',       cls:'sos-btn'},
   {id:'settings', icon:ICO.settings, label:'Config',    cls:''},
 ];
-const TITLES={home:'Recarregue',register:'Registrar',mapa:'Mapa de Energia',sintomas:'Sintomas',sos:'SOS',settings:'Configurações'};
-const CONTENT={home:homeHTML,register:registerHTML,mapa:mapaHTML,sintomas:renderSintomas,sos:sosHTML,settings:settingsHTML};
+const TITLES={home:'Recarregue',register:'Registrar',mapa:'Mapa de Energia',sintomas:'Sintomas',diary:'📔 Diário',sos:'SOS',settings:'Configurações'};
+const CONTENT={home:homeHTML,register:registerHTML,mapa:mapaHTML,sintomas:renderSintomas,diary:diaryHTML,sos:sosHTML,settings:settingsHTML};
 
 function catInfoHTML(){
   const c=cat(catInfoId);
@@ -4234,7 +4228,7 @@ function renderTourGuide(){
   const el=document.getElementById('tour-guide');
   if(!el) return;
   // Hide guide bar when any modal/sheet is open
-  const modalOpen=!!(checkinState||sheetState||helpSheet||showFeedback||showDiary||onboardingStep>0||showBackupSheet);
+  const modalOpen=!!(checkinState||sheetState||helpSheet||showFeedback||onboardingStep>0||showBackupSheet);
   const active=tourStep>=2&&tourStep<=7&&!modalOpen;
   el.innerHTML=active?tourGuideBarHTML():'';
   // passo do Diário: destaca o card e leva até ele
@@ -4272,7 +4266,6 @@ function renderOverlays(){
   else if(catInfoId)       el.innerHTML=catInfoHTML();
   else if(helpSheet)       el.innerHTML=helpSheetHTML();
   else if(showPrivacy)     el.innerHTML=privacyHTML();
-  else if(showDiary)       el.innerHTML=diaryHTML();
   else if(showFeedback)    el.innerHTML=feedbackHTML();
   else if(checkinState)    el.innerHTML=checkinOverlayHTML();
   else if(triggerSheetState) el.innerHTML=triggerSheetHTML();
@@ -4306,7 +4299,7 @@ function render(){
     </div>
     <div class="main" id="main">${CONTENT[screen]()}</div>
     <nav class="bnav">
-      ${(()=>{const v=getVisitedTabs();return NAV.map(n=>`<button id="nav-${n.id}" class="nav-btn ${n.cls} ${screen===n.id?'on':''}" onclick="${n.id==='diary'?'openDiary()':`go('${n.id}')`}"><span class="nav-ico" style="position:relative">${n.icon}${n.id==='settings'?`<span class="nav-config-badge" style="display:${needsBackupReminder()?'block':'none'}"></span>`:!v[n.id]?'<span class="nav-new-badge"></span>':''}</span><span>${n.label}</span></button>`).join('');})()}
+      ${(()=>{const v=getVisitedTabs();return NAV.map(n=>`<button id="nav-${n.id}" class="nav-btn ${n.cls} ${screen===n.id?'on':''}" onclick="go('${n.id}')"><span class="nav-ico" style="position:relative">${n.icon}${n.id==='settings'?`<span class="nav-config-badge" style="display:${needsBackupReminder()?'block':'none'}"></span>`:!v[n.id]?'<span class="nav-new-badge"></span>':''}</span><span>${n.label}</span></button>`).join('');})()}
     </nav>`;
   renderOverlays();
   renderTourGuide();
