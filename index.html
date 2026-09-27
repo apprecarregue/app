@@ -4547,14 +4547,14 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.9.2 disponível!</strong>
-        Correção de verdade no seletor de cor: agora não fecha mais assim que você toca nele.
+        <strong>✨ Versão 2.9.3 disponível!</strong>
+        Corrige o banner de atualização voltando a pedir de novo depois de já ter atualizado.
       </div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
-        ? `<button class="update-banner-btn" onclick="dismissUpdate();setTimeout(()=>location.reload(),400)">✅ Atualizar agora</button>`
+        ? `<button class="update-banner-btn" onclick="dismissUpdate()">✅ Atualizar agora</button>`
         : `<button class="update-banner-btn" onclick="openBackupSheet()">📦 Fazer backup</button>
-           <button onclick="dismissUpdate();setTimeout(()=>location.reload(),400)" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px;text-decoration:underline;font-family:inherit">já tenho backup recente → atualizar</button>`
+           <button onclick="dismissUpdate()" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px;text-decoration:underline;font-family:inherit">já tenho backup recente → atualizar</button>`
       }
     </div>
     <div class="main" id="main">${CONTENT[screen]()}</div>
@@ -4568,7 +4568,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.9.2';
+const APP_VERSION = '2.9.3';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
@@ -4583,8 +4583,15 @@ function checkAppUpdate(){
 }
 
 function dismissUpdate(){
-  localStorage.setItem(VERSION_KEY, APP_VERSION);
+  // Não grava a versão daqui — este script pode já estar desatualizado (várias
+  // versões podem ter saído desde que a página carregou). Só marca "estou
+  // recarregando pra atualizar" e deixa a PRÓPRIA página nova, ao carregar,
+  // gravar a versão real que ela representa. Sem isso, gravar APP_VERSION
+  // (o valor antigo, preso neste script) faz o banner reaparecer de novo
+  // depois do reload, mesmo já tendo "atualizado".
+  try{sessionStorage.setItem('recarregue_reloading_for_update','1');}catch(_){}
   _pendingUpdate = false;
+  location.reload();
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
@@ -4602,6 +4609,15 @@ if(new URLSearchParams(location.search).get('preview')==='1'){
 
 load();applyTheme();
 checkAppUpdate();
+// Se recarregou por causa do botão "Atualizar agora", esta é que é a versão real
+// (a que acabou de carregar) — grava ela e não deixa o banner reaparecer.
+try{
+  if(sessionStorage.getItem('recarregue_reloading_for_update')){
+    sessionStorage.removeItem('recarregue_reloading_for_update');
+    localStorage.setItem(VERSION_KEY, APP_VERSION);
+    _pendingUpdate = false;
+  }
+}catch(_){}
 // Inicia tour se onboarding já foi feito mas tour não, e usuário ainda não tem dados (novo usuário real)
 if(localStorage.getItem(ONBOARDED_KEY)&&!localStorage.getItem(TOUR_KEY)&&db.checkins.length===0) tourStep=1;
 render();
