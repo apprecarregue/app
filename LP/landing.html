@@ -3,29 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Recarregue — app de monitoramento de energia para pessoas com TEA, TDAH e TAG. Baseado na Teoria das Colheres. Beta fechado — inscreva-se.">
-<title>Recarregue ⚡ — Monitore sua energia do seu jeito</title>
+<meta name="description" content="Recarregue, o app de monitoramento de energia para pessoas neurodivergentes (TEA, TDAH, TAG e além), baseado na Teoria das Colheres. Beta fechado, inscreva-se.">
+<title>Recarregue ⚡ Monitore sua energia do seu jeito</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --accent:#7C3AED;--accent-lt:#8B5CF6;--accent-dk:#6D28D9;
-  --accent-bg:rgba(124,58,237,.08);--border:rgba(124,58,237,.15);
-  --cyan:#06B6D4;--cyan-lt:#22D3EE;--cyan-dk:#0891B2;
-  --cyan-bg:rgba(6,182,212,.08);--cyan-border:rgba(6,182,212,.2);
-  --bg:#ffffff;--bg2:#f7f5ff;--bg3:#ede9fe;
-  --card:#ffffff;--card2:#f3f0ff;
-  --text:#1a1030;--text2:#4b3d6e;--muted:#8b7baa;
-  --green:#059669;--green-lt:#10B981;--amber:#d97706;--red:#dc2626;
-  --green-bg:rgba(5,150,105,.08);
-  --shadow:0 2px 16px rgba(124,58,237,.1);
-  --shadow-lg:0 8px 40px rgba(124,58,237,.15);
+  --accent:#7906FF;--accent-lt:#9640FF;--accent-dk:#5A00CC;
+  --accent-bg:rgba(121,6,255,.10);--border:rgba(255,255,255,.12);
+  --cyan:#05FFD2;--cyan-lt:#3FFFDE;--cyan-dk:#00CCA8;
+  --cyan-bg:rgba(5,255,210,.08);--cyan-border:rgba(5,255,210,.25);
+  --bg:#000000;--bg2:#0a0a0a;--bg3:#111114;
+  --card:#0d0d0f;--card2:#131316;
+  --text:#e7e9ea;--text2:#c4c7c9;--muted:#9d9d9d;
+  --green:#10B981;--green-lt:#34D399;--amber:#f59e0b;--red:#f87171;
+  --green-bg:rgba(16,185,129,.1);
+  --shadow:0 2px 20px rgba(121,6,255,.2);
+  --shadow-lg:0 8px 50px rgba(121,6,255,.3);
 }
 html{scroll-behavior:smooth;}
 body{
-  font-family:'Outfit',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  font-family:'Space Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
   background:var(--bg);color:var(--text);overflow-x:hidden;
 }
 
@@ -34,9 +34,9 @@ nav{
   position:fixed;top:0;left:0;right:0;z-index:100;
   padding:12px 28px;
   display:flex;align-items:center;justify-content:space-between;
-  background:rgba(255,255,255,.92);
+  background:rgba(0,0,0,.85);
   backdrop-filter:blur(20px);
-  border-bottom:1px solid rgba(124,58,237,.1);
+  border-bottom:1px solid var(--border);
 }
 .nav-logo{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:800;color:var(--text);}
 .nav-logo-icon{
@@ -61,13 +61,13 @@ nav{
   min-height:100dvh;display:flex;flex-direction:column;
   align-items:center;justify-content:center;
   padding:100px 24px 72px;
-  background:linear-gradient(180deg,#f7f5ff 0%,#ffffff 100%);
+  background:var(--bg);
   position:relative;overflow:hidden;
 }
 .hero::before{
   content:'';position:absolute;top:-100px;left:50%;transform:translateX(-50%);
-  width:800px;height:500px;border-radius:50%;
-  background:radial-gradient(ellipse,rgba(124,58,237,.07) 0%,transparent 70%);
+  width:900px;height:600px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(121,6,255,.22) 0%,rgba(5,255,210,.1) 45%,transparent 72%);
   pointer-events:none;
 }
 .hero-layout{
@@ -78,7 +78,7 @@ nav{
 .hero-eyebrow{
   display:inline-flex;align-items:center;gap:6px;margin-bottom:22px;
   padding:5px 14px;border-radius:99px;
-  background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);
+  background:rgba(121,6,255,.08);border:1px solid rgba(121,6,255,.2);
   font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.5px;
 }
 .hero h1{
@@ -100,12 +100,12 @@ nav{
   color:#fff;font-size:15px;font-weight:800;cursor:pointer;
   text-decoration:none;display:inline-flex;align-items:center;gap:8px;
   transition:transform .15s,box-shadow .15s;
-  box-shadow:0 4px 20px rgba(124,58,237,.35);font-family:inherit;
+  box-shadow:0 4px 20px rgba(121,6,255,.35);font-family:inherit;
 }
-.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(6,182,212,.4);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(5,255,210,.4);}
 .btn-secondary{
   padding:15px 24px;border-radius:12px;
-  border:1.5px solid rgba(124,58,237,.25);background:transparent;
+  border:1.5px solid rgba(121,6,255,.25);background:transparent;
   color:var(--accent);font-size:15px;font-weight:600;cursor:pointer;
   text-decoration:none;transition:all .15s;font-family:inherit;
 }
@@ -122,7 +122,7 @@ nav{
     0 0 0 1px #000 inset,
     0 0 0 1px #333,
     0 32px 80px rgba(0,0,0,.35),
-    0 8px 24px rgba(124,58,237,.15);
+    0 8px 24px rgba(121,6,255,.15);
   position:relative;
 }
 /* Botão power — direita */
@@ -250,17 +250,17 @@ h2{font-size:clamp(28px,4.5vw,42px);font-weight:900;line-height:1.1;letter-spaci
 .section-desc{font-size:16px;color:var(--text2);line-height:1.8;max-width:580px;}
 
 /* DIVIDER */
-.divider{height:1px;background:linear-gradient(90deg,transparent,rgba(124,58,237,.12),transparent);margin:0 32px;}
+.divider{height:1px;background:linear-gradient(90deg,transparent,rgba(121,6,255,.12),transparent);margin:0 32px;}
 
 /* PROBLEMA */
 .pain-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:40px;}
 .pain-card{
-  background:#fff;border:1px solid rgba(124,58,237,.12);
+  background:var(--card);border:1px solid var(--border);
   border-radius:18px;padding:24px;text-align:center;
-  box-shadow:0 2px 12px rgba(124,58,237,.06);
+  box-shadow:0 2px 12px rgba(121,6,255,.06);
   transition:box-shadow .2s,border-color .2s;
 }
-.pain-card:hover{box-shadow:0 6px 24px rgba(124,58,237,.12);border-color:rgba(124,58,237,.25);}
+.pain-card:hover{box-shadow:0 6px 24px rgba(121,6,255,.12);border-color:rgba(121,6,255,.25);}
 .pain-ico{font-size:32px;margin-bottom:14px;}
 .pain-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:7px;line-height:1.4;}
 .pain-desc{font-size:13px;color:var(--muted);line-height:1.7;}
@@ -272,9 +272,9 @@ h2{font-size:clamp(28px,4.5vw,42px);font-weight:900;line-height:1.1;letter-spaci
   width:40px;height:40px;border-radius:10px;
   display:flex;align-items:center;justify-content:center;font-size:20px;
 }
-.spoon-item.full{background:rgba(124,58,237,.1);border:1.5px solid rgba(124,58,237,.25);}
+.spoon-item.full{background:rgba(121,6,255,.1);border:1.5px solid rgba(121,6,255,.25);}
 .spoon-item.used{background:rgba(220,38,38,.08);border:1.5px solid rgba(220,38,38,.2);}
-.spoon-item.empty{background:rgba(0,0,0,.04);border:1.5px solid rgba(0,0,0,.08);}
+.spoon-item.empty{background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.08);}
 .spoon-legend{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;}
 .spoon-leg-item{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text2);}
 .spoon-leg-dot{width:10px;height:10px;border-radius:3px;}
@@ -283,9 +283,9 @@ h2{font-size:clamp(28px,4.5vw,42px);font-weight:900;line-height:1.1;letter-spaci
 .features-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:40px;}
 .feature-card{width:clamp(200px,calc(33% - 14px),280px);}
 .feature-card{
-  background:#fff;border:1px solid rgba(124,58,237,.12);
+  background:var(--card);border:1px solid var(--border);
   border-radius:16px;padding:24px 20px;text-align:center;
-  box-shadow:0 2px 8px rgba(124,58,237,.05);
+  box-shadow:0 2px 8px rgba(121,6,255,.05);
 }
 .feature-ico{
   width:48px;height:48px;border-radius:14px;
@@ -297,7 +297,7 @@ h2{font-size:clamp(28px,4.5vw,42px);font-weight:900;line-height:1.1;letter-spaci
 
 /* PWA */
 .pwa-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:40px;max-width:680px;margin-left:auto;margin-right:auto;}
-.pwa-card{background:#fff;border:1px solid rgba(124,58,237,.12);border-radius:16px;padding:28px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;}
+.pwa-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;}
 .pwa-ico{font-size:32px;margin-bottom:12px;}
 .pwa-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px;display:block;}
 .pwa-desc{font-size:13px;color:var(--muted);line-height:1.6;margin:0;}
@@ -321,9 +321,9 @@ h2{font-size:clamp(28px,4.5vw,42px);font-weight:900;line-height:1.1;letter-spaci
 .audience-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px;justify-content:center;}
 .audience-tag{
   padding:11px 20px;border-radius:99px;
-  background:#fff;border:1.5px solid rgba(124,58,237,.18);
+  background:var(--card);border:1.5px solid var(--border);
   font-size:14px;font-weight:600;color:var(--text2);
-  transition:all .15s;box-shadow:0 1px 4px rgba(124,58,237,.07);
+  transition:all .15s;box-shadow:0 1px 4px rgba(0,0,0,.3);
 }
 .audience-tag:hover{border-color:var(--accent);color:var(--accent);}
 .audience-tag.hl{border-color:var(--accent);color:var(--accent);background:var(--accent-bg);}
@@ -332,9 +332,9 @@ h2{font-size:clamp(28px,4.5vw,42px);font-weight:900;line-height:1.1;letter-spaci
 .form-bg{background:var(--bg2);padding:88px 24px;}
 .form-wrap{
   max-width:560px;margin:0 auto;
-  background:#fff;border:1px solid rgba(124,58,237,.15);
+  background:var(--card);border:1px solid var(--border);
   border-radius:24px;padding:44px 40px;
-  box-shadow:0 8px 40px rgba(124,58,237,.12);
+  box-shadow:0 8px 40px rgba(121,6,255,.12);
 }
 @media(max-width:600px){.form-wrap{padding:28px 20px;}}
 
@@ -392,24 +392,24 @@ h2{font-size:clamp(28px,4.5vw,42px);font-weight:900;line-height:1.1;letter-spaci
 label{display:block;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px;}
 .req{color:var(--accent);}
 input,textarea{
-  width:100%;border:1.5px solid rgba(124,58,237,.2);border-radius:10px;
+  width:100%;border:1.5px solid rgba(121,6,255,.2);border-radius:10px;
   padding:13px 14px;font-size:15px;font-family:inherit;
-  color:var(--text);background:#faf9ff;outline:none;transition:border-color .15s;
+  color:var(--text);background:var(--card2);outline:none;transition:border-color .15s;
 }
 input::placeholder,textarea::placeholder{color:var(--muted);}
-input:focus,textarea:focus{border-color:var(--accent);background:#fff;}
+input:focus,textarea:focus{border-color:var(--accent);background:var(--card);}
 textarea{resize:none;line-height:1.6;}
 .hint{font-size:12px;color:var(--muted);margin-top:5px;}
 .chips{display:flex;flex-wrap:wrap;gap:8px;}
 .chip{
-  padding:8px 14px;border:1.5px solid rgba(124,58,237,.2);border-radius:99px;
+  padding:8px 14px;border:1.5px solid rgba(121,6,255,.2);border-radius:99px;
   font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;
-  transition:all .15s;background:#faf9ff;user-select:none;
+  transition:all .15s;background:var(--card2);user-select:none;
 }
 .chip.sel{border-color:var(--accent);color:var(--accent);background:var(--accent-bg);}
 .privacy-note-inline{
   display:flex;align-items:flex-start;gap:10px;
-  background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.15);
+  background:rgba(121,6,255,.06);border:1px solid rgba(121,6,255,.15);
   border-radius:12px;padding:12px 14px;font-size:13px;color:var(--text2);line-height:1.6;
   margin:16px 0;
 }
@@ -418,7 +418,7 @@ textarea{resize:none;line-height:1.6;}
   font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;
   background:linear-gradient(135deg,var(--accent-dk),var(--accent-lt));
   color:#fff;transition:opacity .15s,transform .1s;
-  box-shadow:0 4px 20px rgba(124,58,237,.3);
+  box-shadow:0 4px 20px rgba(121,6,255,.3);
 }
 .btn-submit:hover{opacity:.92;}
 .btn-submit:active{transform:scale(.98);}
@@ -435,7 +435,7 @@ textarea{resize:none;line-height:1.6;}
 
 /* FOOTER */
 footer{
-  background:var(--text);
+  background:#000000;border-top:1px solid var(--border);
   padding:48px 24px;text-align:center;
   font-size:13px;color:rgba(255,255,255,.5);line-height:2.2;
 }
@@ -480,7 +480,7 @@ footer strong{color:rgba(255,255,255,.85);font-size:16px;}
       <div class="hero-eyebrow">⚡ Beta fechado · Vagas limitadas</div>
       <h1>Você cansa onde<br>os outros <em>nem percebem.</em></h1>
       <p class="hero-sub">
-        O Recarregue é um app de autoconhecimento energético feito para pessoas com TEA, TDAH e TAG — baseado na Teoria das Colheres.
+        O Recarregue é um app de autoconhecimento energético feito para pessoas neurodivergentes: TEA, TDAH, TAG e outras formas de sentir e processar o mundo, baseado na Teoria das Colheres.
         Sem julgamento. Sem cadastro. Seus dados são só seus.
       </p>
       <div class="cta-group">
@@ -618,17 +618,17 @@ footer strong{color:rgba(255,255,255,.85);font-size:16px;}
   <div class="container" style="text-align:center">
     <div class="section-label sr" style="justify-content:center">💭 Você reconhece isso?</div>
     <h2 class="sr" style="transition-delay:.08s">Quando cansa demais<br>sem motivo aparente.</h2>
-    <p class="section-desc sr" style="margin:0 auto;transition-delay:.16s">Não é frescura, não é falta de esforço. Seu sistema nervoso processa o mundo de um jeito diferente — e isso tem um custo real.</p>
+    <p class="section-desc sr" style="margin:0 auto;transition-delay:.16s">Não é frescura, não é falta de esforço. Seu sistema nervoso processa o mundo de um jeito diferente, e isso tem um custo real.</p>
     <div class="pain-grid sr-group">
       <div class="pain-card">
         <div class="pain-ico">🤝</div>
         <div class="pain-title">Uma reunião de 1 hora deixa você esgotado pelo resto do dia</div>
-        <div class="pain-desc">Interação social exige processamento constante — tom, expressão, palavras. Para muita gente, é trabalho invisível que drena energia real.</div>
+        <div class="pain-desc">Interação social exige processamento constante: tom, expressão, palavras. Para muita gente, é trabalho invisível que drena energia real.</div>
       </div>
       <div class="pain-card">
         <div class="pain-ico">🔊</div>
         <div class="pain-title">Barulho de fundo que todo mundo ignora chega até você como estática</div>
-        <div class="pain-desc">Hipersensibilidade sensorial não é exagero. É o seu sistema nervoso captando mais do que o necessário — e pagando o preço depois.</div>
+        <div class="pain-desc">Hipersensibilidade sensorial não é exagero. É o seu sistema nervoso captando mais do que o necessário e pagando o preço depois.</div>
       </div>
       <div class="pain-card">
         <div class="pain-ico">⚖️</div>
@@ -651,7 +651,7 @@ footer strong{color:rgba(255,255,255,.85);font-size:16px;}
   <div class="container" style="text-align:center">
     <div class="section-label sr" style="justify-content:center">🥄 A Teoria das Colheres</div>
     <h2 class="sr" style="transition-delay:.08s">Você começa o dia com um número<br>limitado de colheres.</h2>
-    <p class="section-desc sr" style="margin:0 auto 16px;transition-delay:.16s">Cada atividade, gatilho ou emoção custa uma colher. Quando acaba, acabou. O Recarregue ajuda você a ver esse saldo em tempo real — antes do colapso, não depois.</p>
+    <p class="section-desc sr" style="margin:0 auto 16px;transition-delay:.16s">Cada atividade, gatilho ou emoção custa uma colher. Quando acaba, acabou. O Recarregue ajuda você a ver esse saldo em tempo real, antes do colapso, não depois.</p>
     <div class="spoon-visual sr-group">
       <div class="spoon-item full">🥄</div>
       <div class="spoon-item full">🥄</div>
@@ -668,7 +668,7 @@ footer strong{color:rgba(255,255,255,.85);font-size:16px;}
     </div>
     <div class="spoon-legend">
       <div class="spoon-leg-item">
-        <div class="spoon-leg-dot" style="background:rgba(124,58,237,.2);border:1.5px solid rgba(124,58,237,.35)"></div>
+        <div class="spoon-leg-dot" style="background:rgba(121,6,255,.2);border:1.5px solid rgba(121,6,255,.35)"></div>
         Disponível
       </div>
       <div class="spoon-leg-item">
@@ -680,7 +680,7 @@ footer strong{color:rgba(255,255,255,.85);font-size:16px;}
         Esgotado
       </div>
     </div>
-    <p style="font-size:14px;color:var(--muted);max-width:480px;margin:0 auto">O Recarregue não muda quantas colheres você tem — mas te ajuda a usá-las com mais consciência.</p>
+    <p style="font-size:14px;color:var(--muted);max-width:480px;margin:0 auto">O Recarregue não muda quantas colheres você tem, mas te ajuda a usá-las com mais consciência.</p>
   </div>
 </section>
 
@@ -693,24 +693,24 @@ footer strong{color:rgba(255,255,255,.85);font-size:16px;}
     <h2 class="sr" style="transition-delay:.08s">Tudo que você precisa.<br>Nada que você não quer.</h2>
     <div class="features-grid sr-group">
       <div class="feature-card">
-        <div class="feature-ico" style="background:rgba(124,58,237,.1)">📊</div>
+        <div class="feature-ico" style="background:rgba(121,6,255,.1)">📊</div>
         <div class="feature-title">Check-in 3x ao dia</div>
-        <div class="feature-desc">Energia, humor, sensibilidade sensorial e bateria social — manhã, tarde e noite. Leva 30 segundos.</div>
+        <div class="feature-desc">Energia, humor, sensibilidade sensorial e bateria social, manhã, tarde e noite. Leva 30 segundos.</div>
       </div>
       <div class="feature-card">
         <div class="feature-ico" style="background:rgba(220,38,38,.08)">➕</div>
         <div class="feature-title">Registre o que gasta e o que recarrega</div>
-        <div class="feature-desc">Reuniões, gatilhos, descanso, tempo sozinha — cada evento vai para o seu saldo de colheres em tempo real.</div>
+        <div class="feature-desc">Reuniões, gatilhos, descanso, tempo sozinha: cada evento vai para o seu saldo de colheres em tempo real.</div>
       </div>
       <div class="feature-card">
         <div class="feature-ico" style="background:rgba(217,119,6,.08)">📈</div>
         <div class="feature-title">Veja seus padrões ao longo do tempo</div>
-        <div class="feature-desc">Heatmap de energia, gráficos por período e relatório semanal — para você entender (e explicar) o que acontece.</div>
+        <div class="feature-desc">Heatmap de energia, gráficos por período e relatório semanal, para você entender (e explicar) o que acontece.</div>
       </div>
       <div class="feature-card">
         <div class="feature-ico" style="background:rgba(220,38,38,.1)">⚠️</div>
         <div class="feature-title">Módulo SOS para crises</div>
-        <div class="feature-desc">Respiração box 4-4-4-4, grounding 5-4-3-2-1, Pomodoro adaptado e afirmações — tudo num toque.</div>
+        <div class="feature-desc">Respiração box 4-4-4-4, grounding 5-4-3-2-1, Pomodoro adaptado e afirmações, tudo num toque.</div>
       </div>
       <div class="feature-card">
         <div class="feature-ico" style="background:rgba(5,150,105,.08)">🌿</div>
@@ -718,7 +718,7 @@ footer strong{color:rgba(255,255,255,.85);font-size:16px;}
         <div class="feature-desc">Quando a energia estiver baixa, o app sugere atividades de descanso adaptadas ao que você tem condição de fazer.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-ico" style="background:rgba(124,58,237,.1)">🎯</div>
+        <div class="feature-ico" style="background:rgba(121,6,255,.1)">🎯</div>
         <div class="feature-title">Gatilhos personalizados</div>
         <div class="feature-desc">Algo que não está na lista? Crie seus próprios gatilhos, descreva a sensação e registre o impacto.</div>
       </div>
@@ -778,13 +778,17 @@ footer strong{color:rgba(255,255,255,.85);font-size:16px;}
   <div class="container" style="text-align:center">
     <div class="section-label sr" style="justify-content:center">👋 Para quem é</div>
     <h2 class="sr" style="transition-delay:.08s">Se você se identificou,<br>é para você.</h2>
-    <p class="section-desc sr" style="margin:0 auto;transition-delay:.16s">Diagnóstico ou não — o que importa é a experiência.</p>
+    <p class="section-desc sr" style="margin:0 auto;transition-delay:.16s">Feito para qualquer neurodivergência. Diagnóstico ou não, o que importa é a experiência.</p>
     <div class="audience-grid sr-pop">
       <div class="audience-tag hl">✦ TEA (Transtorno do Espectro Autista)</div>
       <div class="audience-tag hl">✦ TDAH</div>
       <div class="audience-tag hl">✦ TAG (Transtorno de Ansiedade Generalizada)</div>
+      <div class="audience-tag">TOC</div>
+      <div class="audience-tag">Dislexia e outras dificuldades de aprendizagem</div>
+      <div class="audience-tag">Altas habilidades / superdotação</div>
       <div class="audience-tag">Em investigação / sem diagnóstico</div>
       <div class="audience-tag">Hipersensibilidade sensorial</div>
+      <div class="audience-tag">Qualquer neurodivergência</div>
       <div class="audience-tag">Quem cansa diferente</div>
       <div class="audience-tag">Quem se reconheceu aqui</div>
     </div>
@@ -812,18 +816,26 @@ footer strong{color:rgba(255,255,255,.85);font-size:16px;}
         <div class="hint">Usado apenas para enviar seu convite. O e-mail chega em alguns minutos; se não encontrar, dá uma olhada na caixa de spam/lixo eletrônico.</div>
       </div>
       <div class="field">
-        <label>Você tem diagnóstico ou suspeita de: <span class="req">*</span></label>
+        <label>Você tem diagnóstico ou suspeita de: <span class="hint" style="font-weight:400">(opcional)</span></label>
         <div class="chips" id="chips-contexto">
           <div class="chip" data-val="tea" onclick="toggleChip(this,'contexto')">TEA</div>
           <div class="chip" data-val="tdah" onclick="toggleChip(this,'contexto')">TDAH</div>
           <div class="chip" data-val="tag" onclick="toggleChip(this,'contexto')">TAG</div>
+          <div class="chip" data-val="toc" onclick="toggleChip(this,'contexto')">TOC</div>
+          <div class="chip" data-val="dislexia" onclick="toggleChip(this,'contexto')">Dislexia</div>
+          <div class="chip" data-val="discalculia" onclick="toggleChip(this,'contexto')">Discalculia</div>
+          <div class="chip" data-val="dispraxia" onclick="toggleChip(this,'contexto')">Dispraxia (TDC)</div>
+          <div class="chip" data-val="tourette" onclick="toggleChip(this,'contexto')">Síndrome de Tourette</div>
+          <div class="chip" data-val="altas-habilidades" onclick="toggleChip(this,'contexto')">Altas habilidades / superdotação</div>
+          <div class="chip" data-val="bipolar" onclick="toggleChip(this,'contexto')">Transtorno Bipolar</div>
+          <div class="chip" data-val="outra-neurodivergencia" onclick="toggleChip(this,'contexto')">Outra neurodivergência</div>
           <div class="chip" data-val="suspeita" onclick="toggleChip(this,'contexto')">Suspeita / em investigação</div>
           <div class="chip" data-val="outro" onclick="toggleChip(this,'contexto')">Outro / prefiro não dizer</div>
         </div>
       </div>
       <div class="field">
-        <label for="motivo">Por que quer testar? <span class="req">*</span></label>
-        <textarea id="motivo" rows="3" placeholder="Pode ser curto — o que te chamou atenção no Recarregue?"></textarea>
+        <label for="motivo">Por que quer testar? <span class="hint" style="font-weight:400">(opcional)</span></label>
+        <textarea id="motivo" rows="3" placeholder="Pode ser curto, o que te chamou atenção no Recarregue?"></textarea>
       </div>
       <div class="privacy-note-inline">
         <span style="font-size:18px;flex-shrink:0">🔒</span>
@@ -879,8 +891,6 @@ async function submitForm(){
   const contexto=chipState.contexto.join(', ');
   if(!nome){showErr('Por favor, informe seu nome.');return;}
   if(!contato){showErr('Por favor, informe seu e-mail.');return;}
-  if(!contexto){showErr('Selecione ao menos uma opção de contexto.');return;}
-  if(!motivo){showErr('Conta pra gente por que quer testar! 💜');return;}
   const btn=document.getElementById('submit-btn');
   btn.disabled=true;btn.textContent='Enviando…';
   try{
