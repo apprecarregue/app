@@ -807,9 +807,9 @@ footer strong{color:rgba(255,255,255,.85);font-size:16px;}
         <input type="text" id="nome" placeholder="Como você quer ser chamado" autocomplete="name">
       </div>
       <div class="field">
-        <label for="contato">WhatsApp ou e-mail <span class="req">*</span></label>
-        <input type="text" id="contato" placeholder="Para te enviarmos o link de acesso">
-        <div class="hint">Usado apenas para enviar seu link — não receberá spam.</div>
+        <label for="contato">E-mail <span class="req">*</span></label>
+        <input type="email" id="contato" placeholder="Seu melhor e-mail - para receber o convite" autocomplete="email">
+        <div class="hint">Usado apenas para enviar seu convite. O e-mail chega em alguns minutos; se não encontrar, dá uma olhada na caixa de spam/lixo eletrônico.</div>
       </div>
       <div class="field">
         <label>Você tem diagnóstico ou suspeita de: <span class="req">*</span></label>
@@ -878,7 +878,7 @@ async function submitForm(){
   const motivo=document.getElementById('motivo').value.trim();
   const contexto=chipState.contexto.join(', ');
   if(!nome){showErr('Por favor, informe seu nome.');return;}
-  if(!contato){showErr('Por favor, informe seu WhatsApp ou e-mail.');return;}
+  if(!contato){showErr('Por favor, informe seu e-mail.');return;}
   if(!contexto){showErr('Selecione ao menos uma opção de contexto.');return;}
   if(!motivo){showErr('Conta pra gente por que quer testar! 💜');return;}
   const btn=document.getElementById('submit-btn');
