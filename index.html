@@ -11,6 +11,9 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" type="image/png" href="icon.png">
 <title>Recarregue ⚡</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -23,23 +26,25 @@
   --amber-bg:  rgba(245,158,11,.15);
   --red:       #F87171;
   --red-bg:    rgba(248,113,113,.15);
-  --r:         10px;
+  --r:         16px;
   --sh:        0 4px 24px rgba(0,0,0,.5);
 }
 
 /* ── IDENTIDADE ───────────────────────────────────────────
-   Base neutra (preto/branco), inspirada no site carlamancini.com.br.
+   Base roxo-profundo + violeta, igual à LP (apprecarregue.carlamancini.com.br)
+   e ao Instagram @recarregue.app — essa é a identidade do produto Recarregue,
+   separada da identidade pessoal (preto/teal) do site da Carla.
    A cor de destaque (--accent*) é escolhida livremente pela pessoa e
    aplicada via JS (ver applyAccentColor) — não depende de paleta fixa. */
 body {
-  --bg-d:    #000000; --card-d:  #121212; --card2-d: #1c1c1c;
-  --bg-l:    #f5f5f5; --card-l:  #ffffff; --card2-l: #e8e8e8;
-  /* fallback antes do JS aplicar a cor escolhida — teal da CM */
-  --accent:    #05D9B2;
-  --accent-lt: #14B8A6;
-  --accent-dk: #0D9488;
-  --accent-bg: rgba(5,217,178,.15);
-  --border-c:  rgba(5,217,178,.22);
+  --bg-d:    #0E0A1F; --card-d:  #1C1535; --card2-d: #251D42;
+  --bg-l:    #F5F3FF; --card-l:  #ffffff; --card2-l: #EDE9FE;
+  /* fallback antes do JS aplicar a cor escolhida — violeta da LP/Instagram */
+  --accent:    #7906FF;
+  --accent-lt: #9B4DFF;
+  --accent-dk: #5A00CC;
+  --accent-bg: rgba(121,6,255,.15);
+  --border-c:  rgba(121,6,255,.22);
 }
 
 /* ── TEMAS ────────────────────────────────────────────── */
@@ -62,7 +67,7 @@ body {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   background: var(--bg); color: var(--text);
   min-height: 100dvh; max-width: 430px; margin: 0 auto;
 }
@@ -109,17 +114,15 @@ body {
   opacity: 1;
 }
 .nav-btn.on .nav-ico {
-  background: rgba(139,92,246,.28);
+  background: var(--accent-bg);
   border-radius: 12px;
   padding: 5px 13px;
-  box-shadow: 0 0 14px rgba(139,92,246,.35);
   transform: scale(1.08);
 }
 .nav-btn.sos-btn { color: #F87171; opacity: .75; }
 .nav-btn.sos-btn.on { color: #FF6B6B; opacity: 1; }
 .nav-btn.sos-btn.on .nav-ico {
   background: rgba(248,113,113,.22);
-  box-shadow: 0 0 14px rgba(248,113,113,.3);
 }
 .nav-ico { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
 .nav-ico svg { display: block; }
@@ -267,7 +270,7 @@ body {
 .type-hdr { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; padding: 4px 2px 8px; }
 .cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
 .cat-btn {
-  border: 1.5px solid var(--border); background: var(--card2); border-radius: 8px;
+  border: 1.5px solid var(--border); background: var(--card2); border-radius: 12px;
   padding: 11px 10px; cursor: pointer; text-align: left;
   display: flex; flex-direction: column; gap: 4px; position: relative;
   transition: border-color .15s, background .15s, transform .1s; font-family: inherit;
@@ -307,7 +310,7 @@ body {
 .note:focus { border-color: var(--purple); }
 
 /* BUTTONS */
-.btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; transition: opacity .15s, transform .1s; }
+.btn { width: 100%; padding: 15px; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; transition: opacity .15s, transform .1s; }
 .btn:active { transform: scale(.98); }
 .btn:disabled { opacity: .3; cursor: not-allowed; transform: none; }
 .btn-p { background: linear-gradient(135deg, var(--purple-dk), var(--purple-lt)); color: #fff; }
@@ -438,7 +441,7 @@ input.accent-picker::-moz-color-swatch { border: none; border-radius: 50%; }
 /* HUMOR GRID — 3 colunas para 6 itens */
 .humor-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
 .humor-btn {
-  border: 1.5px solid var(--border); background: var(--card2); border-radius: 8px;
+  border: 1.5px solid var(--border); background: var(--card2); border-radius: 12px;
   padding: 10px 6px; cursor: pointer; text-align: center; font-family: inherit;
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   transition: all .15s;
@@ -962,7 +965,7 @@ const REST_ACTIVITIES = [
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 
-let db = {entries:[], checkins:[], diary:[], sintomas:{lista:[...SINTOMAS_DEFAULT], registros:[]}, settings:{dailyPts:12, alertAt:3, notifEnabled:false, name:'', theme:'dark', accentColor:'#05D9B2', pronoun:null, age:null, diaryCloudBackup:false}};
+let db = {entries:[], checkins:[], diary:[], sintomas:{lista:[...SINTOMAS_DEFAULT], registros:[]}, settings:{dailyPts:12, alertAt:3, notifEnabled:false, name:'', theme:'dark', accentColor:'#7906FF', pronoun:null, age:null, diaryCloudBackup:false}};
 let screen = 'home';
 let _pendingUpdate = false;
 let _backupDoneForUpdate = false;
@@ -1533,7 +1536,7 @@ function hslToHex(h,s,l){
   return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
 }
 function applyAccentColor(hex){
-  if(!/^#[0-9a-fA-F]{6}$/.test(hex))hex='#05D9B2';
+  if(!/^#[0-9a-fA-F]{6}$/.test(hex))hex='#7906FF';
   const[h,s]=hexToHsl(hex);
   // saturação/luminosidade fixas em --accent-lt/--accent-dk (usadas como TEXTO em fundo
   // claro e escuro): preservam o tom escolhido, mas nunca ficam claras/escuras demais
@@ -1553,8 +1556,8 @@ function setAccentColor(hex){db.settings.accentColor=hex;save();applyAccentColor
 function applyTheme(){
   const t=db.settings.theme||'dark';
   document.body.setAttribute('data-theme', t);
-  applyAccentColor(db.settings.accentColor||'#05D9B2');
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t==='light'?'#f5f5f5':'#000000');
+  applyAccentColor(db.settings.accentColor||'#7906FF');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t==='light'?'#F5F3FF':'#0E0A1F');
 }
 function load() {
   try {
@@ -3620,7 +3623,7 @@ function sosHTML(){
 function settingsHTML(){
   const{dailyPts,alertAt,name,theme}=db.settings;
   const notifState=('Notification' in window)?Notification.permission:'unsupported';
-  const accentColor=db.settings.accentColor||'#05D9B2';
+  const accentColor=db.settings.accentColor||'#7906FF';
 
   return `
     <div class="card">
@@ -3659,7 +3662,7 @@ function settingsHTML(){
         <div style="display:flex;align-items:center;gap:14px">
           <input type="color" class="accent-picker" value="${accentColor}" onchange="setAccentColor(this.value)">
           <div style="display:flex;gap:7px;flex-wrap:wrap">
-            ${['#05D9B2','#8B5CF6','#3B82F6','#F472B6','#F59E0B','#EF4444'].map(c=>`<button onclick="setAccentColor('${c}')" style="width:24px;height:24px;border-radius:50%;background:${c};border:2px solid ${accentColor.toLowerCase()===c.toLowerCase()?'var(--text)':'transparent'};cursor:pointer"></button>`).join('')}
+            ${['#7906FF','#05D9B2','#3B82F6','#F472B6','#F59E0B','#EF4444'].map(c=>`<button onclick="setAccentColor('${c}')" style="width:24px;height:24px;border-radius:50%;background:${c};border:2px solid ${accentColor.toLowerCase()===c.toLowerCase()?'var(--text)':'transparent'};cursor:pointer"></button>`).join('')}
           </div>
         </div>
         <div style="font-size:11px;color:var(--muted)">Toque no círculo grande pra escolher qualquer cor que você quiser</div>
@@ -4547,9 +4550,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.9.3 disponível!</strong>
-        Corrige o banner de atualização voltando a pedir de novo depois de já ter atualizado.
-      </div>
+        <strong>✨ Versão 2.10.0 disponível!</strong>
+        Nova identidade visual: agora o app segue o roxo/violeta da nossa LP e do Instagram — mais arredondado, mais nosso.</div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
         ? `<button class="update-banner-btn" onclick="dismissUpdate()">✅ Atualizar agora</button>`
@@ -4568,7 +4570,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.9.3';
+const APP_VERSION = '2.10.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
