@@ -146,14 +146,16 @@ section{padding:clamp(72px,10vw,136px) 0;position:relative;}
 h2{font-size:clamp(32px,4.8vw,60px);font-weight:700;line-height:1.06;letter-spacing:-.03em;color:var(--ink);}
 .lead{font-size:clamp(17px,1.6vw,19px);color:var(--ink2);line-height:1.7;max-width:540px;margin-top:22px;}
 .split{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:clamp(32px,7vw,104px);align-items:start;}
-.sticky{position:sticky;top:104px;}
+.split-problem{align-items:stretch;}
+.side{display:flex;flex-direction:column;}
+.side .pilly-problem{margin-top:auto;}
 
 .pains{list-style:none;border-top:1px solid var(--line2);}
 .pain{display:grid;grid-template-columns:44px 1fr;gap:18px;padding:30px 0;border-bottom:1px solid var(--line);}
 .pain svg{width:28px;height:28px;stroke:var(--violet);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;margin-top:2px;}
 .pain h3{font-size:clamp(20px,2.2vw,26px);font-weight:600;line-height:1.25;letter-spacing:-.015em;color:var(--ink);margin-bottom:10px;}
 .pain p{font-size:16px;color:var(--muted);line-height:1.7;max-width:520px;}
-.pilly-problem{position:static;width:min(340px,80%);margin:20px 0 0 -30px;}
+.pilly-problem{position:static;width:min(340px,80%);margin:32px 0 0 -30px;}
 
 /* colheres */
 .spoons{background:var(--violet);color:#fff;overflow:hidden;}
@@ -364,7 +366,6 @@ footer .heart{width:14px;height:14px;fill:var(--violet-lt);vertical-align:-1px;}
   .float-week{right:-2%;bottom:auto;top:330px;width:150px;}
   .float-sos{right:-2%;top:70px;width:128px;}
   .split,.form-grid{grid-template-columns:1fr;}
-  .sticky{position:static;}
   .bento{grid-template-columns:1fr 1fr;}
   .t-checkin,.t-reg,.t-trig{grid-column:span 2;grid-row:auto;}
   .t-pat,.t-sos,.t-rec{grid-column:span 1;}
@@ -494,8 +495,8 @@ footer .heart{width:14px;height:14px;fill:var(--violet-lt);vertical-align:-1px;}
 
 <!-- PROBLEMA -->
 <section id="problema">
-  <div class="wrap split">
-    <div class="sticky">
+  <div class="wrap split split-problem">
+    <div class="side">
       <h2 class="sr">Quando cansa demais sem <em class="it">motivo aparente.</em></h2>
       <p class="lead sr">Não é frescura, não é falta de esforço. Seu sistema nervoso processa o mundo de um jeito diferente, e isso tem um custo real.</p>
       <img class="pilly pilly-problem sr" src="img/pilly-cansada.webp" width="547" height="680" alt="Pilly cansada, arrastando uma colher cinza" loading="lazy">
@@ -803,15 +804,6 @@ const SUPABASE_URL  = 'https://zlldecmwobbkfnjfbjew.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsbGRlY213b2Jia2ZuamZiamV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTQ3MjEsImV4cCI6MjA5ODA3MDcyMX0.V1Uj8MzLYO-AHfs6wxu5qWd-Lp7QvdbQYty2dqZfDt0';
 const TABLE = 'interested_testers';
 const chipState = {contexto:[]};
-const UTM = (()=>{
-  const keys=['utm_source','utm_medium','utm_campaign'];
-  let saved={};
-  try{saved=JSON.parse(sessionStorage.getItem('utm')||'{}');}catch(_){}
-  const q=new URLSearchParams(location.search);
-  keys.forEach(k=>{const v=(q.get(k)||'').trim().slice(0,60);if(v&&!saved[k])saved[k]=v;});
-  try{sessionStorage.setItem('utm',JSON.stringify(saved));}catch(_){}
-  return saved;
-})();
 function toggleChip(el,group){
   const val=el.dataset.val,idx=chipState[group].indexOf(val);
   if(idx>=0){chipState[group].splice(idx,1);el.classList.remove('sel');}
@@ -833,7 +825,7 @@ async function submitForm(){
     const res=await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`,{
       method:'POST',
       headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`,'Prefer':'return=minimal'},
-      body:JSON.stringify({nome,contato,contexto,motivo,...UTM})
+      body:JSON.stringify({nome,contato,contexto,motivo})
     });
     if(!res.ok)throw new Error();
     document.getElementById('form-inner').style.display='none';
