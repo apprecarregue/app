@@ -71,7 +71,7 @@ nav{
 .btn-ghost:hover{color:var(--violet);text-decoration-color:var(--violet);}
 
 /* ── HERO ── */
-.hero{position:relative;min-height:100svh;padding-top:64px;overflow:hidden;display:flex;align-items:center;}
+.hero{position:relative;min-height:100svh;padding-top:64px;padding-bottom:48px;overflow:hidden;display:flex;align-items:center;}
 .squiggle{position:absolute;left:0;right:0;bottom:6%;width:100%;height:42%;z-index:0;pointer-events:none;opacity:.55;}
 .squiggle path{fill:none;stroke:var(--violet);stroke-width:15;stroke-linecap:round;stroke-linejoin:round;}
 .hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:clamp(24px,5vw,72px);align-items:center;width:100%;padding-top:48px;}
@@ -82,11 +82,11 @@ nav{
 .hero-note{margin-top:22px;font-size:14px;color:var(--muted);max-width:480px;display:flex;flex-direction:column;gap:6px;}
 .hero-note b{color:var(--ink);font-weight:700;}
 
-.stage{position:relative;height:min(660px,80svh);display:flex;justify-content:center;align-items:flex-start;margin-bottom:-120px;}
+.stage{position:relative;height:min(660px,80svh);display:flex;justify-content:center;align-items:flex-start;margin-bottom:0;}
 .stage::before{content:'';position:absolute;left:50%;top:7%;width:min(420px,84%);height:88%;border-radius:44px;transform:translateX(-46%) rotate(5deg);background:var(--violet);}
 .phone{position:relative;z-index:2;width:clamp(240px,23vw,300px);background:#14141a;border-radius:36px;padding:7px;border:1px solid #34343f;box-shadow:0 36px 70px rgba(0,0,0,.45),0 10px 22px rgba(0,0,0,.35);transform:rotate(-2deg);}
 .pilly{position:absolute;z-index:3;pointer-events:none;height:auto;display:block;}
-.pilly-hero{left:-9%;bottom:30px;width:min(300px,64%);}
+.pilly-hero{left:-12%;bottom:0;width:min(340px,72%);}
 .phone-inner{background:#0e0a1f;border-radius:30px;overflow:hidden;height:600px;display:flex;flex-direction:column;}
 .phone-notch{height:26px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .phone-notch i{width:70px;height:7px;border-radius:99px;background:#000;}
@@ -153,7 +153,7 @@ h2{font-size:clamp(32px,4.8vw,60px);font-weight:700;line-height:1.06;letter-spac
 .pain svg{width:28px;height:28px;stroke:var(--violet);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;margin-top:2px;}
 .pain h3{font-size:clamp(20px,2.2vw,26px);font-weight:600;line-height:1.25;letter-spacing:-.015em;color:var(--ink);margin-bottom:10px;}
 .pain p{font-size:16px;color:var(--muted);line-height:1.7;max-width:520px;}
-.pilly-problem{position:static;width:min(300px,72%);margin:28px 0 0 -24px;}
+.pilly-problem{position:static;width:min(340px,80%);margin:20px 0 0 -30px;}
 
 /* colheres */
 .spoons{background:var(--violet);color:#fff;overflow:hidden;}
@@ -265,14 +265,14 @@ h2{font-size:clamp(32px,4.8vw,60px);font-weight:700;line-height:1.06;letter-spac
 .tag:hover{border-color:var(--violet);color:var(--violet);}
 .tag.hl{background:var(--violet);border-color:var(--violet);color:#fff;}
 .tag.hl:hover{background:var(--royal);border-color:var(--royal);color:#fff;}
-.pilly-aud{position:static;width:min(300px,70%);margin:24px 0 0 -18px;}
+.pilly-aud{position:static;width:min(400px,92%);margin:12px 0 0 -30px;}
 
 /* form */
 .form-sec{padding:clamp(72px,10vw,128px) 0;}
 .form-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:clamp(32px,6vw,88px);align-items:start;}
 .form-fine{margin-top:26px;font-size:14px;color:var(--muted);max-width:420px;line-height:1.6;}
 .form-fine button{background:none;border:none;font:inherit;font-weight:700;color:var(--royal);text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:0;}
-.pilly-form{position:static;width:min(240px,60%);margin:18px 0 0 -10px;}
+.pilly-form{position:static;width:min(270px,64%);margin:14px 0 0 -14px;}
 .form-wrap{background:#fff;color:var(--ink);border-radius:28px;padding:clamp(24px,4vw,44px);border:1px solid var(--line);box-shadow:0 30px 60px rgba(90,0,204,.18),0 8px 16px rgba(90,0,204,.1);}
 .field{margin-bottom:20px;}
 label{display:block;font-size:14px;font-weight:600;color:var(--ink);margin-bottom:8px;}
@@ -358,9 +358,9 @@ footer .heart{width:14px;height:14px;fill:var(--violet-lt);vertical-align:-1px;}
 @media(max-width:900px){
   .hero{min-height:0;display:block;}
   .hero-grid{grid-template-columns:1fr;padding-top:36px;gap:20px;}
-  .stage{height:540px;margin-bottom:0;}
+  .stage{height:600px;margin-bottom:0;}
   .phone-inner{height:560px;}
-  .pilly-hero{left:-2%;bottom:60px;width:min(230px,52%);}
+  .pilly-hero{left:-4%;bottom:10px;width:min(260px,60%);}
   .float-week{right:-2%;bottom:auto;top:330px;width:150px;}
   .float-sos{right:-2%;top:70px;width:128px;}
   .split,.form-grid{grid-template-columns:1fr;}
@@ -380,7 +380,7 @@ footer .heart{width:14px;height:14px;fill:var(--violet-lt);vertical-align:-1px;}
   .spoon-grid{gap:6px;}
   .demo-top{flex-direction:column;align-items:flex-start;}
   .demo-status{text-align:left;max-width:none;min-height:0;}
-  .stage{height:480px;}
+  .stage{height:590px;}
   .float-week{display:none;}
   .cta-group .btn-primary{width:100%;justify-content:center;}
 }
@@ -428,7 +428,7 @@ footer .heart{width:14px;height:14px;fill:var(--violet-lt);vertical-align:-1px;}
     </div>
 
     <div class="stage">
-      <img class="pilly pilly-hero" src="img/pilly-acena.webp" width="458" height="640" alt="Pilly, a mascote do Recarregue, acenando com uma colher na mão" fetchpriority="high">
+      <img class="pilly pilly-hero" src="img/pilly-acena.webp" width="500" height="680" alt="Pilly, a mascote do Recarregue, acenando com uma colher na mão" fetchpriority="high">
       <div class="phone" id="phone" aria-hidden="true">
         <div class="phone-inner">
           <div class="phone-notch"><i></i></div>
@@ -498,7 +498,7 @@ footer .heart{width:14px;height:14px;fill:var(--violet-lt);vertical-align:-1px;}
     <div class="sticky">
       <h2 class="sr">Quando cansa demais sem <em class="it">motivo aparente.</em></h2>
       <p class="lead sr">Não é frescura, não é falta de esforço. Seu sistema nervoso processa o mundo de um jeito diferente, e isso tem um custo real.</p>
-      <img class="pilly pilly-problem sr" src="img/pilly-cansada.webp" width="511" height="640" alt="Pilly cansada, arrastando uma colher cinza" loading="lazy">
+      <img class="pilly pilly-problem sr" src="img/pilly-cansada.webp" width="567" height="680" alt="Pilly cansada, arrastando uma colher cinza" loading="lazy">
     </div>
     <ol class="pains sr-group">
       <li class="pain">
@@ -665,7 +665,7 @@ footer .heart{width:14px;height:14px;fill:var(--violet-lt);vertical-align:-1px;}
     <div>
       <h2 class="sr">Se você se identificou, <em class="it">é para você.</em></h2>
       <p class="lead sr">Feito para qualquer neurodivergência. Diagnóstico ou não, o que importa é a experiência.</p>
-      <img class="pilly pilly-aud sr" src="img/pilly-sentada.webp" width="487" height="640" alt="Pilly sentada, pensativa, com uma colher no colo" loading="lazy">
+      <img class="pilly pilly-aud sr" src="img/pilly-sentada.webp" width="683" height="680" alt="Pilly sentada, pensativa, com uma colher no colo" loading="lazy">
     </div>
     <div class="tags sr-pop">
       <span class="tag hl">TEA (Transtorno do Espectro Autista)</span>
@@ -690,7 +690,7 @@ footer .heart{width:14px;height:14px;fill:var(--violet-lt);vertical-align:-1px;}
       <h2>Quero testar o <em class="it">Recarregue</em></h2>
       <p class="lead">Beta fechado · vagas limitadas · <strong>webapp para Android e iOS, em testes e sujeito a falhas</strong>. Preencha o formulário e entraremos em contato quando sua vaga estiver disponível.</p>
       <p class="form-fine">Usamos seu nome e e-mail só para enviar o convite. Você pode pedir remoção a qualquer momento. <button type="button" onclick="openPolicy()">Política de Privacidade</button></p>
-      <img class="pilly pilly-form" src="img/pilly-aponta.webp" width="348" height="640" alt="Pilly apontando para cima, animada" loading="lazy">
+      <img class="pilly pilly-form" src="img/pilly-aponta.webp" width="397" height="680" alt="Pilly apontando para cima, animada" loading="lazy">
     </div>
     <div class="form-wrap">
       <div id="form-inner">
