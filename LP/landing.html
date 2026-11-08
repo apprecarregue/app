@@ -803,6 +803,15 @@ const SUPABASE_URL  = 'https://zlldecmwobbkfnjfbjew.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsbGRlY213b2Jia2ZuamZiamV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0OTQ3MjEsImV4cCI6MjA5ODA3MDcyMX0.V1Uj8MzLYO-AHfs6wxu5qWd-Lp7QvdbQYty2dqZfDt0';
 const TABLE = 'interested_testers';
 const chipState = {contexto:[]};
+const UTM = (()=>{
+  const keys=['utm_source','utm_medium','utm_campaign'];
+  let saved={};
+  try{saved=JSON.parse(sessionStorage.getItem('utm')||'{}');}catch(_){}
+  const q=new URLSearchParams(location.search);
+  keys.forEach(k=>{const v=(q.get(k)||'').trim().slice(0,60);if(v&&!saved[k])saved[k]=v;});
+  try{sessionStorage.setItem('utm',JSON.stringify(saved));}catch(_){}
+  return saved;
+})();
 function toggleChip(el,group){
   const val=el.dataset.val,idx=chipState[group].indexOf(val);
   if(idx>=0){chipState[group].splice(idx,1);el.classList.remove('sel');}
@@ -824,7 +833,7 @@ async function submitForm(){
     const res=await fetch(`${SUPABASE_URL}/rest/v1/${TABLE}`,{
       method:'POST',
       headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON,'Authorization':`Bearer ${SUPABASE_ANON}`,'Prefer':'return=minimal'},
-      body:JSON.stringify({nome,contato,contexto,motivo})
+      body:JSON.stringify({nome,contato,contexto,motivo,...UTM})
     });
     if(!res.ok)throw new Error();
     document.getElementById('form-inner').style.display='none';
