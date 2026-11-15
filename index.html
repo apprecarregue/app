@@ -2321,126 +2321,168 @@ function getRestoreCode(){
   return code;
 }
 
-function exportPDF(){
-  const report=buildReportText();
-  const name=esc(db.settings.name||g('Usuária','Usuário','Usuáriu'));
-  const date=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  const d7=new Date();d7.setDate(d7.getDate()-7);
+const stripEmoji=t=>String(t).replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu,'').replace(/^\s+/,'').replace(/\s{2,}/g,' ').replace(/\s+([.,;])/g,'$1');
+function buildPdfHTML(autoPrint){
+  const keys=lastDayKeys(mapaRange), keySet=new Set(keys);
+  const entries=db.entries.filter(e=>keySet.has(e.date));
+  const cis=db.checkins.filter(c=>keySet.has(c.date));
+  const name=esc(db.settings.name||'');
+  const dShort=k=>new Date(k+'T12:00:00').toLocaleDateString('pt-BR',{day:'numeric',month:'short'}).replace('.','');
+  const period=`${dShort(keys[0])} a ${dShort(keys[keys.length-1])} de ${new Date().getFullYear()} (${mapaRange} dias)`;
+  const today=new Date().toLocaleDateString('pt-BR',{day:'numeric',month:'long',year:'numeric'});
+  const num=v=>String(Math.round(v*10)/10).replace('.',',');
+  const bar=(pct,cls='')=>`<span class="bar"><span class="fill ${cls}" style="width:${Math.max(0,Math.min(100,pct))}%"></span></span>`;
+  const sec=(t,body)=>body?`<section><h2>${t}</h2>${body}</section>`:'';
 
-  // Insights HTML
-  const insightsHTML=buildInsights().map(i=>`<div class="insight-item">${i}</div>`).join('');
+  // números principais
+  const avgE=avgOf(cis.map(c=>c.energy));
+  const careN=new Set(cis.map(c=>c.date)).size;
+  const hardN=(db.hardDays||[]).filter(d=>keySet.has(d)).length;
+  const kpi=(v,l)=>`<div class="kpi"><div class="kpi-val">${v}</div><div class="kpi-lbl">${l}</div></div>`;
 
-  // Top drenos
-  const byId={};
-  db.entries.filter(e=>new Date(e.date)>=d7&&e.categoryId!=='_custom_trigger').forEach(e=>{
-    const c=cat(e.categoryId);if(c&&c.type!=='recuperacao'){
-      if(!byId[e.categoryId])byId[e.categoryId]={count:0,pts:0};
-      byId[e.categoryId].count++;byId[e.categoryId].pts+=Math.abs(entryCost(e));
-    }
-  });
-  const topDrains=Object.entries(byId).filter(([id])=>cat(id)).sort((a,b)=>b[1].pts-a[1].pts).slice(0,5);
+  // resumo comparado com o período anterior
+  const load=ks=>{const w=ks.filter(k=>db.entries.some(e=>e.date===k));return w.length?avgOf(w.map(dayLoad)):null;};
+  const cur=load(keys), prev=load(lastDayKeys(mapaRange,mapaRange));
+  const headline=cur===null?'':prev===null?`Gasto médio de ${num(cur)} colheres por dia com registro.`
+    :`Gasto médio de ${num(cur)} colheres por dia com registro, ${cur<prev*.9?'menor que':cur>prev*1.1?'maior que':'parecido com'} o do período anterior (${num(prev)}).`;
 
-  // Energia por período
-  const recentCi=db.checkins.filter(c=>new Date(c.date)>=d7);
-  const enByPeriod={manha:[],tarde:[],noite:[]};
-  recentCi.forEach(c=>{if(enByPeriod[c.period])enByPeriod[c.period].push(c.energy);});
-  const periodRows=['manha','tarde','noite'].filter(p=>enByPeriod[p].length>0).map(p=>{
-    const avg=(enByPeriod[p].reduce((s,v)=>s+v,0)/enByPeriod[p].length).toFixed(1);
-    const pct=Math.round(+avg*10);
-    return `<tr><td>${PERIODS[p].icon} ${PERIODS[p].label}</td><td><div class="bar-wrap"><div class="bar-fill" style="width:${pct}%"></div></div></td><td><strong>${avg}/10</strong></td></tr>`;
-  }).join('');
+  // drenos e recargas
+  const drainBy={}, recBy={};
+  entries.forEach(e=>{const c=cat(e.categoryId);if(!c)return;const t=c.type==='recuperacao'?recBy:drainBy;(t[c.id]=t[c.id]||{n:0,pts:0});t[c.id].n++;t[c.id].pts+=Math.abs(entryCost(e));});
+  const rows=(by,n,cls)=>{const top=Object.entries(by).sort((a,b)=>b[1].pts-a[1].pts).slice(0,n);const max=top[0]?.[1].pts||1;
+    return top.map(([id,d])=>`<tr><td>${esc(catLabel(cat(id)))}</td><td class="n">${d.n}×</td><td>${bar(d.pts/max*100,cls)}</td><td class="n"><b>${num(d.pts)}</b> pts</td></tr>`).join('');};
+  const drainRows=rows(drainBy,5,''), recRows=rows(recBy,4,'green');
+  const fx=rechargeEffects().map(x=>{const v=num(x.avg);return `<li>Depois de <b>${esc(catLabel(cat(x.id)).toLowerCase())}</b>, a energia costuma subir ${v} ${v==='1'?'ponto':'pontos'} (visto ${x.n} vezes).</li>`;}).join('');
+  const out=entries.filter(e=>!eIsRec(e)).reduce((t,e)=>t+Math.abs(entryCost(e)),0), back=entries.filter(eIsRec).reduce((t,e)=>t+Math.abs(entryCost(e)),0);
 
-  // Energia por dia da semana
-  const dow=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-  const enByDow={};
-  recentCi.forEach(c=>{const d=dow[new Date(c.date+'T12:00').getDay()];if(!enByDow[d])enByDow[d]=[];enByDow[d].push(c.energy);});
-  const dowRows=Object.entries(enByDow).map(([d,arr])=>{
-    const avg=(arr.reduce((s,v)=>s+v,0)/arr.length).toFixed(1);
-    const pct=Math.round(+avg*10);
-    return `<tr><td>${d}</td><td><div class="bar-wrap"><div class="bar-fill" style="width:${pct}%"></div></div></td><td><strong>${avg}/10</strong></td></tr>`;
-  }).sort((a,b)=>0).join('');
+  // energia por período e por dia da semana
+  const perRows=Object.keys(PERIODS).map(p=>{const a=avgOf(cis.filter(c=>c.period===p).map(c=>c.energy));return a===null?'':`<tr><td>${PERIODS[p].label}</td><td>${bar(a*10)}</td><td class="n"><b>${num(a)}</b>/10</td></tr>`;}).join('');
+  const dowNames=['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
+  const dowRows=dowNames.map((d,i)=>{const a=avgOf(cis.filter(c=>(new Date(c.date+'T12:00:00').getDay()+6)%7===i).map(c=>c.energy));return a===null?'':`<tr><td>${d}</td><td>${bar(a*10)}</td><td class="n"><b>${num(a)}</b>/10</td></tr>`;}).join('');
 
-  // Top sintomas
-  const sinFreq={};
-  (db.sintomas?.registros||[]).filter(r=>new Date(r.date)>=d7).forEach(r=>{sinFreq[r.sintomaId]=(sinFreq[r.sintomaId]||0)+1;});
+  // sentidos e bateria social
+  const sensRows=SENSORIAL_ITEMS.map(x=>{const v=cis.map(c=>c.sensorial?.[x.id]).filter(n=>n!=null);return v.length<3?'':`<tr><td>${x.label}</td><td>${bar(avgOf(v)*20)}</td><td class="n"><b>${num(avgOf(v))}</b>/5</td></tr>`;}).join('');
+  const batRows=Object.keys(PERIODS).map(p=>{const v=cis.filter(c=>c.period===p&&c.socialBattery!=null).map(c=>c.socialBattery);return v.length<2?'':`<tr><td>${PERIODS[p].label}</td><td>${bar(avgOf(v)*10)}</td><td class="n"><b>${num(avgOf(v))}</b>/10</td></tr>`;}).join('');
+
+  // horários
+  const blocks=[[0,6],[6,9],[9,12],[12,15],[15,18],[18,21],[21,24]];
+  const dr=entries.filter(e=>e.createdAt&&!eIsRec(e));
+  const sums=blocks.map(([a,b])=>dr.filter(e=>{const h=new Date(e.createdAt).getHours();return h>=a&&h<b;}).reduce((t,e)=>t+Math.abs(entryCost(e)),0));
+  const topB=sums.indexOf(Math.max(...sums));
+  const hoursTxt=dr.length>=5?`<p>Os registros que drenam se concentram entre <b>${blocks[topB][0]}h e ${blocks[topB][1]}h</b> (horário em que o registro foi feito).</p>`:'';
+
+  // sintomas
+  const sinFreq={}; (db.sintomas?.registros||[]).filter(r=>keySet.has(r.date)).forEach(r=>{sinFreq[r.sintomaId]=(sinFreq[r.sintomaId]||0)+1;});
   const lista=db.sintomas?.lista||SINTOMAS_DEFAULT;
-  const topSinHTML=Object.entries(sinFreq).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([id,c])=>{
-    const s=lista.find(x=>x.id===id);
-    return s?`<span class="chip">${esc(s.icon)} ${esc(s.label)} <strong>${c}×</strong></span>`:'';
-  }).join('');
+  const sinChips=Object.entries(sinFreq).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([id,n])=>{const x=lista.find(q=>q.id===id);return x?`<span class="chip">${esc(x.label)} <b>${n}×</b></span>`:'';}).join('');
 
-  // Dias difíceis
-  const hardThisWeek=(db.hardDays||[]).filter(d=>new Date(d)>=d7);
-  const hardHTML=hardThisWeek.length>0
-    ?`<p class="hard-days">🔴 Dias difíceis marcados: <strong>${hardThisWeek.map(d=>new Date(d+'T12:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})).join(' · ')}</strong></p>`
-    :'<p style="color:#6b5fa0;font-size:13px">Nenhum dia difícil marcado nessa semana 💚</p>';
+  // humor
+  const humCnt={}; cis.forEach(c=>{if(c.humor)humCnt[c.humor]=(humCnt[c.humor]||0)+1;});
+  const humChips=Object.entries(humCnt).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([id,n])=>{const h=HUMORS.find(x=>x.id===id);return h?`<span class="chip">${esc(humorLabel(h))} <b>${n}×</b></span>`:'';}).join('');
 
-  // Diário: só resumo — o texto escrito nunca entra no relatório
-  const dsum=diarySummary(7);
-  const diaryPdfHTML=dsum?`<h2>📔 Diário</h2>
-    <p style="font-size:13px;color:#3d2c6b;margin:0 0 8px">${dsum.n} ${dsum.n===1?'entrada':'entradas'} em ${dsum.days} ${dsum.days===1?'dia':'dias'}.</p>
-    ${dsum.humors.length?`<div>${dsum.humors.map(h=>`<span class="chip">${h.icon} ${esc(h.label)} <strong>${h.n}×</strong></span>`).join('')}</div>`:''}
-    ${dsum.insights.map(i=>`<div class="insight-item">${i}</div>`).join('')}
-    <p style="font-size:11px;color:#9e93c0;margin-top:8px">O que foi escrito no diário fica só no app e não entra neste relatório.</p>`:'';
+  // padrões
+  const bh=beforeHardDayData();
+  const bhHTML=bh?(bh.found.length?`<ul>${bh.found.map(t=>`<li>${stripEmoji(t)}</li>`).join('')}</ul>`:'<p>Nenhum padrão claro apareceu nas vésperas.</p>')+`<p class="note">Baseado em ${bh.n} dias difíceis dos últimos 90 dias. São coincidências que se repetem, não relações de causa.</p>`:'';
+  const insights=buildInsights().map(t=>`<li>${stripEmoji(t)}</li>`).join('');
 
-  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório Recarregue — ${name}</title>
+  // diário: só resumo — o texto escrito nunca entra no relatório
+  const ds=diarySummary(mapaRange);
+  const diaryHTML=ds?`<p>${ds.n} ${ds.n===1?'entrada':'entradas'} em ${ds.days} ${ds.days===1?'dia':'dias'}.</p>
+    ${ds.humors.length?`<div>${ds.humors.map(h=>`<span class="chip">${esc(h.label)} <b>${h.n}×</b></span>`).join('')}</div>`:''}
+    ${ds.insights.length?`<ul>${ds.insights.map(t=>`<li>${stripEmoji(t)}</li>`).join('')}</ul>`:''}
+    <p class="note">O que foi escrito no diário fica só no app e não entra neste relatório.</p>`:'';
+
+  const pilly=new URL('img/pilly-acena.webp',location.href).href;
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Relatório Recarregue${name?' — '+name:''}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    *{box-sizing:border-box}
-    body{font-family:system-ui,sans-serif;color:#1a1030;max-width:720px;margin:40px auto;padding:0 24px;line-height:1.6;font-size:14px}
-    h1{color:#7C3AED;margin-bottom:2px;font-size:22px}
-    .sub{color:#6b5fa0;font-size:13px;margin-bottom:28px}
-    h2{color:#7C3AED;font-size:14px;font-weight:700;border-bottom:2px solid #e8e0ff;padding-bottom:5px;margin-top:28px;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
-    table{width:100%;border-collapse:collapse;margin-bottom:4px}
-    td{padding:5px 8px;font-size:13px}
-    .bar-wrap{background:#f0ebff;border-radius:99px;height:8px;width:120px;overflow:hidden}
-    .bar-fill{background:#7C3AED;height:100%;border-radius:99px}
-    .drain-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f0ebff;font-size:13px}
-    .drain-pts{margin-left:auto;font-size:12px;color:#7C3AED;font-weight:700}
-    .chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:99px;background:#f3f0ff;margin:3px;font-size:12px;color:#3d2c6b}
-    .chip strong{color:#7C3AED}
-    .insight-item{font-size:13px;color:#3d2c6b;padding:6px 10px;border-left:3px solid #7C3AED;margin-bottom:6px;background:#f8f6ff;border-radius:0 6px 6px 0}
-    .hard-days{font-size:13px;color:#b45309;background:#fef9ec;padding:8px 12px;border-radius:8px;border:1px solid #fde68a}
-    .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px}
-    .kpi{background:#f8f6ff;border-radius:10px;padding:10px 12px;text-align:center}
-    .kpi-val{font-size:20px;font-weight:700;color:#7C3AED}
-    .kpi-lbl{font-size:11px;color:#6b5fa0;margin-top:2px}
-    footer{margin-top:40px;font-size:11px;color:#9e93c0;border-top:1px solid #e8e0ff;padding-top:12px;text-align:center}
-    @media print{body{margin:0}h2{break-after:avoid}}
+    @page{size:A4;margin:14mm}
+    *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    body{font-family:'Space Grotesk',system-ui,sans-serif;color:#1a1030;max-width:760px;margin:24px auto;padding:0 20px;line-height:1.5;font-size:13px}
+    header{display:flex;align-items:center;gap:16px;background:#7906FF;color:#fff;border-radius:20px;padding:18px 22px;margin-bottom:16px}
+    header .brand{font-size:12px;font-weight:600;opacity:.85}
+    header h1{font-size:22px;margin:2px 0 4px;line-height:1.2}
+    header .meta{font-size:12px;opacity:.9}
+    header img{width:74px;height:auto;margin-left:auto;flex-shrink:0}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:6px}
+    .kpi{background:#F1EFFA;border-radius:14px;padding:10px 8px;text-align:center}
+    .kpi-val{font-size:20px;font-weight:700;color:#5b05c0;line-height:1.1}
+    .kpi-lbl{font-size:11px;color:#3d2c6b;margin-top:3px}
+    .lead{font-size:13px;color:#3d2c6b;margin:10px 0 0}
+    section{break-inside:avoid;margin-top:18px}
+    h2{font-size:14px;font-weight:700;color:#5b05c0;border-bottom:1.5px solid #ddd5f5;padding-bottom:4px;margin:0 0 8px}
+    .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+    .cols section{margin-top:18px}
+    table{width:100%;border-collapse:collapse}
+    td{padding:4px 6px 4px 0;font-size:12.5px;vertical-align:middle}
+    td.n{text-align:right;white-space:nowrap;color:#3d2c6b}
+    .bar{display:block;background:#ECE8F8;border-radius:99px;height:8px;min-width:70px;overflow:hidden}
+    .fill{display:block;background:#7906FF;height:100%;border-radius:99px}
+    .fill.green{background:#1f9d6b}
+    .chip{display:inline-block;padding:3px 10px;border-radius:99px;background:#F1EFFA;margin:0 4px 5px 0;font-size:12px;color:#3d2c6b}
+    ul{margin:0;padding-left:18px} li{margin-bottom:4px}
+    p{margin:0 0 6px} .note{font-size:11px;color:#6b5fa0}
+    .lines div{border-bottom:1px solid #cfc6ea;height:26px}
+    footer{margin-top:22px;font-size:10.5px;color:#6b5fa0;border-top:1px solid #ddd5f5;padding-top:8px;text-align:center}
+    @media print{body{margin:0;padding:0;max-width:none}}
   </style></head><body>
-  <h1>Relatório de Autoconhecimento</h1>
-  <div class="sub">📱 Recarregue · ${name} · ${date}</div>
+  <header>
+    <div>
+      <div class="brand">Recarregue</div>
+      <h1>Relatório de energia</h1>
+      <div class="meta">${name?name+' · ':''}${period}</div>
+    </div>
+    <img src="${pilly}" alt="">
+  </header>
 
-  <div class="kpi-grid">
-    <div class="kpi"><div class="kpi-val">${recentCi.length>0?(recentCi.reduce((s,c)=>s+c.energy,0)/recentCi.length).toFixed(1):'—'}</div><div class="kpi-lbl">Energia média /10</div></div>
-    <div class="kpi"><div class="kpi-val">${db.entries.filter(e=>new Date(e.date)>=d7).length}</div><div class="kpi-lbl">Eventos registrados</div></div>
-    <div class="kpi"><div class="kpi-val">${hardThisWeek.length}</div><div class="kpi-lbl">Dias difíceis</div></div>
+  <div class="kpis">
+    ${kpi(avgE===null?'–':num(avgE),'Energia média, de 0 a 10')}
+    ${kpi(entries.length,'Registros no período')}
+    ${kpi(careN,'Dias com check-in')}
+    ${kpi(hardN,'Dias difíceis marcados')}
+  </div>
+  ${headline?`<p class="lead">${headline}</p>`:''}
+
+  <div class="cols">
+    ${sec('O que mais drena',drainRows?`<table>${drainRows}</table>`:'')}
+    ${sec('O que mais recarrega',recRows?`<table>${recRows}</table>`:'')}
+  </div>
+  ${sec('Gasto e recarga',out+back>0?`<p>Saíram <b>${num(out)} colheres</b> e voltaram <b>${num(back)} colheres</b> no período.</p>${fx?`<ul>${fx}</ul>`:''}`:'')}
+
+  <div class="cols">
+    ${sec('Energia por período do dia',perRows?`<table>${perRows}</table>`:'')}
+    ${sec('Energia por dia da semana',dowRows?`<table>${dowRows}</table>`:'')}
+  </div>
+  <div class="cols">
+    ${sec('Sensibilidade sensorial (média)',sensRows?`<table>${sensRows}</table>`:'')}
+    ${sec('Bateria social (média)',batRows?`<table>${batRows}</table>`:'')}
   </div>
 
-  ${insightsHTML?`<h2>💡 Insights</h2>${insightsHTML}`:''}
+  ${sec('Sintomas mais frequentes',sinChips)}
+  ${sec('Humores mais registrados',humChips)}
+  ${sec('Horários',hoursTxt)}
+  ${sec('Antes de um dia difícil',bhHTML)}
+  ${sec('Observações do período',insights?`<ul>${insights}</ul>`:'')}
+  ${sec('Diário',diaryHTML)}
 
-  ${topDrains.length>0?`<h2>⚡ Principais drenos</h2>${topDrains.map(([id,d])=>{const c=cat(id);return `<div class="drain-row">${c.icon} ${c.label} <span style="color:#6b5fa0;font-size:12px">${d.count}×</span><span class="drain-pts">${d.pts.toFixed(1)} pts</span></div>`;}).join('')}`:''}
+  <section><h2>Anotações para a consulta</h2><div class="lines"><div></div><div></div><div></div><div></div><div></div></div></section>
 
-  ${periodRows?`<h2>🕐 Energia por período</h2><table>${periodRows}</table>`:''}
-
-  ${dowRows?`<h2>📅 Energia por dia da semana</h2><table>${dowRows}</table>`:''}
-
-  <h2>🔴 Dias difíceis</h2>${hardHTML}
-
-  ${topSinHTML?`<h2>🩺 Sintomas da semana</h2><div>${topSinHTML}</div>`:''}
-
-  ${diaryPdfHTML}
-
-  <h2>📄 Relatório completo</h2>
-  <pre style="background:#f8f6ff;padding:16px;border-radius:8px;white-space:pre-wrap;font-size:11px;color:#3d2c6b;border:1px solid #e0d9ff">${esc(report)}</pre>
-
-  <footer>Gerado pelo app Recarregue · Este relatório é de uso pessoal e pode ser compartilhado com profissionais de saúde.</footer>
+  <footer>Gerado pelo app Recarregue em ${today}. Relatório pessoal, feito para apoiar a conversa com profissionais de saúde. Não é um diagnóstico.</footer>
+  ${autoPrint?'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.focus();window.print();},500);};</scr'+'ipt>':''}
   </body></html>`;
-
+}
+function exportPDF(){
+  const html=buildPdfHTML(true);
   const w=window.open('','_blank');
-  if(!w){toast('Permita popups para gerar o PDF.');return;}
-  w.document.write(html);
-  w.document.close();
-  setTimeout(()=>w.print(),500);
+  if(w){w.document.write(html);w.document.close();return;}
+  // pop-up bloqueado: imprime por um quadro invisível na própria página
+  document.getElementById('pdf-frame')?.remove();
+  const f=document.createElement('iframe');
+  f.id='pdf-frame'; f.setAttribute('aria-hidden','true');
+  f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  f.srcdoc=html;
+  document.body.appendChild(f);
 }
 
 function exportJSON(){
@@ -3732,7 +3774,7 @@ function buildInsights(){
   const total=recent.length;
   const recoveries=recent.filter(e=>cat(e.categoryId)?.type==='recuperacao').length;
   const recPct=Math.round(recoveries/total*100);
-  if(recPct<20)insights.push(`💡 Só <b>${recPct}%</b> dos seus registros são recuperações. Tente equilibrar mais.`);
+  if(recPct<20)insights.push(`💡 <b>${recPct}%</b> dos seus registros são recuperações. Que tal incluir mais uma pausa nos seus dias?`);
   else if(recPct>=30)insights.push(`✨ <b>${recPct}%</b> dos registros são recuperações — você está cuidando bem de si.`);
 
   // Energia média nos checkins (últimos 7 dias)
@@ -3886,15 +3928,15 @@ function mapaBalanceHTML(recent){
 }
 
 // 5. O que costuma vir antes de um dia difícil (últimos 90 dias)
-function beforeHardDayHTML(){
+function beforeHardDayData(){
   const cut=lastDayKeys(90)[0];
   const dataDays=[...new Set(db.entries.filter(e=>e.date>=cut).map(e=>e.date))];
   const ciDays=[...new Set(db.checkins.filter(c=>c.date>=cut).map(c=>c.date))];
   const hard=[...new Set([...(db.hardDays||[]).filter(d=>d>=cut),...ciDays.filter(d=>avgOf(db.checkins.filter(c=>c.date===d).map(c=>c.energy))<=3)])];
   const eves=[...new Set(hard.map(prevDayKey))].filter(k=>dataDays.includes(k));
-  if(eves.length<3)return'';
+  if(eves.length<3)return null;
   const others=dataDays.filter(k=>!eves.includes(k));
-  if(others.length<3)return'';
+  if(others.length<3)return null;
   const recN=k=>db.entries.filter(e=>e.date===k&&eIsRec(e)).length;
   const share=(days,fn)=>days.filter(fn).length/days.length;
   const lista=db.sintomas?.lista||SINTOMAS_DEFAULT, regs=db.sintomas?.registros||[];
@@ -3910,6 +3952,11 @@ function beforeHardDayHTML(){
   const sinIds=[...new Set(regs.filter(r=>eves.includes(r.date)).map(r=>r.sintomaId))];
   const topSin=sinIds.map(id=>({id,eve:share(eves,k=>regs.some(r=>r.date===k&&r.sintomaId===id)),base:share(others,k=>regs.some(r=>r.date===k&&r.sintomaId===id))})).filter(x=>x.eve>=.5&&x.base<x.eve*.6).sort((a,b)=>b.eve-a.eve)[0];
   if(topSin){const x=lista.find(q=>q.id===topSin.id);if(x)found.push(`${x.icon} <b>${esc(x.label)}</b> costuma aparecer na véspera (${Math.round(topSin.eve*eves.length)} de ${eves.length} vezes).`);}
+  return {n:eves.length,found};
+}
+function beforeHardDayHTML(){
+  const d=beforeHardDayData(); if(!d)return'';
+  const found=d.found, eves={length:d.n};
   return `<div class="card">${mapaTitle('Antes de um dia difícil')}
     ${found.length?found.map(t=>`<div style="background:var(--stat-b-bg);color:var(--stat-b-fg);border-radius:16px;padding:10px 12px;font-size:13px;line-height:1.45;margin-bottom:8px">${t}</div>`).join('')
       :'<div style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:8px">Ainda não apareceu um padrão claro nas vésperas. Tudo bem: nem todo dia difícil tem um motivo.</div>'}
@@ -5396,7 +5443,7 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.22.0 disponível!</strong>
+        <strong>✨ Versão 2.23.0 disponível!</strong>
         Novidade: Mapa de Energia novo, com resumo do período, seus últimos 7 dias e gráficos mais claros. E ainda selos, check-in de arrastar e sintomas que enchem.</div>
       <div style="font-size:11px;font-weight:600;color:var(--warn-fg);display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -5417,7 +5464,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.22.0';
+const APP_VERSION = '2.23.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
