@@ -15,8 +15,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+/* ícones flat (Twemoji) no lugar do emoji nativo — tamanho de um caractere de texto */
+img.emoji { height: 1em; width: 1em; margin: 0 .05em 0 .1em; vertical-align: -.15em; }
 
 :root {
   /* Cores fixas */
@@ -4564,6 +4567,11 @@ function tourNext(){
   }
 }
 
+// Ícones flat/coloridos em vez do emoji nativo do aparelho (Twemoji, carregado no <head>)
+function applyFlatEmoji(el){
+  if(!el||typeof twemoji==='undefined')return;
+  try{twemoji.parse(el,{folder:'svg',ext:'.svg'});}catch(_){}
+}
 function renderOverlays(){
   const el=document.getElementById('overlays');if(!el)return;
   if(onboardingStep>0)              el.innerHTML=onboardingHTML();
@@ -4581,6 +4589,7 @@ function renderOverlays(){
   else if(sintomaEvolSheet){el.innerHTML=sintomaEvolSheetHTML();initEvolChart();}
   else if(showDiaryRegister) el.innerHTML=diaryRegisterSheetHTML();
   else el.innerHTML='';
+  applyFlatEmoji(el);
   renderTourGuide();
 }
 
@@ -4593,8 +4602,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.11.1 disponível!</strong>
-        Cards de check-in com ícone em círculo, sem borda — seguindo o novo visual da tela Hoje.</div>
+        <strong>✨ Versão 2.12.0 disponível!</strong>
+        Ícones flat e coloridos no lugar do emoji nativo do seu celular — visual mais consistente em todo o app.</div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
         ? `<button class="update-banner-btn" onclick="dismissUpdate()">✅ Atualizar agora</button>`
@@ -4606,6 +4615,7 @@ function render(){
     <nav class="bnav">
       ${(()=>{const v=getVisitedTabs();return NAV.map(n=>`<button id="nav-${n.id}" class="nav-btn ${n.cls} ${screen===n.id?'on':''}" onclick="go('${n.id}')"><span class="nav-ico" style="position:relative">${n.icon}${n.id==='settings'?`<span class="nav-config-badge" style="display:${needsBackupReminder()?'block':'none'}"></span>`:!v[n.id]?'<span class="nav-new-badge"></span>':''}</span><span>${n.label}</span></button>`).join('');})()}
     </nav>`;
+  applyFlatEmoji(document.getElementById('app'));
   renderOverlays();
   renderTourGuide();
   if(screen==='mapa')requestAnimationFrame(initCharts);
@@ -4613,7 +4623,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.11.1';
+const APP_VERSION = '2.12.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
