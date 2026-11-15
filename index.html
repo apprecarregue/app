@@ -523,6 +523,7 @@ body {
 .cal-moon { position: absolute; top: -3px; right: -3px; font-size: 10px; line-height: 1; }
 .cal-moon img.emoji { margin: 0; }
 .dial-step:disabled { opacity: .35; cursor: default; }
+textarea.soft-input { resize: none; line-height: 1.5; min-height: 52px; max-height: 220px; }
 /* SOCIAL BATTERY — arrastável */
 .bat-wrap { display: flex; align-items: center; gap: 4px; margin: 10px 0; }
 .bat-bar { position: relative; flex: 1; height: 72px; border-radius: 24px; background: var(--card2); overflow: hidden; touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
@@ -1276,7 +1277,21 @@ function diaryToggleCal(){diaryCalOpen=!diaryCalOpen;render();}
 function diaryCalShift(delta){diaryCalMonth=new Date(diaryCalMonth.getFullYear(),diaryCalMonth.getMonth()+delta,1);render();}
 function diaryYearShift(delta){diaryCalYear+=delta;render();}
 function diaryEntriesOnDay(ds){return (db.diary||[]).filter(e=>diaryDay(e)===ds).sort((a,b)=>a.ts<b.ts?-1:1);}
-function diaryOpenDay(ds){diaryDayView=diaryDayView===ds?null:ds;render();}
+function diaryOpenDay(ds){diaryDayView=diaryDayView===ds?null:ds;render();diaryScrollToDay();}
+function diaryScrollToDay(){requestAnimationFrame(()=>document.getElementById('diary-day')?.scrollIntoView({behavior:'smooth',block:'nearest'}));}
+function diaryShowDay(ds){
+  diaryDayView=ds;
+  const d=new Date(ds+'T12:00:00'); diaryCalMonth=new Date(d.getFullYear(),d.getMonth(),1);
+  render(); diaryScrollToDay();
+}
+function diaryRandomGood(){
+  const today=todayStr();
+  const pool=(db.diary||[]).filter(e=>diaryDay(e)!==today&&diaryDay(e)!==diaryDayView&&((e.humor&&!DIARY_HARD_HUMORS.includes(e.humor))||e.vitoria||e.photos?.length));
+  if(!pool.length){toast('Suas lembranças boas vão aparecer aqui 💜');return;}
+  diaryShowDay(diaryDay(pool[Math.floor(Math.random()*pool.length)]));
+}
+let diaryVictOpen=false;
+function toggleDiaryVict(){diaryVictOpen=!diaryVictOpen;render();}
 let showFeedback = false;
 let feedbackSent = false;
 let feedbackState = {tipo:'sugestao', mensagem:''};
@@ -1341,7 +1356,7 @@ function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'
 // Maiúscula só na primeira letra — diferente de text-transform:capitalize, não
 // capitaliza preposições no meio da frase ("8 de novembro", não "8 De Novembro")
 function capFirst(t){t=String(t||'');return t.charAt(0).toUpperCase()+t.slice(1);}
-function emptyDiaryDraft(){return {id:null,humor:null,sinto:'',porque:'',vitoria:'',photos:[],stickers:[]};}
+function emptyDiaryDraft(){return {id:null,humor:null,sinto:'',porque:'',vitoria:'',dia:'',photos:[],stickers:[]};}
 const STICKERS = ['🌈','☀️','🌧️','❄️','🎉','🎵','☕','🐶','🐱','🌿','💊','🛌','🏃','📚','🎮','🍕','💤','❤️','🔥','🌙'];
 let diaryDayView = null;   // 'YYYY-MM-DD' em detalhe, no calendário
 let showDiaryRegister = false;
@@ -1415,13 +1430,12 @@ function openDiary(){localStorage.setItem(DIARY_INTRO_KEY,'1');if(diaryLocked())
 function diaryPickHumor(id){
   diaryDraft.humor=diaryDraft.humor===id?null:id;
   document.querySelectorAll('.diary-humor').forEach(b=>{
-    const h=HUMORS.find(x=>x.id===b.dataset.id);
     const on=b.dataset.id===diaryDraft.humor;
-    b.classList.toggle('sel',on);
-    b.style.borderColor=on?h.color:'var(--border)';
-    b.style.background=on?hexToRgba(h.color,.16):'var(--card2)';
-    b.querySelector('.h-lbl').style.color=on?h.color:'var(--muted)';
+    b.classList.toggle('sel',on); b.setAttribute('aria-pressed',on);
+    const ico=b.querySelector('.h-ico'); ico.classList.remove('dial-pop');
+    if(on){void ico.offsetWidth;ico.classList.add('dial-pop');}
   });
+  try{navigator.vibrate?.(8);}catch(_){}
 }
 function diaryToggleSticker(s){
   diaryDraft.stickers=diaryDraft.stickers||[];
@@ -1431,29 +1445,33 @@ function diaryToggleSticker(s){
     if(diaryDraft.stickers.length>=6){toast('Até 6 adesivos por entrada 💜');return;}
     diaryDraft.stickers.push(s);
   }
-  render();
+  renderDiaryReg();
 }
 function openDiaryRegister(prefillId){
   let entry=null;
   if(prefillId) entry=(db.diary||[]).find(x=>x.id===prefillId);
   else entry=diaryEntriesOnDay(todayStr())[0]; // já tem entrada hoje? edita em vez de duplicar
-  diaryDraft=entry?{id:entry.id,humor:entry.humor||null,sinto:entry.sinto||'',porque:entry.porque||'',vitoria:entry.vitoria||'',photos:entry.photos?[...entry.photos]:[],stickers:entry.stickers?[...entry.stickers]:[]}:emptyDiaryDraft();
+  diaryDraft=entry?{id:entry.id,humor:entry.humor||null,sinto:entry.sinto||'',porque:entry.porque||'',vitoria:entry.vitoria||'',dia:entry.dia||'',photos:entry.photos?[...entry.photos]:[],stickers:entry.stickers?[...entry.stickers]:[]}:emptyDiaryDraft();
   diaryRegisterTab='humor';
   showDiaryRegister=true;
   render();
 }
 function closeDiaryRegister(){showDiaryRegister=false;diaryDraft=emptyDiaryDraft();render();}
-function setDiaryRegisterTab(t){diaryRegisterTab=t;render();}
+function setDiaryRegisterTab(t){diaryRegisterTab=t;renderDiaryReg();document.querySelector('#overlays .sheet')?.scrollTo(0,0);}
+function renderDiaryReg(){
+  const el=document.getElementById('diary-reg-body'); if(!el)return;
+  el.innerHTML=diaryRegBodyHTML(); applyFlatEmoji(el);
+}
 function saveDiary(){
-  const sinto=diaryDraft.sinto.trim(),porque=diaryDraft.porque.trim(),vitoria=diaryDraft.vitoria.trim();
-  if(!diaryDraft.humor&&!sinto&&!porque&&!vitoria&&!(diaryDraft.photos||[]).length&&!(diaryDraft.stickers||[]).length){toast('Escreva ou escolha algo primeiro 💜');return;}
+  const sinto=diaryDraft.sinto.trim(),porque=diaryDraft.porque.trim(),vitoria=diaryDraft.vitoria.trim(),dia=(diaryDraft.dia||'').trim();
+  if(!diaryDraft.humor&&!sinto&&!porque&&!vitoria&&!dia&&!(diaryDraft.photos||[]).length&&!(diaryDraft.stickers||[]).length){toast('Escreva ou escolha algo primeiro 💜');return;}
   if(!db.diary)db.diary=[];
   let saved;
   if(diaryDraft.id){
     const e=db.diary.find(x=>x.id===diaryDraft.id);
-    if(e){e.humor=diaryDraft.humor;e.sinto=sinto;e.porque=porque;e.vitoria=vitoria;e.photos=diaryDraft.photos||[];e.stickers=diaryDraft.stickers||[];e.editedAt=new Date().toISOString();saved=e;}
+    if(e){e.humor=diaryDraft.humor;e.sinto=sinto;e.porque=porque;e.vitoria=vitoria;e.dia=dia;e.photos=diaryDraft.photos||[];e.stickers=diaryDraft.stickers||[];e.editedAt=new Date().toISOString();saved=e;}
   }else{
-    saved={id:uid(),ts:new Date().toISOString(),humor:diaryDraft.humor,sinto,porque,vitoria,photos:diaryDraft.photos||[],stickers:diaryDraft.stickers||[]};
+    saved={id:uid(),ts:new Date().toISOString(),humor:diaryDraft.humor,sinto,porque,vitoria,dia,photos:diaryDraft.photos||[],stickers:diaryDraft.stickers||[]};
     db.diary.unshift(saved);
     trackEvent('diary_entry_created');
   }
@@ -1494,9 +1512,9 @@ async function diaryPickPhotos(input){
     catch(_){toast('Não consegui ler essa foto 💜');}
   }
   input.value='';
-  render();
+  renderDiaryReg();
 }
-function diaryRemovePhoto(idx){(diaryDraft.photos||[]).splice(idx,1);render();}
+function diaryRemovePhoto(idx){(diaryDraft.photos||[]).splice(idx,1);renderDiaryReg();}
 
 function setDiaryCloud(on){
   db.settings.diaryCloudBackup=!!on;save();
@@ -1506,32 +1524,23 @@ function setDiaryCloud(on){
 function diaryMonthGridHTML(){
   const y=diaryCalMonth.getFullYear(), m=diaryCalMonth.getMonth();
   const monthLabel=capFirst(diaryCalMonth.toLocaleDateString('pt-BR',{month:'long',year:'numeric'}));
-  const startOffset=new Date(y,m,1).getDay();
-  const daysInMonth=new Date(y,m+1,0).getDate();
-  const byDay=diaryByDay(db.diary||[]);
-  const todayKey=todayStr();
-  const weekHead=['D','S','T','Q','Q','S','S'].map(l=>`<div style="text-align:center;font-size:10px;color:var(--muted);font-weight:700">${l}</div>`).join('');
+  const lead=(new Date(y,m,1).getDay()+6)%7, nDays=new Date(y,m+1,0).getDate();
+  const byDay=diaryByDay(db.diary||[]), todayKey=todayStr();
   let cells='';
-  for(let i=0;i<startOffset;i++)cells+='<div></div>';
-  for(let d=1;d<=daysInMonth;d++){
+  for(let i=0;i<lead;i++)cells+='<span></span>';
+  for(let d=1;d<=nDays;d++){
     const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const info=byDay[ds];
-    const h=info&&info.humor?HUMORS.find(x=>x.id===info.humor):null;
-    const isToday=ds===todayKey;
-    const isOpen=ds===diaryDayView;
-    const clickable=!!info||isToday;
-    const bg=h?hexToRgba(h.color,.3):(info?'var(--card2)':'transparent');
-    const color=h?h.color:'var(--text2)';
-    cells+=`<div ${clickable?`onclick="diaryOpenDay('${ds}')"`:''} style="aspect-ratio:1;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;cursor:${clickable?'pointer':'default'};background:${bg};border:1.5px solid ${isOpen?'var(--purple)':isToday?'var(--accent)':'transparent'};color:${color}">${h?h.icon:d}</div>`;
+    const info=byDay[ds], h=info&&info.humor?HUMORS.find(x=>x.id===info.humor):null;
+    const clickable=!!info||ds===todayKey;
+    cells+=`<button class="cal-cell ${ds===diaryDayView?'on':''} ${ds===todayKey?'today':''}" ${clickable?'':'disabled'} aria-pressed="${ds===diaryDayView}" aria-label="Dia ${d}${h?', '+humorLabel(h).toLowerCase():info?', com anotação':''}" onclick="diaryOpenDay('${ds}')" style="background:${h?hexToRgba(h.color,.28):info?'var(--accent-bg)':'var(--card2)'};font-size:${h||info?16:12}px${clickable?'':';opacity:.55'}">${h?h.icon:info?'📝':d}</button>`;
   }
+  const nav=(d,l)=>`<button class="dial-step" style="width:36px;height:36px;font-size:18px" onclick="diaryCalShift(${d})" aria-label="${d<0?'Mês anterior':'Próximo mês'}">${l}</button>`;
   return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-    <button onclick="diaryCalShift(-1)" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px">‹</button>
-    <span style="font-size:13px;font-weight:700;color:var(--text)">${monthLabel}</span>
-    <button onclick="diaryCalShift(1)" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px">›</button>
+    ${nav(-1,'‹')}<span style="font-size:14px;font-weight:700;color:var(--text)">${monthLabel}</span>${nav(1,'›')}
   </div>
-  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">${weekHead}</div>
-  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">${cells}</div>
-  <div style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center">Toque num dia para ver ou registrar o que aconteceu</div>`;
+  <div class="cal-grid" style="margin-bottom:4px">${['seg','ter','qua','qui','sex','sáb','dom'].map(d=>`<span style="font-size:10px;font-weight:600;color:var(--muted);text-align:center">${d}</span>`).join('')}</div>
+  <div class="cal-grid">${cells}</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center">Cada dia guarda o sentimento que você escolheu. Toque para abrir.</div>`;
 }
 
 function diaryYearGridHTML(){
@@ -1583,14 +1592,14 @@ function diaryDayDetailHTML(ds){
   const es=diaryEntriesOnDay(ds);
   const dateLabel=capFirst(new Date(ds+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'}));
   const isToday=ds===todayStr();
+  const close=`<button class="sh-close" onclick="closeDiaryDayView()" aria-label="Fechar">✕</button>`;
   if(!es.length){
-    return `<div class="card" style="margin-top:14px">
+    return `<div class="card" id="diary-day">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:13px;font-weight:700;color:var(--text)">${dateLabel}</span>
-        <button onclick="closeDiaryDayView()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0;line-height:1">×</button>
+        <span style="font-size:14px;font-weight:700;color:var(--text)">${dateLabel}</span>${close}
       </div>
-      <div style="font-size:13px;color:var(--muted);text-align:center;padding:12px 0">${isToday?'Nada registrado hoje ainda. Que tal registrar seu dia?':'Nada foi registrado nesse dia.'}</div>
-      ${isToday?`<button class="btn btn-p" onclick="openDiaryRegister()">✍️ Registrar seu dia</button>`:''}
+      <div style="font-size:13px;color:var(--muted);padding:6px 0 12px">${isToday?'Nada guardado hoje ainda. Quer contar como foi?':'Nada foi guardado nesse dia.'}</div>
+      ${isToday?`<button class="btn btn-p" onclick="openDiaryRegister()">Registrar meu dia</button>`:''}
     </div>`;
   }
   const e=es[es.length-1];
@@ -1599,97 +1608,111 @@ function diaryDayDetailHTML(ds){
   const memories=diaryMemories(ds);
   const showMemories=!hard&&memories.length>0;
   const showVictoryPrompt=(hard||!h)&&!e.vitoria;
-  return `<div class="card" style="margin-top:14px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:13px;font-weight:700;color:var(--text)">${dateLabel}</span>
-      <button onclick="closeDiaryDayView()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0;line-height:1">×</button>
+  const block=(label,text)=>text?`<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:3px">${label}</div><div style="font-size:14px;line-height:1.6;color:var(--text);white-space:pre-wrap;margin-bottom:12px">${esc(text)}</div>`:'';
+  return `<div class="card" id="diary-day" style="padding:0;overflow:hidden">
+    <div style="background:${h?hexToRgba(h.color,.22):'var(--accent-bg)'};padding:16px;display:flex;align-items:center;gap:12px">
+      <span class="ico-circle res-in" style="width:56px;height:56px;font-size:30px;background:#fff">${h?h.icon:'📝'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:17px;font-weight:800;color:var(--text);line-height:1.2">${h?`Me senti ${esc(humorLabel(h).toLowerCase())}`:'Uma anotação'}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">${dateLabel}</div>
+      </div>
+      ${close}
     </div>
-    <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px">${h?`${h.icon} Me senti ${esc(humorLabel(h).toLowerCase())}`:'📔 Anotação'}</div>
-    ${e.sinto?`<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.4px;margin-bottom:3px">O QUE SENTI</div><div style="font-size:14px;line-height:1.6;color:var(--text);white-space:pre-wrap;margin-bottom:10px">${esc(e.sinto)}</div>`:''}
-    ${e.porque?`<div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.4px;margin-bottom:3px">POR QUE</div><div style="font-size:14px;line-height:1.6;color:var(--text);white-space:pre-wrap;margin-bottom:10px">${esc(e.porque)}</div>`:''}
-    ${e.stickers?.length?`<div style="font-size:24px;margin-bottom:10px">${e.stickers.join(' ')}</div>`:''}
-    ${e.photos?.length?`<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">${e.photos.map(src=>`<img src="${src}" style="width:64px;height:64px;object-fit:cover;border-radius:10px">`).join('')}</div>`:''}
-    ${e.vitoria?`<div style="background:var(--accent-bg);border-radius:10px;padding:10px 12px;margin-bottom:10px"><div style="font-size:11px;font-weight:700;color:var(--accent-lt);letter-spacing:.4px;margin-bottom:3px">🌱 PEQUENA VITÓRIA</div><div style="font-size:13px;color:var(--text)">${esc(e.vitoria)}</div></div>`:''}
-    <div style="display:flex;gap:14px;margin-bottom:${(showMemories||showVictoryPrompt)?'14':'0'}px">
-      <button onclick="editDiary('${e.id}')" style="background:none;border:none;color:var(--accent-lt);font-size:12px;cursor:pointer;padding:0;font-family:inherit">✏️ Editar</button>
-      <button onclick="deleteDiary('${e.id}')" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0;font-family:inherit">🗑️ Apagar</button>
+    <div style="padding:16px">
+      ${block('O que marcou o dia',e.dia)}
+      ${block('O que senti',e.sinto)}
+      ${block('Por que',e.porque)}
+      ${e.stickers?.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${e.stickers.map(x=>`<span class="ico-circle" style="background:var(--card2);width:40px;height:40px;font-size:22px">${x}</span>`).join('')}</div>`:''}
+      ${e.photos?.length?`<div style="display:grid;grid-template-columns:repeat(${e.photos.length},minmax(0,1fr));gap:8px;margin-bottom:12px">${e.photos.map(src=>`<img src="${src}" alt="Foto do dia" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px">`).join('')}</div>`:''}
+      ${e.vitoria?`<div style="background:var(--stat-a-bg);color:var(--stat-a-fg);border-radius:16px;padding:12px 14px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;margin-bottom:3px">🌱 Pequena vitória</div><div style="font-size:14px;line-height:1.5">${esc(e.vitoria)}</div></div>`:''}
+      <div style="display:flex;gap:8px">
+        <button class="tap note-chip" onclick="editDiary('${e.id}')">✏️ Editar</button>
+        <button class="tap note-chip" onclick="deleteDiary('${e.id}')">🗑️ Apagar</button>
+      </div>
+      ${showMemories?`<div style="border-top:1px solid var(--card2);margin-top:14px;padding-top:12px">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">🕰️ Neste mesmo dia</div>
+        ${memories.map(m=>{
+          const yearsAgo=new Date(ds+'T12:00:00').getFullYear()-new Date(m.ts).getFullYear();
+          const mh=HUMORS.find(x=>x.id===m.humor);
+          const preview=(m.dia||m.sinto||m.porque||'').slice(0,90);
+          return `<button class="tap" onclick="editDiary('${m.id}')" style="display:block;width:100%;text-align:left;background:var(--card2);border-radius:14px;padding:10px 12px;margin-bottom:6px">
+            <div style="font-size:11px;color:var(--muted)">Há ${yearsAgo} ${yearsAgo===1?'ano':'anos'}${mh?`, ${esc(humorLabel(mh).toLowerCase())}`:''}</div>
+            ${preview?`<div style="font-size:13px;color:var(--text)">${esc(preview)}</div>`:''}
+          </button>`;
+        }).join('')}
+      </div>`:''}
+      ${showVictoryPrompt?`<div style="border-top:1px solid var(--card2);margin-top:14px;padding-top:12px">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">🌱 Uma pequena vitória do dia</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.5">Nem todo dia é fácil. Teve alguma coisa pequena, por menor que seja, que valeu a pena?</div>
+        <textarea class="soft-input" rows="2" id="victory-inline-${e.id}" placeholder="Ex: tomei banho, respondi uma mensagem, saí da cama"></textarea>
+        <button class="btn btn-p" style="margin-top:8px;padding:11px" onclick="saveInlineVictory('${e.id}')">Guardar vitória</button>
+      </div>`:''}
     </div>
-    ${showMemories?`<div style="border-top:1px solid var(--border);padding-top:12px">
-      <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.4px;margin-bottom:8px">🕰️ RECORDAÇÃO</div>
-      ${memories.map(m=>{
-        const yearsAgo=new Date(ds+'T12:00:00').getFullYear()-new Date(m.ts).getFullYear();
-        const mh=HUMORS.find(x=>x.id===m.humor);
-        const preview=(m.sinto||m.porque||'').slice(0,90);
-        return `<div onclick="editDiary('${m.id}')" style="padding:6px 0;cursor:pointer">
-          <div style="font-size:11px;color:var(--muted)">Há ${yearsAgo} ${yearsAgo===1?'ano':'anos'}${mh?` · ${mh.icon} ${esc(humorLabel(mh))}`:''}</div>
-          ${preview?`<div style="font-size:13px;color:var(--text)">${esc(preview)}</div>`:''}
-        </div>`;
-      }).join('')}
-    </div>`:''}
-    ${showVictoryPrompt?`<div style="border-top:1px solid var(--border);padding-top:12px">
-      <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.4px;margin-bottom:6px">🌱 PEQUENA VITÓRIA DO DIA</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Nem todo dia é fácil. Teve alguma coisa pequena, por menor que seja, que valeu a pena hoje?</div>
-      <textarea class="note" rows="2" id="victory-inline-${e.id}" placeholder="Ex: consegui tomar banho, respondi uma mensagem, saí da cama..."></textarea>
-      <button class="btn btn-p" style="margin-top:8px;padding:9px" onclick="saveInlineVictory('${e.id}')">Guardar vitória</button>
-    </div>`:''}
   </div>`;
 }
 
-function diaryRegisterSheetHTML(){
+function diaryRegBodyHTML(){
   const editing=!!diaryDraft.id;
-  const tabs=[{id:'humor',label:'😊 Humor'},{id:'escrever',label:'✍️ Escrever'},{id:'foto',label:'📷 Foto'},{id:'stickers',label:'✨ Stickers'}];
-  const tabBar=`<div style="display:flex;gap:6px;margin-bottom:16px;overflow-x:auto">${tabs.map(t=>`
-    <button onclick="setDiaryRegisterTab('${t.id}')" style="flex-shrink:0;padding:8px 14px;border-radius:99px;border:1.5px solid ${diaryRegisterTab===t.id?'var(--accent)':'var(--border)'};background:${diaryRegisterTab===t.id?'var(--accent-bg)':'transparent'};color:${diaryRegisterTab===t.id?'var(--accent-lt)':'var(--muted)'};font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">${t.label}</button>`).join('')}</div>`;
-
-  let tabContent='';
+  const tabs=[['humor','Sentir','💜'],['escrever','Contar','✍️'],['memorias','Guardar','📷']];
+  if(!tabs.some(t=>t[0]===diaryRegisterTab))diaryRegisterTab='humor';
+  const idx=tabs.findIndex(t=>t[0]===diaryRegisterTab);
+  const lbl=(t,opt)=>`<div class="battery-label" style="margin:14px 0 8px">${t}${opt?' <span style="font-weight:400;color:var(--muted)">(opcional)</span>':''}</div>`;
+  const area=(field,rows,ph)=>`<textarea class="soft-input" rows="${rows}" placeholder="${ph}" oninput="diaryDraft.${field}=this.value;autoGrow(this)">${esc(diaryDraft[field]||'')}</textarea>`;
+  let content='';
   if(diaryRegisterTab==='humor'){
-    const humorBtns=HUMORS.map(h=>{
-      const on=diaryDraft.humor===h.id;
-      return `<button class="humor-btn diary-humor ${on?'sel':''}" data-id="${h.id}" onclick="diaryPickHumor('${h.id}')" style="border-color:${on?h.color:'var(--border)'};background:${on?hexToRgba(h.color,.16):'var(--card2)'}">
-        <span class="h-ico">${h.icon}</span>
-        <span class="h-lbl" style="color:${on?h.color:'var(--muted)'}">${humorLabel(h)}</span>
-      </button>`;
-    }).join('');
-    tabContent=`<div class="sec">Como você se sente agora?</div><div class="humor-grid">${humorBtns}</div>`;
+    content=`<div class="ci-q" style="margin-bottom:14px">Como você está se sentindo?</div>
+      <div class="humor-grid">${HUMORS.map(h=>{const on=diaryDraft.humor===h.id;return `
+        <button class="humor-btn ci-humor diary-humor ${on?'sel':''}" data-id="${h.id}" aria-pressed="${on}" onclick="diaryPickHumor('${h.id}')" style="--hc:${h.color};--hbg:${hexToRgba(h.color,.14)};--hbg2:${hexToRgba(h.color,.32)}">
+          <span class="h-ico ico-circle">${h.icon}</span>
+          <span class="h-lbl">${humorLabel(h)}</span>
+        </button>`;}).join('')}</div>`;
   } else if(diaryRegisterTab==='escrever'){
-    tabContent=`
-      <div class="sec">O que você está sentindo?</div>
-      <textarea class="note" rows="4" placeholder="No corpo, na cabeça, no coração... pode ser só uma palavra." oninput="diaryDraft.sinto=this.value">${esc(diaryDraft.sinto)}</textarea>
-      <div class="sec" style="margin-top:14px">Por que será que se sente assim?</div>
-      <textarea class="note" rows="4" placeholder="Algo aconteceu? Não sabe ao certo? Tudo bem também." oninput="diaryDraft.porque=this.value">${esc(diaryDraft.porque)}</textarea>
-      <div class="sec" style="margin-top:14px">🌱 Uma pequena vitória de hoje (opcional)</div>
-      <textarea class="note" rows="2" placeholder="Por menor que seja — dormiu bem, tomou água, saiu de casa..." oninput="diaryDraft.vitoria=this.value">${esc(diaryDraft.vitoria)}</textarea>`;
-  } else if(diaryRegisterTab==='foto'){
-    tabContent=`<div class="sec">Fotos (opcional, até 3)</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${(diaryDraft.photos||[]).map((src,i)=>`<div style="position:relative;width:64px;height:64px">
-          <img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">
-          <button onclick="diaryRemovePhoto(${i})" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;border:none;font-size:12px;cursor:pointer;line-height:1">×</button>
-        </div>`).join('')}
-        ${(diaryDraft.photos||[]).length<3?`<label style="width:64px;height:64px;border:1.5px dashed var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--muted);cursor:pointer">📷<input type="file" accept="image/*" multiple style="display:none" onchange="diaryPickPhotos(this)"></label>`:''}
-      </div>`;
+    content=`<div class="ci-q" style="margin-bottom:4px">Me conta do seu dia</div>
+      <div style="font-size:12px;color:var(--muted)">Escreva o quanto quiser. Pode ser só uma palavra.</div>
+      ${lbl('O que marcou o seu dia?')}${area('dia',3,'Um lugar, uma conversa, uma coisa que você quer lembrar')}
+      ${lbl('O que você está sentindo?')}${area('sinto',3,'No corpo, na cabeça, no coração')}
+      ${lbl('Por que será que se sente assim?')}${area('porque',3,'Algo aconteceu? Não sabe ao certo? Tudo bem também')}`;
   } else {
-    tabContent=`<div class="sec">Adesivos divertidos (opcional, até 6)</div>
-      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px">
-        ${STICKERS.map(s=>{
-          const on=(diaryDraft.stickers||[]).includes(s);
-          return `<button onclick="diaryToggleSticker('${s}')" style="aspect-ratio:1;border-radius:12px;border:1.5px solid ${on?'var(--accent)':'var(--border)'};background:${on?'var(--accent-bg)':'var(--card2)'};font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center">${s}</button>`;
-        }).join('')}
+    content=`<div class="ci-q" style="margin-bottom:4px">O que você quer guardar?</div>
+      <div style="font-size:12px;color:var(--muted)">Tudo aqui é opcional.</div>
+      ${lbl('🌱 Uma pequena vitória de hoje')}${area('vitoria',2,'Por menor que seja: dormiu bem, tomou água, saiu de casa')}
+      ${lbl('Fotos (até 3)')}
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+        ${(diaryDraft.photos||[]).map((src,i)=>`<div style="position:relative">
+          <img src="${src}" alt="Foto ${i+1}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;display:block">
+          <button class="sin-clear" style="display:flex;position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:none;background:rgba(255,255,255,.9);align-items:center;justify-content:center;cursor:pointer" onclick="diaryRemovePhoto(${i})" aria-label="Remover foto ${i+1}">✕</button>
+        </div>`).join('')}
+        ${(diaryDraft.photos||[]).length<3?`<label class="tap" style="aspect-ratio:1;border-radius:16px;background:var(--card2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;font-weight:600;color:var(--text2)"><span style="font-size:24px">📷</span>Adicionar<input type="file" accept="image/*" multiple style="display:none" onchange="diaryPickPhotos(this)"></label>`:''}
+      </div>
+      ${lbl('Adesivos (até 6)')}
+      <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px">
+        ${STICKERS.map(x=>{const on=(diaryDraft.stickers||[]).includes(x);return `<button class="tap" aria-pressed="${on}" onclick="diaryToggleSticker('${x}')" style="aspect-ratio:1;border-radius:14px;border:2px solid ${on?'var(--accent)':'transparent'};background:${on?'var(--accent-bg)':'var(--card2)'};font-size:22px;display:flex;align-items:center;justify-content:center">${x}</button>`;}).join('')}
       </div>`;
   }
-
+  return `
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 20px 4px">
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:800;color:var(--text)">${editing?'Editar seu dia':'Registrar seu dia'}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Só seu. Todos os campos são opcionais.</div>
+      </div>
+      <button class="sh-close" onclick="closeDiaryRegister()" aria-label="Fechar">✕</button>
+    </div>
+    <div style="padding:12px 20px 24px">
+      <div class="reg-chips" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+        ${tabs.map(([k,l,i])=>`<button class="tap reg-chip ${diaryRegisterTab===k?'on':''}" aria-pressed="${diaryRegisterTab===k}" onclick="setDiaryRegisterTab('${k}')" style="background:var(--card2)"><span class="ico-circle" style="background:var(--card)">${i}</span>${l}</button>`).join('')}
+      </div>
+      ${content}
+      ${idx<tabs.length-1
+        ?`<button class="btn btn-p" style="margin-top:18px" onclick="setDiaryRegisterTab('${tabs[idx+1][0]}')">Continuar</button>
+           <button class="btn" style="margin-top:8px;background:none;border:none;color:var(--muted);font-size:13px" onclick="saveDiary()">Guardar assim mesmo</button>`
+        :`<button class="btn btn-p" style="margin-top:18px" onclick="saveDiary()">Guardar no diário</button>`}
+    </div>`;
+}
+function diaryRegisterSheetHTML(){
   return `<div class="backdrop" onclick="if(event.target===this)closeDiaryRegister()">
-    <div class="sheet" style="max-height:88vh">
+    <div class="sheet" style="max-height:92vh">
       <div class="sh-handle"></div>
-      <div style="padding:12px 20px 0;display:flex;align-items:center;justify-content:space-between">
-        <span style="font-size:16px;font-weight:700">${editing?'Editar seu dia':'Registrar seu dia'}</span>
-        <button class="ci-skip" onclick="closeDiaryRegister()">Fechar</button>
-      </div>
-      <div style="padding:14px 16px 20px;overflow-y:auto">
-        ${tabBar}
-        ${tabContent}
-        <button class="btn btn-p" style="margin-top:18px" onclick="saveDiary()">Guardar</button>
-      </div>
+      <div id="diary-reg-body">${diaryRegBodyHTML()}</div>
     </div>
   </div>`;
 }
@@ -1698,32 +1721,97 @@ function diaryHTML(){
   if(diaryPinMode==='setup1'||diaryPinMode==='setup2')return diaryPinScreenHTML();
   if(diaryLocked()){diaryPinMode='unlock';return diaryPinScreenHTML();}
   if(diaryPinMode)diaryPinMode=null; // já destrancado, limpa estado residual de PIN
-  const list=db.diary||[];
-  return `
-    <div>
-      <div class="card" style="padding:12px;margin-bottom:12px">
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <span style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px">MEU DIÁRIO</span>
-          <button class="info-btn" onclick="openHelp('diario')">ⓘ</button>
+  const list=(db.diary||[]).slice().sort((a,b)=>a.ts<b.ts?1:-1);
+  const title=t=>`<div class="type-hdr" style="padding:0 0 10px">${t}</div>`;
+  const todayEntry=diaryEntriesOnDay(todayStr())[0];
+  const nDays=new Set(list.map(diaryDay)).size;
+  const cnt={}; list.forEach(e=>{if(e.humor)cnt[e.humor]=(cnt[e.humor]||0)+1;});
+  const topH=HUMORS.find(h=>h.id===(Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0]||[])[0]);
+  const tile=(bg,fg,icon,big,label)=>`<div style="background:var(${bg});border-radius:18px;padding:12px 6px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center">
+      <span class="ico-circle">${icon}</span>
+      <span style="font-size:15px;font-weight:800;color:var(${fg});line-height:1.1">${big}</span>
+      <span style="font-size:11px;font-weight:600;color:var(${fg})">${label}</span>
+    </div>`;
+
+  // lembranças recentes
+  const feed=list.slice(0,5).map(e=>{
+    const ds=diaryDay(e), d=new Date(ds+'T12:00:00'), h=HUMORS.find(x=>x.id===e.humor);
+    const preview=(e.dia||e.sinto||e.porque||e.vitoria||'').slice(0,70);
+    return `<button class="tap card" onclick="diaryShowDay('${ds}')" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:12px;margin-bottom:8px">
+      <span style="width:46px;flex-shrink:0;border-radius:14px;padding:6px 0;text-align:center;background:${h?hexToRgba(h.color,.25):'var(--accent-bg)'}">
+        <span style="display:block;font-size:10px;font-weight:600;color:var(--text2)">${d.toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','')}</span>
+        <span style="display:block;font-size:17px;font-weight:800;color:var(--text);line-height:1.1">${d.getDate()}</span>
+      </span>
+      <span style="flex:1;min-width:0">
+        <span style="display:block;font-size:13px;font-weight:700;color:var(--text)">${h?`${h.icon} ${esc(humorLabel(h))}`:'📝 Anotação'}</span>
+        ${preview?`<span style="display:block;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(preview)}</span>`:''}
+      </span>
+      ${e.photos?.length?`<img src="${e.photos[0]}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:12px;flex-shrink:0">`:''}
+    </button>`;
+  }).join('');
+
+  // pote de pequenas vitórias
+  const wins=list.filter(e=>e.vitoria);
+  const winsHTML=wins.length?`<div style="background:var(--stat-a-bg);color:var(--stat-a-fg);border-radius:18px;padding:14px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span class="ico-circle">🌱</span>
+        <span style="flex:1;font-size:14px;font-weight:800">Pote de pequenas vitórias</span>
+        <span style="font-size:20px;font-weight:800">${wins.length}</span>
+      </div>
+      ${(diaryVictOpen?wins:wins.slice(0,3)).map(e=>`<div style="background:rgba(255,255,255,.6);border-radius:12px;padding:8px 10px;margin-bottom:6px;font-size:13px;line-height:1.45;color:var(--text)">${esc(e.vitoria)}<span style="display:block;font-size:10px;color:var(--muted);margin-top:2px">${new Date(e.ts).toLocaleDateString('pt-BR',{day:'numeric',month:'short'}).replace('.','')}</span></div>`).join('')}
+      ${wins.length>3?`<button onclick="toggleDiaryVict()" aria-expanded="${diaryVictOpen}" style="background:none;border:none;color:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:4px 0;font-family:inherit">${diaryVictOpen?'Mostrar menos':'Ver todas as '+wins.length}</button>`:''}
+    </div>`:'';
+
+  // se entender melhor: sentimentos dos últimos 30 dias
+  const win30=diaryWindow(30), c30={};
+  win30.forEach(e=>{if(e.humor)c30[e.humor]=(c30[e.humor]||0)+1;});
+  const top30=Object.entries(c30).sort((a,b)=>b[1]-a[1]).slice(0,4), max30=top30[0]?.[1]||1;
+  const ins=win30.length>=3?buildDiaryInsights(30,true):[];
+  const tones=[['--stat-a-bg','--stat-a-fg'],['--stat-b-bg','--stat-b-fg'],['--stat-c-bg','--stat-c-fg']];
+  const understandHTML=top30.length?`${title('Para se entender melhor')}
+    <div class="card">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">Seus sentimentos nos últimos 30 dias</div>
+      ${top30.map(([id,n])=>{const h=HUMORS.find(x=>x.id===id);return h?`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span class="ico-circle" style="background:${hexToRgba(h.color,.22)};width:38px;height:38px">${h.icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:var(--text)"><span>${esc(humorLabel(h))}</span><span style="color:var(--muted)">${n}×</span></div>
+          <div style="height:8px;border-radius:99px;background:var(--card2);margin-top:5px"><div style="height:8px;border-radius:99px;background:${h.color};width:${Math.max(6,n/max30*100)}%"></div></div>
         </div>
-        <p style="font-size:13px;color:var(--muted);margin-top:6px;line-height:1.6">Um cantinho só seu — todos os campos são opcionais. 🔒 Fica só no seu aparelho.</p>
-      </div>
-      <button class="btn btn-p" onclick="openDiaryRegister()">✍️ Registre o seu dia</button>
-      <div class="card" style="margin-top:16px">
-        ${diaryMonthGridHTML()}
-      </div>
-      ${diaryDayView?diaryDayDetailHTML(diaryDayView):''}
-      <div class="card" style="padding:0;overflow:hidden;margin-top:14px">
-        <div class="sos-module-hdr" onclick="diaryToggleYear()">
-          <div class="sos-module-title"><span class="sos-module-ico">✨</span> Ano em pixels</div>
-          <span class="sos-chevron ${diaryYearOpen?'open':''}">▼</span>
-        </div>
-        ${diaryYearOpen?`<div class="sos-module-body" style="padding-top:12px">${diaryYearGridHTML()}</div>`:''}
-      </div>
-      ${list.length?'':`<div style="text-align:center;margin-top:24px;color:var(--muted);font-size:13px;line-height:1.7">🌱<br>Seu diário ainda está vazio.<br>Toque em "Registre o seu dia" quando quiser começar.</div>`}
+      </div>`:'';}).join('')}
     </div>
-  `;
+    ${ins.length?`<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">${ins.map((t,i)=>`<div style="background:var(${tones[i%3][0]});color:var(${tones[i%3][1]});border-radius:18px;padding:12px 14px;font-size:13px;line-height:1.5">${t}</div>`).join('')}</div>`:''}`:'';
+
+  return `
+    <div style="position:relative;background:linear-gradient(160deg,var(--accent),var(--accent-dk));border-radius:28px;padding:20px 18px;margin:0 0 44px;min-height:150px">
+      <div style="max-width:62%">
+        <div style="font-size:18px;font-weight:800;color:#fff;line-height:1.25">${todayEntry?'Seu dia de hoje já está guardado':`Como foi o seu dia${db.settings.name?', '+esc(db.settings.name):''}?`}</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.82);margin:6px 0 12px;line-height:1.4">🔒 Um cantinho só seu, guardado no seu aparelho. <button class="info-btn" onclick="openHelp('diario')" style="background:rgba(255,255,255,.18);color:#fff;border:none">ⓘ</button></div>
+        <button class="tap" onclick="openDiaryRegister()" style="background:#fff;color:var(--accent-dk);font-size:14px;font-weight:700;padding:11px 18px;border-radius:99px">${todayEntry?'Continuar escrevendo':'Registrar meu dia'}</button>
+      </div>
+      <img class="pilly" src="img/pilly-sentada.webp" alt="Pilly" style="position:absolute;right:4px;bottom:-40px;width:128px;height:auto;filter:drop-shadow(0 8px 10px rgba(0,0,0,.18))">
+    </div>
+    ${list.length?`<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:18px">
+      ${tile('--stat-a-bg','--stat-a-fg','📖',list.length,list.length===1?'Página escrita':'Páginas escritas')}
+      ${tile('--stat-b-bg','--stat-b-fg','🗓️',nDays,nDays===1?'Dia guardado':'Dias guardados')}
+      ${tile('--stat-c-bg','--stat-c-fg',topH?topH.icon:'💜',topH?esc(humorLabel(topH)):'–','Mais sentido')}
+    </div>`:''}
+    ${title('Seu mês em sentimentos')}
+    <div class="card">${diaryMonthGridHTML()}</div>
+    ${diaryDayView?diaryDayDetailHTML(diaryDayView):''}
+    ${list.length?`${title('Suas lembranças')}${feed}
+      ${list.length>=3?`<button class="tap" onclick="diaryRandomGood()" style="width:100%;background:var(--stat-c-bg);color:var(--stat-c-fg);border-radius:18px;padding:13px;font-size:14px;font-weight:700;margin:4px 0 18px">✨ Relembrar um dia bom</button>`:'<div style="height:10px"></div>'}`
+      :`<div class="card" style="text-align:center;color:var(--muted);font-size:13px;line-height:1.6">🌱 Seu diário ainda está em branco.<br>Quando quiser, comece pelo sentimento de hoje.</div>`}
+    ${winsHTML}
+    ${understandHTML}
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="sos-module-hdr" onclick="diaryToggleYear()">
+        <div class="sos-module-title"><span class="sos-module-ico">✨</span> Ano em pixels</div>
+        <span class="sos-chevron ${diaryYearOpen?'open':''}">▼</span>
+      </div>
+      ${diaryYearOpen?`<div class="sos-module-body" style="padding-top:12px">${diaryYearGridHTML()}</div>`:''}
+    </div>`;
 }
+
 function openPrivacy(){showPrivacy=true;renderOverlays();}
 function closePrivacy(){showPrivacy=false;renderOverlays();}
 function openFeedback(){showFeedback=true;feedbackSent=false;feedbackState={tipo:'sugestao',mensagem:''};renderOverlays();}
@@ -5474,8 +5562,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.24.0 disponível!</strong>
-        Novidade: Mapa de Energia novo, com resumo do período, seus últimos 7 dias e gráficos mais claros. E ainda selos, check-in de arrastar e sintomas que enchem.</div>
+        <strong>✨ Versão 2.25.0 disponível!</strong>
+        Novidade: Diário novo, com seu mês em sentimentos, lembranças e pote de pequenas vitórias. E ainda Mapa em abas, selos e check-in de arrastar.</div>
       <div style="font-size:11px;font-weight:600;color:var(--warn-fg);display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
         ? `<button class="update-banner-btn" onclick="dismissUpdate()">✅ Atualizar agora</button>`
@@ -5495,7 +5583,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.24.0';
+const APP_VERSION = '2.25.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
