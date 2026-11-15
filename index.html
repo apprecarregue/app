@@ -231,22 +231,24 @@ body {
 /* PERIOD CARDS */
 .period-row { display: flex; gap: 8px; }
 .period-card {
-  flex: 1; background: var(--card2); border-radius: 14px;
-  padding: 12px 6px; text-align: center;
-  border: 1.5px solid var(--border);
-  position: relative; min-height: 96px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  transition: border-color .2s;
+  flex: 1; background: var(--card); border-radius: var(--r);
+  padding: 14px 6px; text-align: center;
+  position: relative; min-height: 104px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
 }
-.period-card.done  { border-color: rgba(16,185,129,.4); }
-.period-card.active{ border-color: var(--purple); background: var(--purple-bg); cursor: pointer; }
+.period-card.active{ background: var(--accent-bg); cursor: pointer; }
 .period-card.tappable { cursor: pointer; }
-.pc-period-icon { font-size: 18px; }
-.pc-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; font-weight: 700; }
-.pc-energy { font-size: 24px; font-weight: 800; }
-.pc-humor { font-size: 13px; }
-.pc-tap { font-size: 10px; color: var(--purple-lt); font-weight: 600; }
-.pc-done-icon { position: absolute; top: 5px; right: 6px; font-size: 11px; }
+.pc-icon-circle {
+  width: 38px; height: 38px; border-radius: 50%; background: var(--card2);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.period-card.done .pc-icon-circle { background: var(--stat-a-bg); }
+.period-card.active .pc-icon-circle { background: var(--card); }
+.pc-label { font-size: 11px; color: var(--muted); font-weight: 600; }
+.pc-energy { font-size: 22px; font-weight: 800; }
+.pc-humor { font-size: 14px; }
+.pc-tap { font-size: 11px; color: var(--accent); font-weight: 700; }
+.pc-done-icon { position: absolute; top: 8px; right: 8px; font-size: 12px; }
 
 /* ENTRIES */
 .entry { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--border); }
@@ -2724,7 +2726,7 @@ function homeHTML(){
     const periodAvail = viewDate!==todayStr() || (pid==='manha'?hr>=6 : pid==='tarde'?hr>=12 : hr>=18);
     const h=ci?HUMORS.find(x=>x.id===ci.humor):null;
     return `<div class="period-card ${ci?'done':''} ${!ci&&isCurrent?'active':''} ${!ci&&!isCurrent&&periodAvail?'tappable':''}" ${!ci&&periodAvail?`onclick="openCheckin('${pid}')"`:''}>
-      <div class="pc-period-icon">${pd.icon}</div>
+      <div class="pc-icon-circle">${pd.icon}</div>
       <div class="pc-label">${pd.label}</div>
       ${ci
         ?`<div class="pc-energy" style="color:${energyColor(ci.energy)}">${ci.energy}</div>
@@ -4591,8 +4593,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.11.0 disponível!</strong>
-        Tela Hoje com a Pilly de verdade, fundo mais sóbrio no modo claro e sem sombra nos cards — mais perto do nosso jeito.</div>
+        <strong>✨ Versão 2.11.1 disponível!</strong>
+        Cards de check-in com ícone em círculo, sem borda — seguindo o novo visual da tela Hoje.</div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
         ? `<button class="update-banner-btn" onclick="dismissUpdate()">✅ Atualizar agora</button>`
@@ -4611,7 +4613,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.11.0';
+const APP_VERSION = '2.11.1';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
