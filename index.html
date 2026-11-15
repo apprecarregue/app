@@ -462,6 +462,31 @@ body {
 }
 .sens-num.sel { border-color: var(--purple); background: var(--purple-bg); color: var(--purple-lt); }
 
+.res-in { animation: resIn .5s cubic-bezier(.3,1.4,.5,1) both; }
+@keyframes resIn { 0% { transform: translateY(24px) scale(.8); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .res-in { animation: none; } }
+.note-chip { padding: 7px 12px; border-radius: 99px; background: var(--card2); color: var(--text); font-size: 12px; font-weight: 600; }
+.note-row { display: flex; align-items: flex-end; gap: 6px; margin-bottom: 16px; }
+.note-row > img { height: auto; flex-shrink: 0; margin-left: -6px; }
+.note-bubble { flex: 1; min-width: 0; background: var(--card2); border-radius: 20px 20px 20px 6px; padding: 12px 14px; border: 2px solid transparent; transition: border-color .15s; }
+.note-bubble:focus-within { border-color: var(--accent); }
+.note-bubble textarea { display: block; width: 100%; background: none; border: none; outline: none; resize: none; font-family: inherit; font-size: 14px; line-height: 1.5; color: var(--text); min-height: 44px; max-height: 160px; }
+.note-bubble textarea::placeholder { color: var(--muted); }
+/* SOCIAL BATTERY — arrastável */
+.bat-wrap { display: flex; align-items: center; gap: 4px; margin: 10px 0; }
+.bat-bar { position: relative; flex: 1; height: 72px; border-radius: 24px; background: var(--card2); overflow: hidden; touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
+.bat-bar:active { cursor: grabbing; }
+.bat-bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.bat-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 24px; transition: width .35s cubic-bezier(.3,1.4,.5,1), background .3s; pointer-events: none; }
+.bat-face { position: absolute; right: 6px; top: 6px; width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,.88); display: flex; align-items: center; justify-content: center; font-size: 34px; line-height: 1; }
+.bat-face img.emoji { margin: 0; }
+.bat-tip { width: 8px; height: 30px; border-radius: 0 6px 6px 0; background: var(--card2); flex-shrink: 0; }
+@media (prefers-reduced-motion: reduce) { .bat-fill { transition: none; } }
+.humor-btn.ci-humor { border: 2px solid transparent; background: var(--hbg); border-radius: 18px; padding: 10px 6px; gap: 6px; transition: transform .15s, border-color .15s, background .15s; }
+.humor-btn.ci-humor:active { transform: scale(.95); }
+.humor-btn.ci-humor .h-ico { width: 40px; height: 40px; font-size: 22px; }
+.humor-btn.ci-humor .h-lbl, .humor-btn.ci-humor.sel .h-lbl { color: var(--text); }
+.humor-btn.ci-humor.sel { border-color: var(--hc); background: var(--hbg2); transform: scale(1.04); }
 /* SOCIAL BATTERY */
 .battery-section { margin: 20px 0 16px; }
 .battery-label { font-size: 13px; font-weight: 700; color: var(--text2); margin-bottom: 6px; }
@@ -1856,14 +1881,35 @@ function sensKey(e,sense){
 
 function setSocialBattery(v){
   if(!checkinState)return;
-  checkinState.socialBattery=parseInt(v);
-  const col=batteryColor(checkinState.socialBattery);
+  v=parseInt(v);
+  if(v===checkinState.socialBattery)return;
+  checkinState.socialBattery=v;
+  const col=batteryColor(v);
   const fill=document.getElementById('bat-fill');
-  if(fill){fill.style.width=(checkinState.socialBattery/10*100)+'%';fill.style.background=col;}
+  if(fill){fill.style.width=batWidth(v);fill.style.background=col;}
+  const bar=document.getElementById('bat-bar'); if(bar)bar.setAttribute('aria-valuenow',v);
   const val=document.getElementById('bat-val');
-  if(val){val.textContent=checkinState.socialBattery;val.style.color=col;}
-  const bi=document.getElementById('bat-icon');
-  if(bi) bi.textContent=checkinState.socialBattery>=7?'🔋':checkinState.socialBattery>=4?'🪫':'📵';
+  if(val){val.textContent=v;val.style.color=col;}
+  const lbl=document.getElementById('bat-lbl'); if(lbl)lbl.textContent=batLabel(v);
+  const face=document.getElementById('bat-face');
+  if(face){face.textContent=batFace(v);applyFlatEmoji(face);face.classList.remove('dial-pop');void face.offsetWidth;face.classList.add('dial-pop');}
+  try{navigator.vibrate?.(8);}catch(_){}
+}
+function batWidth(v){return `calc(72px + (100% - 72px) * ${v/10})`;}
+function batFace(v){return v>=9?'🤩':v>=7?'😊':v>=5?'🙂':v>=3?'😕':v>=1?'😣':'😵';}
+function batLabel(v){return v>=9?'Cheia':v>=7?'Boa carga':v>=4?'Pela metade':v>=1?'Quase no fim':'No zero';}
+let _batDrag=false;
+function batVal(e){
+  const r=e.currentTarget.getBoundingClientRect();
+  return Math.max(0,Math.min(10,Math.round((e.clientX-r.left-36)/(r.width-72)*10)));
+}
+function batDown(e){_batDrag=true;try{e.currentTarget.setPointerCapture(e.pointerId);}catch(_){}setSocialBattery(batVal(e));}
+function batMove(e){if(_batDrag)setSocialBattery(batVal(e));}
+function batUp(){_batDrag=false;}
+function stepBattery(d){if(checkinState)setSocialBattery(Math.max(0,Math.min(10,checkinState.socialBattery+d)));}
+function batKey(e){
+  const d={ArrowRight:1,ArrowUp:1,ArrowLeft:-1,ArrowDown:-1}[e.key];
+  if(d){e.preventDefault();stepBattery(d);}
 }
 
 function checkinNext(){if(!checkinState||checkinState.step!==1)return;checkinState.step=2;renderOverlays();}
@@ -1873,9 +1919,14 @@ function pickHumor(id){
   if(!checkinState)return;
   checkinState.humor=id;
   document.querySelectorAll('.humor-btn').forEach(b=>{
-    b.classList.toggle('sel', b.dataset.id===id);
-    b.querySelector('.h-lbl').style.color = b.dataset.id===id?'var(--purple-lt)':'var(--muted)';
+    const on=b.dataset.id===id;
+    b.classList.toggle('sel', on);
+    b.setAttribute('aria-pressed',on);
+    const ico=b.querySelector('.h-ico');
+    ico.classList.remove('dial-pop');
+    if(on){void ico.offsetWidth;ico.classList.add('dial-pop');}
   });
+  try{navigator.vibrate?.(8);}catch(_){}
   document.querySelector('.btn[onclick="submitCheckin()"]')?.removeAttribute('disabled');
 }
 
@@ -1893,9 +1944,7 @@ function submitCheckin(){
   });
   save();
   trackEvent('checkin_completed',{period:p,energy:db.checkins[db.checkins.length-1].energy});
-  const h=HUMORS.find(x=>x.id===checkinState.humor);
-  toast(`${h?.icon??''} Check-in da ${PERIODS[p]?.label} salvo!`);
-  checkinState=null;
+  checkinState.step=3;
   if(tourStep===2)tourStep=3;
   render();
 }
@@ -1912,11 +1961,17 @@ function submitCheckinExpress(){
   });
   save();
   trackEvent('checkin_completed',{period:p,energy:checkinState.energy,express:true});
-  toast(`✅ Energia registrada — cuide-se!`);
-  checkinState=null;
+  checkinState.humor=null;checkinState.step=3;
   if(tourStep===2)tourStep=3;
   render();
 }
+function autoGrow(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
+function noteStarter(t){
+  const ta=document.getElementById('ci-note'); if(!ta||!checkinState)return;
+  ta.value=(ta.value.trim()?ta.value.trimEnd()+String.fromCharCode(10):'')+t;
+  checkinState.note=ta.value; autoGrow(ta); ta.focus();
+}
+function closeCheckinResult(){checkinState=null;renderOverlays();}
 function skipCheckin(){checkinSkipped=true;checkinState=null;renderOverlays();}
 
 // ── SHEET ─────────────────────────────────────────────────────────────────────
@@ -4141,8 +4196,49 @@ function feedbackHTML(){
 
 function checkinOverlayHTML(){
   if(!checkinState)return'';
-  const p=currentPeriod()||'manha',pd=PERIODS[p];
+  const p=checkinState.forcePeriod||currentPeriod()||'manha',pd=PERIODS[p];
   const col=energyColor(checkinState.energy);
+
+  if(checkinState.step===3){
+    const e=checkinState.energy, h=HUMORS.find(x=>x.id===checkinState.humor);
+    const pose=e>=7?'acena':e>=4?'aponta':e>=2?'sentada':'cansada';
+    const [title,sub]=e>=7
+      ?['Que bom te ver assim!','Aproveite essa energia com carinho, sem gastar tudo de uma vez.']
+      :e>=4
+      ?['Um passo de cada vez','Sua energia está moderada. Escolha o que importa agora e deixe o resto para depois.']
+      :['Hoje é dia de se poupar','Sua energia está baixa. Tudo bem ir devagar: descansar também conta.'];
+    return `
+      <div class="backdrop" onclick="if(event.target===this)closeCheckinResult()">
+        <div class="sheet">
+          <div class="sh-handle"></div>
+          <div class="ci-body" style="text-align:center;padding-bottom:20px">
+            <div style="position:relative;height:140px;border-radius:28px;background:linear-gradient(160deg,var(--accent),var(--accent-dk));margin:8px 0 78px">
+              <div class="res-in" style="position:absolute;left:50%;bottom:-64px;width:170px;margin-left:-85px">
+                <img class="pilly" src="img/pilly-${pose}.webp" alt="Pilly" style="width:100%;height:auto;display:block;filter:drop-shadow(0 8px 10px rgba(0,0,0,.18))">
+              </div>
+              ${h?`<span class="ico-circle res-in" style="position:absolute;left:calc(50% + 62px);top:16px;width:56px;height:56px;font-size:30px;background:#fff;animation-delay:.25s">${h.icon}</span>`:''}
+            </div>
+            <div style="font-size:22px;font-weight:800;color:var(--text);line-height:1.25">${title}</div>
+            <div style="font-size:14px;color:var(--text2);line-height:1.5;margin:6px auto 16px;max-width:300px">${sub}</div>
+            <div style="display:grid;grid-template-columns:repeat(${h?3:2},minmax(0,1fr));gap:10px;margin-bottom:16px">
+              <div style="background:var(--stat-a-bg);border-radius:18px;padding:12px 6px">
+                <div style="font-size:20px;font-weight:800;color:var(--stat-a-fg);line-height:1">${e}/10</div>
+                <div style="font-size:11px;font-weight:600;color:var(--stat-a-fg);margin-top:4px">Energia</div>
+              </div>
+              <div style="background:var(--stat-b-bg);border-radius:18px;padding:12px 6px">
+                <div style="font-size:20px;font-weight:800;color:var(--stat-b-fg);line-height:1">${checkinState.socialBattery}/10</div>
+                <div style="font-size:11px;font-weight:600;color:var(--stat-b-fg);margin-top:4px">Bateria social</div>
+              </div>
+              ${h?`<div style="background:var(--stat-c-bg);border-radius:18px;padding:12px 6px">
+                <div style="font-size:20px;line-height:1">${h.icon}</div>
+                <div style="font-size:11px;font-weight:600;color:var(--stat-c-fg);margin-top:4px">${humorLabel(h)}</div>
+              </div>`:''}
+            </div>
+            <button class="btn btn-p" onclick="closeCheckinResult()">Continuar</button>
+          </div>
+        </div>
+      </div>`;
+  }
 
   if(checkinState.step===1){
     const sensHTML=SENSORIAL_ITEMS.map(s=>`
@@ -4207,7 +4303,7 @@ function checkinOverlayHTML(){
       <div class="sheet">
         <div class="sh-handle"></div>
         <div class="ci-hdr" style="position:relative">
-          <button onclick="checkinBack()" style="position:absolute;left:0;background:none;border:none;color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;padding:4px 8px;display:flex;align-items:center;gap:3px">← Voltar</button>
+          <button onclick="checkinBack()" style="background:none;border:none;color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;padding:4px 8px 4px 0;font-family:inherit;display:flex;align-items:center;gap:3px">← Voltar</button>
           <span class="ci-period-lbl">${pd.icon} Check-in da ${pd.label}</span>
           <button class="ci-skip" onclick="skipCheckin()">Pular</button>
         </div>
@@ -4215,24 +4311,30 @@ function checkinOverlayHTML(){
           <div class="ci-q">Bateria social e humor</div>
 
           <div class="battery-section">
-            <div class="battery-label">🔋 Bateria Social</div>
-            <div class="battery-bar-wrap">
-              <span class="battery-icon" id="bat-icon">${batIcon}</span>
-              <div class="battery-track">
-                <div class="battery-fill" id="bat-fill" style="width:${checkinState.socialBattery/10*100}%;background:${batCol}"></div>
+            <div class="battery-label">Bateria social</div>
+            <div style="font-size:11px;color:var(--muted)">Arraste para carregar ou descarregar</div>
+            <div class="bat-wrap">
+              <div class="bat-bar" id="bat-bar" role="slider" tabindex="0" aria-label="Bateria social de 0 a 10" aria-valuemin="0" aria-valuemax="10" aria-valuenow="${checkinState.socialBattery}"
+                onpointerdown="batDown(event)" onpointermove="batMove(event)" onpointerup="batUp()" onpointercancel="batUp()" onkeydown="batKey(event)">
+                <div class="bat-fill" id="bat-fill" style="width:${batWidth(checkinState.socialBattery)};background:${batCol}"><span class="bat-face" id="bat-face">${batFace(checkinState.socialBattery)}</span></div>
               </div>
-              <span class="battery-val" id="bat-val" style="color:${batCol}">${checkinState.socialBattery}</span>
+              <div class="bat-tip"></div>
             </div>
-            <input type="range" class="battery-slider" min="0" max="10" value="${checkinState.socialBattery}" oninput="setSocialBattery(this.value)"
-              style="background:linear-gradient(to right,#F87171,#F59E0B,#10B981)">
-            <div class="slider-labels"><span>0 — ${g('esgotada','esgotado','esgotadu')}</span><span>10 — ${g('cheia','cheio','cheiu')}</span></div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:14px">
+              <button class="dial-step" onclick="stepBattery(-1)" aria-label="Diminuir bateria social">−</button>
+              <div style="text-align:center;min-width:130px">
+                <div id="bat-val" style="font-size:28px;font-weight:800;line-height:1;color:${batCol};transition:color .3s">${checkinState.socialBattery}</div>
+                <div id="bat-lbl" style="font-size:13px;color:var(--muted);margin-top:2px">${batLabel(checkinState.socialBattery)}</div>
+              </div>
+              <button class="dial-step" onclick="stepBattery(1)" aria-label="Aumentar bateria social">+</button>
+            </div>
           </div>
 
-          <div class="sec" style="margin-top:16px">Como você está se sentindo?</div>
+          <div class="battery-label" style="margin-top:20px;margin-bottom:10px">Como você está se sentindo?</div>
           <div class="humor-grid">
             ${HUMORS.map(h=>`
-              <button class="humor-btn ${checkinState.humor===h.id?'sel':''}" data-id="${h.id}" onclick="pickHumor('${h.id}')">
-                <span class="h-ico">${h.icon}</span>
+              <button class="humor-btn ci-humor ${checkinState.humor===h.id?'sel':''}" data-id="${h.id}" aria-pressed="${checkinState.humor===h.id}" onclick="pickHumor('${h.id}')" style="--hc:${h.color};--hbg:${hexToRgba(h.color,.14)};--hbg2:${hexToRgba(h.color,.32)}">
+                <span class="h-ico ico-circle">${h.icon}</span>
                 <span class="h-lbl">${humorLabel(h)}</span>
               </button>`).join('')}
           </div>
@@ -4254,11 +4356,20 @@ function checkinOverlayHTML(){
               </button>`;
             }).join('');
             return`<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
-              <div style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.4px;margin-bottom:8px">SENTINDO ALGUM SINTOMA AGORA?</div>
+              <div class="battery-label" style="margin-bottom:8px">Sentindo algum sintoma agora?</div>
               <div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>
             </div>`;
           })()}
-          <textarea class="note" rows="2" placeholder="Contexto rápido — o que está pesando ou te animando? (opcional)" oninput="checkinState.note=this.value" style="margin-top:12px">${checkinState.note||''}</textarea>
+          <div class="battery-label" style="margin-top:18px;margin-bottom:8px">Conta pra Pilly <span style="font-weight:400;color:var(--muted)">(opcional)</span></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+            ${[['😮‍💨','O que pesou'],['🌱','O que ajudou'],['🫶','Do que preciso']].map(([i,t])=>`<button class="tap note-chip" onclick="noteStarter('${t}: ')">${i} ${t}</button>`).join('')}
+          </div>
+          <div class="note-row">
+            <img src="img/pilly-aponta.webp" alt="" width="64">
+            <div class="note-bubble">
+              <textarea id="ci-note" rows="2" placeholder="O que está pesando ou te animando?" oninput="checkinState.note=this.value;autoGrow(this)">${checkinState.note||''}</textarea>
+            </div>
+          </div>
           <button class="btn btn-p" onclick="submitCheckin()" ${!checkinState.humor?'disabled':''}>
             Salvar check-in
           </button>
@@ -4735,8 +4846,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.14.0 disponível!</strong>
-        Check-in novo: gire o círculo de energia e arraste as barrinhas de sensibilidade. Tela Hoje mais leve e colorida.</div>
+        <strong>✨ Versão 2.15.0 disponível!</strong>
+        Check-in novo do começo ao fim: círculo de energia, barrinhas de sensibilidade, bateria arrastável e a Pilly no resultado.</div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
         ? `<button class="update-banner-btn" onclick="dismissUpdate()">✅ Atualizar agora</button>`
@@ -4756,7 +4867,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.14.0';
+const APP_VERSION = '2.15.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
