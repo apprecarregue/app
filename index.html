@@ -3773,7 +3773,13 @@ function buildInsights(){
   return insights;
 }
 
-let mapaDay=null, mapaMonthOff=0, mapaCalDay=null;
+let mapaDay=null, mapaMonthOff=0, mapaCalDay=null, mapaTab='resumo';
+function setMapaTab(k){
+  mapaTab=k; killCharts();
+  const el=document.getElementById('main');
+  el.innerHTML=mapaHTML(); applyFlatEmoji(el); el.scrollTop=0;
+  requestAnimationFrame(initCharts);
+}
 const mapaTitle=t=>`<div class="type-hdr" style="padding:0 0 10px">${t}</div>`;
 function eIsRec(e){const c=cat(e.categoryId);return c?c.type==='recuperacao':entryCost(e)<0;}
 function prevDayKey(k){const d=new Date(k+'T12:00:00');d.setDate(d.getDate()-1);return dateKey(d);}
@@ -4074,8 +4080,11 @@ function mapaHTML(){
       ${insights.map((t,i)=>`<div style="background:var(${tones[i%3][0]});color:var(${tones[i%3][1]});border-radius:18px;padding:12px 14px;font-size:13px;line-height:1.5">${t}</div>`).join('')}
     </div>`;
 
-  return `
-    ${rangeRow}
+  const tabs=`<div class="reg-chips" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+    ${[['resumo','Resumo','✨'],['padroes','Padrões','🧩'],['graficos','Gráficos','📊']].map(([k,l,i])=>`<button class="tap reg-chip ${mapaTab===k?'on':''}" aria-pressed="${mapaTab===k}" onclick="setMapaTab('${k}')"><span class="ico-circle">${i}</span>${l}</button>`).join('')}
+  </div>`;
+
+  const resumoTab=()=>`
     <div style="position:relative;background:linear-gradient(160deg,var(--accent),var(--accent-dk));border-radius:28px;padding:20px 18px;margin:0 0 44px;min-height:124px">
       <div style="max-width:64%">
         <div style="font-size:17px;font-weight:800;color:#fff;line-height:1.25">${headline}</div>
@@ -4094,12 +4103,21 @@ function mapaHTML(){
     ${title('Seu mês')}
     <div class="card" id="mapa-cal">${mapaCalHTML()}</div>
     ${mapaBalanceHTML(recent)}
-    ${drains.length?`<div class="card">${title('O que mais te drena')}${rank(drains,drains[0][1],c=>TYPES[c.type].color,v=>Math.round(v*10)/10+' pts')}</div>`:''}
+    ${insightSection}`;
+
+  const padroesTab=()=>`
+    ${drains.length?`<div class="card">${title('O que mais te drena')}${rank(drains,drains[0][1],c=>TYPES[c.type].color,v=>String(Math.round(v*10)/10).replace('.',',')+' pts')}</div>`:''}
     ${recs.length?`<div class="card">${title('O que mais te recarrega')}${rank(recs,recs[0][1],()=>'#34D399',v=>v+'×')}${rechargeEffectHTML()}</div>`:''}
     ${mapaHoursHTML(recent)}
     ${mapaSensesHTML(recentCi)}
     ${beforeHardDayHTML()}
-    ${insightSection}
+    <div class="card">
+      ${title('Quando sua energia costuma estar melhor')}
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Energia média dos check-ins por período e dia da semana</p>
+      ${heatmapHTML()}
+    </div>`;
+
+  const graficosTab=()=>`
     <div class="card">
       ${title('Energia gasta por dia')}
       <div class="chart-wrap" style="height:200px"><canvas id="weekC"></canvas></div>
@@ -4112,12 +4130,12 @@ function mapaHTML(){
     <div class="card">
       ${title('Humor por período')}
       <div class="chart-wrap" style="height:240px"><canvas id="humorC"></canvas></div>
-    </div>
-    <div class="card">
-      ${title('Quando sua energia costuma estar melhor')}
-      <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Energia média dos check-ins por período e dia da semana</p>
-      ${heatmapHTML()}
-    </div>
+    </div>`;
+
+  return `
+    ${rangeRow}
+    ${tabs}
+    ${mapaTab==='padroes'?padroesTab():mapaTab==='graficos'?graficosTab():resumoTab()}
     ${reportRow}`;
 }
 
@@ -5378,7 +5396,7 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.21.0 disponível!</strong>
+        <strong>✨ Versão 2.22.0 disponível!</strong>
         Novidade: Mapa de Energia novo, com resumo do período, seus últimos 7 dias e gráficos mais claros. E ainda selos, check-in de arrastar e sintomas que enchem.</div>
       <div style="font-size:11px;font-weight:600;color:var(--warn-fg);display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -5399,7 +5417,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.21.0';
+const APP_VERSION = '2.22.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
