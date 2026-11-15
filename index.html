@@ -472,6 +472,9 @@ body {
 .note-bubble:focus-within { border-color: var(--accent); }
 .note-bubble textarea { display: block; width: 100%; background: none; border: none; outline: none; resize: none; font-family: inherit; font-size: 14px; line-height: 1.5; color: var(--text); min-height: 44px; max-height: 160px; }
 .note-bubble textarea::placeholder { color: var(--muted); }
+.badge-tile { border-radius: 18px; padding: 12px 6px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.badge-tile.locked .ico-circle img.emoji, .badge-tile.locked .ico-circle { filter: grayscale(1); }
+.badge-tile.locked .ico-circle { opacity: .45; }
 /* SOCIAL BATTERY — arrastável */
 .bat-wrap { display: flex; align-items: center; gap: 4px; margin: 10px 0; }
 .bat-bar { position: relative; flex: 1; height: 72px; border-radius: 24px; background: var(--card2); overflow: hidden; touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
@@ -1093,6 +1096,113 @@ function catLabel(c){
 function getVisitedTabs(){try{return JSON.parse(localStorage.getItem(VISITED_KEY)||'{"home":true}');}catch{return{home:true};}}
 function markTabVisited(id){const v=getVisitedTabs();v[id]=true;localStorage.setItem(VISITED_KEY,JSON.stringify(v));}
 
+// ── SELOS E DIAS DE CUIDADO — só soma, nunca tira ─────────────────────────────
+const CARE_MILESTONES=[[3,'✨'],[7,'⭐'],[14,'🌟'],[30,'🏅'],[60,'💎'],[100,'🏆'],[200,'🦋'],[365,'👑']];
+const BADGES=[
+  {id:'primeiro-passo',icon:'🌱',color:'#34D399',title:'Primeiro passo',desc:'Primeiro check-in',test:s=>s.checkins>=1},
+  {id:'dia-completo',icon:'🌈',color:'#60A5FA',title:'Dia completo',desc:'Três check-ins no mesmo dia',test:s=>s.fullDay},
+  {id:'descanso',icon:'🛋️',color:'#A78BFA',title:'Descanso conta',desc:'Um momento de recuperação registrado',test:s=>s.rests>=1},
+  {id:'recarga',icon:'🔋',color:'#10B981',title:'Recarga em dia',desc:'Dez momentos de recuperação',test:s=>s.rests>=10},
+  {id:'diario',icon:'📔',color:'#F472B6',title:'Querido diário',desc:'Primeira página do diário',test:s=>s.diary>=1},
+  {id:'escuta',icon:'🩺',color:'#22D3EE',title:'Escuta do corpo',desc:'Um sintoma registrado',test:s=>s.sintomas>=1},
+  {id:'gentileza',icon:'🌙',color:'#7C3AED',title:'Gentileza comigo',desc:'Modo dia difícil usado quando precisou',test:s=>s.hard>=1},
+  {id:'sos',icon:'🫶',color:'#FB7185',title:'Sei pedir ajuda',desc:'Visita à tela SOS',test:s=>s.sos},
+  {id:'pilly',icon:'💬',color:'#FBBF24',title:'Conta pra Pilly',desc:'Uma nota no check-in',test:s=>s.notes},
+  ...CARE_MILESTONES.map(([n,icon])=>({id:'dias-'+n,icon,color:'#7906FF',title:n+' dias de cuidado',desc:n+' dias diferentes com check-in',test:s=>s.days>=n})),
+];
+let _badgeQueue=[], showBadges=false;
+function careDays(){return new Set(db.checkins.map(c=>c.date)).size;}
+function careStats(){
+  const perDay={};
+  db.checkins.forEach(c=>{(perDay[c.date]=perDay[c.date]||new Set()).add(c.period);});
+  return {
+    checkins:db.checkins.length,
+    days:Object.keys(perDay).length,
+    fullDay:Object.values(perDay).some(p=>p.size>=3),
+    rests:db.entries.filter(e=>cat(e.categoryId)?.type==='recuperacao').length,
+    diary:(db.diary||[]).length,
+    sintomas:(db.sintomas?.registros||[]).length,
+    hard:(db.hardDays||[]).length,
+    sos:!!db.settings.sosUsed,
+    notes:db.checkins.some(c=>c.note&&c.note.trim()),
+  };
+}
+function checkBadges(silent){
+  const st=careStats(), got=db.settings.badges||(db.settings.badges={});
+  BADGES.forEach(b=>{
+    if(got[b.id]||!b.test(st))return;
+    got[b.id]=todayStr();
+    if(!silent)_badgeQueue.push(b.id);
+  });
+}
+function openBadges(){showBadges=true;renderOverlays();}
+function closeBadges(){showBadges=false;renderOverlays();}
+function nextBadge(open){
+  _badgeQueue.shift();
+  if(open){_badgeQueue=[];showBadges=true;}
+  renderOverlays();
+}
+function badgeCelebrateHTML(){
+  const b=BADGES.find(x=>x.id===_badgeQueue[0]); if(!b)return'';
+  return `
+    <div class="backdrop">
+      <div class="sheet">
+        <div class="sh-handle"></div>
+        <div class="ci-body" style="text-align:center;padding-bottom:20px">
+          <div style="position:relative;height:140px;border-radius:28px;background:linear-gradient(160deg,var(--accent),var(--accent-dk));margin:8px 0 78px">
+            <div class="res-in" style="position:absolute;left:50%;bottom:-64px;width:170px;margin-left:-105px">
+              <img class="pilly" src="img/pilly-acena.webp" alt="Pilly" style="width:100%;height:auto;display:block;filter:drop-shadow(0 8px 10px rgba(0,0,0,.18))">
+            </div>
+            <span class="ico-circle res-in" style="position:absolute;left:calc(50% + 44px);top:26px;width:76px;height:76px;font-size:40px;background:#fff;border:4px solid ${b.color};animation-delay:.25s">${b.icon}</span>
+          </div>
+          <div style="font-size:13px;font-weight:600;color:var(--accent-lt)">Novo selo</div>
+          <div style="font-size:22px;font-weight:800;color:var(--text);line-height:1.25;margin-top:2px">${b.title}</div>
+          <div style="font-size:14px;color:var(--text2);line-height:1.5;margin:6px auto 18px;max-width:300px">${b.desc}. Cada cuidado com você conta.</div>
+          <button class="btn btn-p" onclick="nextBadge()">Que legal!</button>
+          <button class="btn" style="margin-top:8px;color:var(--muted);border-color:transparent;background:none;font-size:13px" onclick="nextBadge(true)">Ver minhas conquistas</button>
+        </div>
+      </div>
+    </div>`;
+}
+function badgesSheetHTML(){
+  const got=db.settings.badges||{}, days=careDays();
+  const nGot=BADGES.filter(b=>got[b.id]).length;
+  const next=CARE_MILESTONES.map(m=>m[0]).find(n=>n>days);
+  return `
+    <div class="backdrop" onclick="if(event.target===this)closeBadges()">
+      <div class="sheet">
+        <div class="sh-handle"></div>
+        <div class="sh-hdr" style="border-bottom:none">
+          <div class="sh-title">Suas conquistas</div>
+          <button class="sh-close" onclick="closeBadges()" aria-label="Fechar">✕</button>
+        </div>
+        <div style="padding:0 20px 24px">
+          <div style="position:relative;border-radius:28px;background:linear-gradient(160deg,var(--accent),var(--accent-dk));padding:20px 18px;margin-bottom:40px;min-height:120px">
+            <div style="max-width:60%">
+              <div style="font-size:44px;font-weight:800;color:#fff;line-height:1">${days}</div>
+              <div style="font-size:14px;font-weight:700;color:#fff;margin-top:2px">${days===1?'dia de cuidado':'dias de cuidado'}</div>
+              <div style="font-size:12px;color:rgba(255,255,255,.8);line-height:1.4;margin-top:6px">Cada dia conta. Sem pressa e sem cobrança.</div>
+            </div>
+            <img class="pilly" src="img/pilly-acena.webp" alt="Pilly" style="position:absolute;right:6px;bottom:-36px;width:124px;height:auto;filter:drop-shadow(0 8px 10px rgba(0,0,0,.18))">
+          </div>
+          ${next?`<div style="background:var(--card2);border-radius:18px;padding:12px 14px;margin-bottom:16px">
+            <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">Próximo selo aos ${next} dias de cuidado</div>
+            <div style="height:8px;border-radius:99px;background:var(--card)"><div style="height:8px;border-radius:99px;background:var(--accent);width:${Math.max(4,days/next*100)}%"></div></div>
+          </div>`:''}
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">${nGot} de ${BADGES.length} selos</div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+            ${BADGES.map(b=>{const on=!!got[b.id];return `
+              <div class="badge-tile ${on?'':'locked'}" style="background:${on?hexToRgba(b.color,.16):'var(--card2)'}">
+                <span class="ico-circle" style="width:48px;height:48px;font-size:26px${on?`;border:3px solid ${b.color};background:#fff`:''}">${b.icon}</span>
+                <span style="font-size:12px;font-weight:700;color:var(--text);line-height:1.2">${b.title}</span>
+                <span style="font-size:10px;color:var(--muted);line-height:1.3">${b.desc}</span>
+              </div>`;}).join('')}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
 function calcStreak(){
   const dates=[...new Set(db.checkins.map(c=>c.date))].sort().reverse();
   if(!dates.length)return 0;
@@ -1651,12 +1761,12 @@ function applyTheme(){
 function load() {
   try {
     const r=localStorage.getItem(KEY);
-    if(r){const p=JSON.parse(r);db.entries=p.entries||[];db.checkins=p.checkins||[];db.diary=p.diary||[];db.settings={...db.settings,...p.settings};if(p.sintomas)db.sintomas=p.sintomas;if(p.hardDays)db.hardDays=p.hardDays;return;}
+    if(r){const p=JSON.parse(r);db.entries=p.entries||[];db.checkins=p.checkins||[];db.diary=p.diary||[];db.settings={...db.settings,...p.settings};if(p.sintomas)db.sintomas=p.sintomas;if(p.hardDays)db.hardDays=p.hardDays;if(Array.isArray(p.scheduled))db.scheduled=p.scheduled;return;}
     const r1=localStorage.getItem('energia_v1');
     if(r1){const p=JSON.parse(r1);db.entries=p.entries||[];db.settings={...db.settings,...p.settings};}
   } catch(_){}
 }
-function save(){try{localStorage.setItem(KEY,JSON.stringify(db));}catch(_){}autoBackupSilent();}
+function save(){try{checkBadges();}catch(_){}try{localStorage.setItem(KEY,JSON.stringify(db));}catch(_){}autoBackupSilent();}
 // O diário é íntimo: só vai para a nuvem se a pessoa ligar o interruptor nas configurações
 function cloudPayload(){return {...db,diary:db.settings.diaryCloudBackup?(db.diary||[]):[]};}
 
@@ -1789,7 +1899,7 @@ function toast(msg){
 
 // ── NAV ───────────────────────────────────────────────────────────────────────
 
-function go(s){if(screen==='diary'&&s!=='diary')diaryUnlocked=false;screen=s;sheetState=null;triggerSheetState=null;showReport=false;viewDate=todayStr();markTabVisited(s);render();trackEvent('screen_viewed',{screen:s});}
+function go(s){if(screen==='diary'&&s!=='diary')diaryUnlocked=false;screen=s;sheetState=null;triggerSheetState=null;showReport=false;showBadges=false;viewDate=todayStr();markTabVisited(s);if(s==='sos'&&!db.settings.sosUsed){db.settings.sosUsed=true;save();}render();trackEvent('screen_viewed',{screen:s});}
 
 // ── CHECK-IN ──────────────────────────────────────────────────────────────────
 
@@ -2300,8 +2410,9 @@ function importJSON(){
         if(Array.isArray(parsed.diary)) db.diary = parsed.diary;
         if(parsed.sintomas) db.sintomas = parsed.sintomas;
         if(Array.isArray(parsed.hardDays)) db.hardDays = parsed.hardDays;
+        if(Array.isArray(parsed.scheduled)) db.scheduled = parsed.scheduled;
         db.settings = {...db.settings, ...(parsed.settings||{})};
-        save(); applyTheme(); render();
+        checkBadges(true); save(); applyTheme(); render();
         toast('Dados restaurados com sucesso 💜');
       } catch(_){ toast('Arquivo inválido. Verifique e tente novamente.'); }
     };
@@ -2348,7 +2459,7 @@ async function restoreFromCloud(){
     if(Array.isArray(saved.hardDays)) db.hardDays = saved.hardDays;
     db.settings = {...db.settings, ...(saved.settings||{})};
     localStorage.setItem(BACKUP_KEY, code);
-    save(); applyTheme(); render();
+    checkBadges(true); save(); applyTheme(); render();
     toast('Dados restaurados da nuvem 💜');
   } catch(_){ toast('Erro ao restaurar. Verifique o código.'); }
 }
@@ -3061,7 +3172,7 @@ function homeHTML(){
 
   // Pilly reage ao nível de energia do dia — emerge do bloco roxo
   const pillyPose = rem<=0 ? 'cansada' : rem<=alertAt ? 'sentada' : 'acena';
-  const streakN = calcStreak();
+  const careN = careDays();
   const doneCheckinsN = Object.keys(PERIODS).filter(pid=>periodCheckin(pid)).length;
   const heroHTML = `
     <div style="position:relative;background:linear-gradient(160deg,var(--accent),var(--accent-dk));border-radius:28px;padding:20px 18px;margin:0 0 56px;min-height:148px">
@@ -3095,10 +3206,10 @@ function homeHTML(){
         <span style="font-size:20px;font-weight:800;color:var(--stat-b-fg);line-height:1">${es.length}</span>
         <span style="font-size:11px;font-weight:600;color:var(--stat-b-fg)">Registros</span>
       </button>
-      <button class="tap" onclick="go('mapa')" style="background:var(--stat-c-bg);border-radius:18px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:6px">
-        <span class="ico-circle">🔥</span>
-        <span style="font-size:20px;font-weight:800;color:var(--stat-c-fg);line-height:1">${streakN}</span>
-        <span style="font-size:11px;font-weight:600;color:var(--stat-c-fg)">${streakN===1?'Dia seguido':'Dias seguidos'}</span>
+      <button class="tap" onclick="openBadges()" style="background:var(--stat-c-bg);border-radius:18px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:6px">
+        <span class="ico-circle">💜</span>
+        <span style="font-size:20px;font-weight:800;color:var(--stat-c-fg);line-height:1">${careN}</span>
+        <span style="font-size:11px;font-weight:600;color:var(--stat-c-fg)">${careN===1?'Dia de cuidado':'Dias de cuidado'}</span>
       </button>
     </div>
     ${(recoveryBar||hardBtn)?`<div class="card" style="padding:14px 16px">${recoveryBar}${hardBtn}</div>`:''}`;
@@ -4234,6 +4345,7 @@ function checkinOverlayHTML(){
                 <div style="font-size:11px;font-weight:600;color:var(--stat-c-fg);margin-top:4px">${humorLabel(h)}</div>
               </div>`:''}
             </div>
+            <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:14px">💜 ${careDays()} ${careDays()===1?'dia de cuidado':'dias de cuidado'} até aqui</div>
             <button class="btn btn-p" onclick="closeCheckinResult()">Continuar</button>
           </div>
         </div>
@@ -4832,6 +4944,8 @@ function renderOverlays(){
   else if(addSintomaSheet)  el.innerHTML=addSintomaSheetHTML();
   else if(sintomaEvolSheet){el.innerHTML=sintomaEvolSheetHTML();initEvolChart();}
   else if(showDiaryRegister) el.innerHTML=diaryRegisterSheetHTML();
+  else if(_badgeQueue.length&&screen!=='sos') el.innerHTML=badgeCelebrateHTML();
+  else if(showBadges)       el.innerHTML=badgesSheetHTML();
   else el.innerHTML='';
   applyFlatEmoji(el);
   renderTourGuide();
@@ -4846,8 +4960,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.15.0 disponível!</strong>
-        Check-in novo do começo ao fim: círculo de energia, barrinhas de sensibilidade, bateria arrastável e a Pilly no resultado.</div>
+        <strong>✨ Versão 2.16.0 disponível!</strong>
+        Novidade: dias de cuidado e selos de conquista com a Pilly. Check-in novo, com círculo de energia e barrinhas de arrastar.</div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
         ? `<button class="update-banner-btn" onclick="dismissUpdate()">✅ Atualizar agora</button>`
@@ -4867,7 +4981,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.15.0';
+const APP_VERSION = '2.16.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
@@ -4906,7 +5020,7 @@ if(new URLSearchParams(location.search).get('preview')==='1'){
   history.replaceState(null,'',location.pathname);
 }
 
-load();applyTheme();
+load();try{checkBadges(true);}catch(_){}applyTheme();
 checkAppUpdate();
 // Se recarregou por causa do botão "Atualizar agora", esta é que é a versão real
 // (a que acabou de carregar) — grava ela e não deixa o banner reaparecer.
