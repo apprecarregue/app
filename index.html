@@ -389,6 +389,23 @@ body {
 .ci-body { padding: 16px 20px 8px; }
 .ci-q { font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 20px; line-height: 1.3; }
 
+/* ENERGY DIAL */
+.dial { position: relative; width: 220px; height: 220px; margin: 0 auto 4px; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
+.dial:active { cursor: grabbing; }
+.dial:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 50%; }
+.dial svg { display: block; }
+.dial-fill { transition: stroke-dasharray .35s cubic-bezier(.3,1.4,.5,1), stroke .3s; }
+.dial-knob { transform-origin: 110px 110px; transition: transform .35s cubic-bezier(.3,1.4,.5,1); }
+.dial-knob circle { transition: stroke .3s; }
+.dial-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+.dial-center #ci-emoji { display: inline-block; font-size: 44px; line-height: 1; }
+.dial-center #ci-emoji img.emoji { margin: 0; }
+.dial-center #ci-num { font-size: 40px; font-weight: 800; line-height: 1; margin-top: 6px; transition: color .3s; }
+.dial-pop { animation: dialPop .35s ease; }
+@keyframes dialPop { 0% { transform: scale(1) rotate(0); } 40% { transform: scale(1.3) rotate(-8deg); } 100% { transform: scale(1) rotate(0); } }
+.dial-step { width: 44px; height: 44px; border-radius: 50%; border: none; background: var(--card2); color: var(--text); font-size: 22px; font-weight: 700; cursor: pointer; font-family: inherit; flex-shrink: 0; transition: transform .15s; }
+.dial-step:active { transform: scale(.9); }
+@media (prefers-reduced-motion: reduce) { .dial-fill, .dial-knob { transition: none; } .dial-pop { animation: none; } }
 /* ENERGY SLIDER */
 .energy-circle {
   width: 96px; height: 96px; border-radius: 50%;
@@ -416,6 +433,23 @@ body {
 /* SENSORIAL ITEMS */
 .sens-section { margin: 16px 0 8px; }
 .sens-lbl-hdr { font-size: 13px; font-weight: 700; color: var(--text2); margin-bottom: 10px; }
+.sens-cols { display: flex; justify-content: space-around; gap: 8px; padding-top: 22px; }
+.sens-col { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; }
+.sens-col .sens-name { font-size: 13px; gap: 5px; }
+.sens-bar { position: relative; width: 56px; height: 180px; border-radius: 28px; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
+.sens-bar:active { cursor: grabbing; }
+.sens-bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.sens-fill { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 28px; transition: height .35s cubic-bezier(.3,1.4,.5,1), opacity .2s; pointer-events: none; }
+.sens-bar.unset .sens-fill { opacity: .45; }
+.sens-face { position: absolute; top: 5px; left: 5px; width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.85); display: flex; align-items: center; justify-content: center; font-size: 28px; line-height: 1; }
+.sens-face img.emoji { margin: 0; }
+.sens-face { z-index: 1; transition: box-shadow .3s; }
+.sens-ripple { position: absolute; top: 5px; left: 5px; width: 46px; height: 46px; border-radius: 50%; border: 3px solid; opacity: 0; pointer-events: none; }
+.sens-ripple.go { animation: sensRipple .6s ease-out; }
+@keyframes sensRipple { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(2.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sens-ripple.go { animation: none; } }
+.sens-val { font-size: 18px; font-weight: 800; color: var(--text); line-height: 1; }
+@media (prefers-reduced-motion: reduce) { .sens-fill { transition: none; } }
 .sens-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .sens-item:last-child { border-bottom: none; }
 .sens-name { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--text); }
@@ -1741,21 +1775,83 @@ function openCheckin(pid){
 
 function setEnergy(v){
   if(!checkinState)return;
-  checkinState.energy=parseInt(v);
-  const col=energyColor(checkinState.energy);
-  const circ=document.getElementById('ci-circle'); if(circ){circ.style.borderColor=col;circ.style.boxShadow=`0 0 20px ${col}40`;}
-  const num=document.getElementById('ci-num'); if(num){num.textContent=checkinState.energy;num.style.color=col;}
-  const lbl=document.getElementById('ci-lbl'); if(lbl) lbl.textContent=energyLabel(checkinState.energy);
-  const em=document.getElementById('ci-emoji'); if(em) em.textContent=energyEmoji(checkinState.energy);
+  v=parseInt(v);
+  if(v===checkinState.energy)return;
+  checkinState.energy=v;
+  const col=energyColor(v);
+  const arc=document.getElementById('ci-arc'); if(arc){arc.setAttribute('stroke-dasharray',`${42.412*v} 565.49`);arc.setAttribute('stroke',col);}
+  const knob=document.getElementById('ci-knob'); if(knob){knob.style.transform=`rotate(${135+27*v}deg)`;knob.firstElementChild.setAttribute('stroke',col);}
+  const dial=document.getElementById('ci-dial'); if(dial) dial.setAttribute('aria-valuenow',v);
+  const num=document.getElementById('ci-num'); if(num){num.textContent=v;num.style.color=col;}
+  const lbl=document.getElementById('ci-lbl'); if(lbl) lbl.textContent=energyLabel(v);
+  const em=document.getElementById('ci-emoji');
+  if(em){em.textContent=energyEmoji(v);applyFlatEmoji(em);em.classList.remove('dial-pop');void em.offsetWidth;em.classList.add('dial-pop');}
+  try{navigator.vibrate?.(8);}catch(_){}
+}
+let _dialDrag=false;
+function dialVal(e){
+  const r=e.currentTarget.getBoundingClientRect();
+  const dx=e.clientX-(r.left+r.width/2), dy=e.clientY-(r.top+r.height/2);
+  if(Math.hypot(dx,dy)<50)return null;
+  const a=(Math.atan2(dy,dx)*180/Math.PI-135+720)%360;
+  return Math.round((a>270?(a>315?0:270):a)/27);
+}
+function dialDown(e){
+  const v=dialVal(e); if(v===null)return;
+  _dialDrag=true; try{e.currentTarget.setPointerCapture(e.pointerId);}catch(_){}
+  setEnergy(v);
+}
+function dialMove(e){
+  if(!_dialDrag||!checkinState)return;
+  const v=dialVal(e);
+  if(v===null||Math.abs(v-checkinState.energy)>5)return;
+  setEnergy(v);
+}
+function dialUp(){_dialDrag=false;}
+function stepEnergy(d){if(checkinState)setEnergy(Math.max(0,Math.min(10,checkinState.energy+d)));}
+function dialKey(e){
+  const d={ArrowRight:1,ArrowUp:1,ArrowLeft:-1,ArrowDown:-1}[e.key];
+  if(d){e.preventDefault();stepEnergy(d);}
 }
 
 function setSensorial(sense, val){
   if(!checkinState)return;
+  if(checkinState.sensorial[sense]===val)return;
   checkinState.sensorial[sense]=val;
-  document.querySelectorAll(`.sens-num[data-sense="${sense}"]`).forEach(b=>{
-    b.classList.toggle('sel', parseInt(b.dataset.val)===val);
-  });
-  // Enable continue if all sensorial picked (optional — allow skipping)
+  const bar=document.getElementById('sb-'+sense); if(!bar)return;
+  bar.setAttribute('aria-valuenow',val);
+  bar.classList.remove('unset');
+  bar.querySelector('.sens-fill').style.height=(SENS_MIN+SENS_STEP*val)+'px';
+  const face=bar.querySelector('.sens-face');
+  face.textContent=SENS_FACES[val];applyFlatEmoji(face);
+  face.style.boxShadow=sensRings(SENS_COLORS[sense]||'#C084FC',val);
+  face.classList.remove('dial-pop');void face.offsetWidth;face.classList.add('dial-pop');
+  const rip=bar.querySelector('.sens-ripple');
+  if(rip){rip.classList.remove('go');void rip.offsetWidth;rip.classList.add('go');}
+  const num=document.getElementById('sv-'+sense); if(num)num.textContent=val;
+  try{navigator.vibrate?.(8);}catch(_){}
+}
+function sensRings(c,v){
+  return v?Array.from({length:v},(_,i)=>`0 0 0 ${(i+1)*5}px ${hexToRgba(c,.5-i*.09)}`).join(','):'none';
+}
+const SENS_FACES=['😌','🙂','😐','😕','😣','😫'];
+const SENS_COLORS={barulho:'#60A5FA',toque:'#FBBF77',cheiro:'#C084FC'};
+const SENS_H=180, SENS_MIN=56, SENS_STEP=(SENS_H-SENS_MIN)/5;
+let _sensDrag=null;
+function sensVal(e){
+  const r=e.currentTarget.getBoundingClientRect();
+  return Math.max(0,Math.min(5,Math.round((r.bottom-e.clientY-SENS_MIN/2)/SENS_STEP)));
+}
+function sensDown(e,sense){
+  _sensDrag=sense; try{e.currentTarget.setPointerCapture(e.pointerId);}catch(_){}
+  setSensorial(sense,sensVal(e));
+}
+function sensMove(e,sense){if(_sensDrag===sense)setSensorial(sense,sensVal(e));}
+function sensUp(){_sensDrag=null;}
+function sensKey(e,sense){
+  const d={ArrowUp:1,ArrowRight:1,ArrowDown:-1,ArrowLeft:-1}[e.key]; if(!d)return;
+  e.preventDefault();
+  setSensorial(sense,Math.max(0,Math.min(5,(checkinState.sensorial[sense]??0)+d)));
 }
 
 function setSocialBattery(v){
@@ -4050,14 +4146,16 @@ function checkinOverlayHTML(){
 
   if(checkinState.step===1){
     const sensHTML=SENSORIAL_ITEMS.map(s=>`
-      <div class="sens-item">
-        <div class="sens-name"><span>${s.icon}</span>${s.label}</div>
-        <div class="sens-nums">
-          ${[0,1,2,3,4,5].map(n=>`
-            <button class="sens-num ${checkinState.sensorial[s.id]===n?'sel':''}" data-sense="${s.id}" data-val="${n}" onclick="setSensorial('${s.id}',${n})">${n}</button>
-          `).join('')}
+      ${(()=>{const v=checkinState.sensorial[s.id],c=SENS_COLORS[s.id]||'#C084FC';return `
+      <div class="sens-col">
+        <div class="sens-bar ${v==null?'unset':''}" id="sb-${s.id}" role="slider" tabindex="0" aria-label="${s.label}, de 0 a 5" aria-valuemin="0" aria-valuemax="5" aria-valuenow="${v??0}"
+          style="background:${hexToRgba(c,.2)}"
+          onpointerdown="sensDown(event,'${s.id}')" onpointermove="sensMove(event,'${s.id}')" onpointerup="sensUp()" onpointercancel="sensUp()" onkeydown="sensKey(event,'${s.id}')">
+          <div class="sens-fill" style="background:${c};height:${SENS_MIN+SENS_STEP*(v??0)}px"><span class="sens-ripple" style="border-color:${c}"></span><span class="sens-face" style="box-shadow:${sensRings(c,v??0)}">${SENS_FACES[v??0]}</span></div>
         </div>
-      </div>`).join('');
+        <div class="sens-val" id="sv-${s.id}">${v??'–'}</div>
+        <div class="sens-name"><span>${s.icon}</span>${s.label}</div>
+      </div>`;})()}`).join('');
 
     return `
       <div class="backdrop">
@@ -4069,18 +4167,30 @@ function checkinOverlayHTML(){
           </div>
           <div class="ci-body">
             <div class="ci-q">Como está sua energia agora?</div>
-            <div class="energy-circle" id="ci-circle" style="border-color:${col};box-shadow:0 0 20px ${col}40">
-              <span id="ci-emoji" style="font-size:48px">${energyEmoji(checkinState.energy)}</span>
+            <div class="dial" id="ci-dial" role="slider" tabindex="0" aria-label="Energia de 0 a 10" aria-valuemin="0" aria-valuemax="10" aria-valuenow="${checkinState.energy}"
+              onpointerdown="dialDown(event)" onpointermove="dialMove(event)" onpointerup="dialUp()" onpointercancel="dialUp()" onkeydown="dialKey(event)">
+              <svg width="220" height="220" viewBox="0 0 220 220" aria-hidden="true">
+                <circle cx="110" cy="110" r="90" fill="none" stroke="var(--card2)" stroke-width="18" stroke-linecap="round" stroke-dasharray="424.12 565.49" transform="rotate(135 110 110)"/>
+                <circle id="ci-arc" class="dial-fill" cx="110" cy="110" r="90" fill="none" stroke="${col}" stroke-width="18" stroke-linecap="round" stroke-dasharray="${42.412*checkinState.energy} 565.49" transform="rotate(135 110 110)"/>
+                <g id="ci-knob" class="dial-knob" style="transform:rotate(${135+27*checkinState.energy}deg)">
+                  <circle cx="200" cy="110" r="13" fill="#fff" stroke="${col}" stroke-width="5"/>
+                </g>
+              </svg>
+              <div class="dial-center">
+                <span id="ci-emoji">${energyEmoji(checkinState.energy)}</span>
+                <span id="ci-num" style="color:${col}">${checkinState.energy}</span>
+              </div>
             </div>
-            <div class="energy-number" id="ci-num" style="color:${col}">${checkinState.energy}</div>
-            <div class="energy-label" id="ci-lbl">${energyLabel(checkinState.energy)}</div>
-            <div class="slider-wrap">
-              <input type="range" class="energy-slider" min="0" max="10" value="${checkinState.energy}" oninput="setEnergy(this.value)">
-              <div class="slider-labels"><span>0 — sem energia</span><span>10 — ótima</span></div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:6px">
+              <button class="dial-step" onclick="stepEnergy(-1)" aria-label="Diminuir energia">−</button>
+              <div class="energy-label" id="ci-lbl" style="margin:0;min-width:130px">${energyLabel(checkinState.energy)}</div>
+              <button class="dial-step" onclick="stepEnergy(1)" aria-label="Aumentar energia">+</button>
             </div>
+            <div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:12px">Gire o círculo ou toque em − e +</div>
             <div class="sens-section">
-              <div class="sens-lbl-hdr">Sensibilidade sensorial (0 = nenhuma · 5 = intensa)</div>
-              ${sensHTML}
+              <div class="sens-lbl-hdr">Sensibilidade sensorial</div>
+              <div style="font-size:11px;color:var(--muted);margin:-6px 0 12px">Toque e arraste para cima: 0 é nenhuma, 5 é intensa</div>
+              <div class="sens-cols">${sensHTML}</div>
             </div>
             <button class="btn btn-p" style="margin-top:16px" onclick="checkinNext()">Continuar →</button>
             <button class="btn" style="margin-top:8px;color:var(--muted);border-color:var(--border);font-size:13px" onclick="submitCheckinExpress()">Salvar só o número (dia pesado)</button>
@@ -4625,8 +4735,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.13.0 disponível!</strong>
-        Tela Hoje mais leve e colorida: modo claro como padrão, anel de energia, Pilly e menu com ícones novos.</div>
+        <strong>✨ Versão 2.14.0 disponível!</strong>
+        Check-in novo: gire o círculo de energia e arraste as barrinhas de sensibilidade. Tela Hoje mais leve e colorida.</div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
         ? `<button class="update-banner-btn" onclick="dismissUpdate()">✅ Atualizar agora</button>`
@@ -4646,7 +4756,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.13.0';
+const APP_VERSION = '2.14.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
