@@ -58,6 +58,7 @@ body[data-theme="dark"] {
   --stat-a-bg: #34D399; --stat-a-fg: #0b3b2a;
   --stat-b-bg: #60A5FA; --stat-b-fg: #0b2a4d;
   --stat-c-bg: #FBBF77; --stat-c-fg: #4d2e05;
+  --warn-fg: #FCD34D;
 }
 body[data-theme="light"] {
   --bg: var(--bg-l); --card: var(--card-l); --card2: var(--card2-l);
@@ -66,6 +67,7 @@ body[data-theme="light"] {
   --stat-a-bg: #DFF5EA; --stat-a-fg: #136b45;
   --stat-b-bg: #E1EBFC; --stat-b-fg: #1d4f8f;
   --stat-c-bg: #FDEBD8; --stat-c-fg: #8a4b10;
+  --warn-fg: #8a4b10;
 }
 
 /* Aliases para compatibilidade com código existente */
@@ -287,17 +289,22 @@ body {
 .reg-bar-pts { font-size: 24px; font-weight: 800; min-width: 36px; text-align: right; }
 
 /* CATEGORY GRID */
-.type-hdr { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; padding: 4px 2px 8px; }
-.cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.type-hdr { font-size: 14px; font-weight: 700; color: var(--text); padding: 4px 2px 10px; }
+.cat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+.reg-chips { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px 16px; padding: 0 16px; scrollbar-width: none; }
+.reg-chips::-webkit-scrollbar { display: none; }
+.reg-chip { flex-shrink: 0; padding: 9px 14px; border-radius: 99px; background: var(--card); color: var(--text2); font-size: 13px; font-weight: 600; }
+.reg-chip.on { background: var(--accent); color: #fff; }
 .cat-btn {
-  border: 1.5px solid var(--border); background: var(--card2); border-radius: 12px;
-  padding: 11px 10px; cursor: pointer; text-align: left;
-  display: flex; flex-direction: column; gap: 4px; position: relative;
-  transition: border-color .15s, background .15s, transform .1s; font-family: inherit;
+  border: 2px solid transparent; background: var(--card2); border-radius: 18px;
+  padding: 14px 10px; cursor: pointer; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative;
+  transition: border-color .15s, transform .15s; font-family: inherit;
 }
-.cat-btn:active { transform: scale(.97); border-color: var(--purple); background: var(--purple-bg); }
-.ci-icon { font-size: 20px; }
-.cl { font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.2; }
+.cat-btn:active { transform: scale(.96); border-color: var(--accent); }
+.ci-icon { width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.8); display: flex; align-items: center; justify-content: center; font-size: 24px; line-height: 1; }
+.ci-icon img.emoji { margin: 0; }
+.cl { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.2; }
 .cc { font-size: 11px; color: var(--muted); }
 .cat-info-btn {
   position: absolute; top: 6px; right: 7px;
@@ -3241,42 +3248,53 @@ function registerHTML(){
   const favIds=db.settings.favorites||[];
   const favCats=favIds.map(id=>CATS.find(c=>c.id===id)).filter(Boolean);
   const favSection=favCats.length===0?'':`
-    <div style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.5px;margin-bottom:8px">⭐ ATALHOS</div>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">
+    <div class="type-hdr">Seus atalhos</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px">
       ${favCats.map(c=>`
-        <button onclick="openSheet('${c.id}')" style="display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:20px;border:1.5px solid rgba(167,139,250,.35);background:rgba(167,139,250,.08);cursor:pointer;font-family:inherit">
+        <button class="tap" onclick="openSheet('${c.id}')" style="display:flex;align-items:center;gap:7px;padding:8px 14px 8px 8px;border-radius:99px;background:${TYPE_BG[c.type]}">
           <span style="font-size:18px;line-height:1">${c.icon}</span>
           <span style="font-size:13px;font-weight:600;color:var(--text)">${catLabel(c)}</span>
         </button>`).join('')}
     </div>`;
-  const sections=Object.keys(TYPES).map(type=>{
+  const chips=`<div class="reg-chips">
+    ${[['all','Tudo'],...Object.keys(TYPES).map(t=>[t,TYPES[t].label])].map(([k,l])=>`<button class="tap reg-chip ${regFilter===k?'on':''}" aria-pressed="${regFilter===k}" onclick="setRegFilter('${k}')">${l}</button>`).join('')}
+  </div>`;
+  const sections=Object.keys(TYPES).filter(type=>regFilter==='all'||regFilter===type).map(type=>{
     const meta=TYPES[type];
-    return `<div class="type-hdr" style="color:${meta.color}">${meta.label}</div>
+    return `<div class="type-hdr">${meta.label}</div>
     <div class="cat-grid">
       ${CATS.filter(c=>c.type===type).map(c=>`
-        <button class="cat-btn" onclick="openSheet('${c.id}')">
+        <button class="cat-btn" style="background:${TYPE_BG[type]}" onclick="openSheet('${c.id}')">
           <span class="ci-icon">${c.icon}</span>
           <span class="cl">${catLabel(c)}</span>
-          <span class="cc">${c.cost<0?'Devolve '+Math.abs(c.cost)+' pts':'Custa '+c.cost+' pts'}</span>
+          <span class="cc" style="${c.cost<0?'color:var(--stat-a-fg);font-weight:700':''}">${c.cost<0?'Devolve '+Math.abs(c.cost)+' pts':'Custa '+c.cost+' pts'}</span>
         </button>`).join('')}
     </div>`;
   }).join('');
 
   return `
-    <div class="reg-bar">
-      <div style="flex:1">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:5px">Pontos restantes hoje <button class="info-btn" onclick="openHelp('register')">ⓘ</button></div>
-        <div class="nrg-bar"><div class="nrg-fill" style="width:${remPct(rem)}%;background:${col}"></div></div>
+    <div style="position:relative;background:linear-gradient(160deg,var(--accent),var(--accent-dk));border-radius:28px;padding:18px;margin:0 0 30px;min-height:104px">
+      <div style="display:flex;align-items:center;gap:14px;max-width:72%">
+        <div style="width:68px;height:68px;flex-shrink:0;border-radius:50%;background:conic-gradient(#fff ${remPct(rem)*3.6}deg, rgba(255,255,255,.22) 0deg);display:flex;align-items:center;justify-content:center">
+          <div style="width:54px;height:54px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff">${remRound}</div>
+        </div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:#fff;line-height:1.25">${remRound===1?'colher restante':'colheres restantes'}</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.8);margin-top:2px;white-space:nowrap">O que aconteceu agora? <button class="info-btn" onclick="openHelp('register')" style="background:rgba(255,255,255,.18);color:#fff;border:none">ⓘ</button></div>
+        </div>
       </div>
-      <div class="reg-bar-pts" style="color:${col}">${remRound}</div>
+      <img class="pilly" src="img/pilly-aponta.webp" alt="Pilly" style="position:absolute;right:8px;bottom:-26px;width:104px;height:auto;filter:drop-shadow(0 8px 10px rgba(0,0,0,.18))">
     </div>
     ${favSection}
+    ${chips}
     ${sections}
-    <div class="type-hdr" style="color:#F87171">Gatilho não mapeado</div>
-    <button class="cat-btn" style="width:100%;margin-bottom:20px;border-color:rgba(248,113,113,.3);background:rgba(248,113,113,.08)" onclick="openTriggerSheet()">
-      <span class="ci-icon">🎯</span>
-      <span class="cl">Registrar gatilho novo</span>
-      <span class="cc">Algo que ainda não está na lista</span>
+    <button class="tap card" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left;margin-bottom:14px" onclick="openTriggerSheet()">
+      <span class="ico-circle" style="background:${TYPE_BG.gatilho};width:42px;height:42px;font-size:20px">🎯</span>
+      <span style="flex:1;display:flex;flex-direction:column;gap:2px">
+        <span style="font-size:13px;font-weight:700;color:var(--text)">Registrar gatilho novo</span>
+        <span style="font-size:11px;color:var(--muted)">Algo que ainda não está na lista</span>
+      </span>
+      <span style="font-size:18px;color:var(--muted)">›</span>
     </button>
     <div class="card" style="padding:0;overflow:hidden">
       <div class="sos-module-hdr" onclick="toggleSintomasNoRegistro()">
@@ -3296,7 +3314,9 @@ let mapaRange = 30; // dias visíveis no Mapa (7 | 14 | 30)
 function setMapaRange(n){mapaRange=n;go('mapa');}
 let addSintomaForm = {label:'', icon:''};
 let sintomasAbertoNoRegistro = false;
-function toggleSintomasNoRegistro(){sintomasAbertoNoRegistro=!sintomasAbertoNoRegistro;document.getElementById('main').innerHTML=registerHTML();}
+let regFilter = 'all';
+function setRegFilter(k){regFilter=k;document.getElementById('main').innerHTML=registerHTML();applyFlatEmoji(document.getElementById('main'));document.querySelector('.reg-chip.on')?.scrollIntoView({inline:'center',block:'nearest'});}
+function toggleSintomasNoRegistro(){sintomasAbertoNoRegistro=!sintomasAbertoNoRegistro;document.getElementById('main').innerHTML=registerHTML();applyFlatEmoji(document.getElementById('main'));}
 
 function openSintomaEvol(sintomaId){sintomaEvolSheet={sintomaId};renderOverlays();}
 function closeSintomaEvol(){sintomaEvolSheet=null;renderOverlays();}
@@ -3953,6 +3973,14 @@ function settingsHTML(){
   const accentColor=db.settings.accentColor||'#7906FF';
 
   return `
+    <button class="tap card" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left" onclick="openBadges()">
+      <span class="ico-circle" style="background:var(--stat-c-bg);width:42px;height:42px;font-size:20px">🏅</span>
+      <span style="flex:1;display:flex;flex-direction:column;gap:2px">
+        <span style="font-size:13px;font-weight:700;color:var(--text)">Suas conquistas</span>
+        <span style="font-size:11px;color:var(--muted)">${careDays()} ${careDays()===1?'dia de cuidado':'dias de cuidado'} e ${Object.keys(db.settings.badges||{}).length} selos</span>
+      </span>
+      <span style="font-size:18px;color:var(--muted)">›</span>
+    </button>
     <div class="card">
       <div class="sec" style="display:flex;align-items:center;gap:6px">Personalização <button class="info-btn" onclick="openHelp('personalizacao')">ⓘ</button></div>
       <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:8px">
@@ -4960,9 +4988,9 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.16.0 disponível!</strong>
-        Novidade: dias de cuidado e selos de conquista com a Pilly. Check-in novo, com círculo de energia e barrinhas de arrastar.</div>
-      <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
+        <strong>✨ Versão 2.17.0 disponível!</strong>
+        Novidade: dias de cuidado e selos de conquista com a Pilly, check-in novo de arrastar e tela Registrar mais colorida.</div>
+      <div style="font-size:11px;font-weight:600;color:var(--warn-fg);display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
         ? `<button class="update-banner-btn" onclick="dismissUpdate()">✅ Atualizar agora</button>`
         : `<button class="update-banner-btn" onclick="openBackupSheet()">📦 Fazer backup</button>
@@ -4981,7 +5009,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.16.0';
+const APP_VERSION = '2.17.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
