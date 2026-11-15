@@ -2137,13 +2137,33 @@ function skipCheckin(){checkinSkipped=true;checkinState=null;renderOverlays();}
 function openSheet(catId){sheetState={catId,intensity:'normal',note:''};renderOverlays();}
 function closeSheet(){sheetState=null;renderOverlays();}
 
-function setSheetInt(k){
+function renderCatBody(){
+  const el=document.getElementById('cat-body'); if(!el||!sheetState)return;
+  el.innerHTML=catBodyHTML(); applyFlatEmoji(el);
+}
+function setSheetInt(k){if(!sheetState)return;sheetState.intensity=k;renderCatBody();}
+function toggleSheetFav(){
   if(!sheetState)return;
-  sheetState.intensity=k;
-  document.querySelectorAll('.int-btn').forEach(b=>b.classList.toggle('sel',b.dataset.k===k));
-  const c=cat(sheetState.catId);if(!c)return;
-  const cost=Math.round(c.cost*(INTS[k]?.mult??1)*10)/10;
-  const el=document.getElementById('sh-cost');if(el)el.textContent=Math.abs(cost);
+  const f=db.settings.favorites||(db.settings.favorites=[]), i=f.indexOf(sheetState.catId);
+  if(i>=0)f.splice(i,1); else f.push(sheetState.catId);
+  save(); renderCatBody();
+  const m=document.getElementById('main'); m.innerHTML=CONTENT[screen](); applyFlatEmoji(m);
+}
+function toggleSheetSched(){
+  if(!sheetState)return;
+  sheetState.sched=!sheetState.sched;
+  if(sheetState.sched&&!sheetState.schedTime){
+    const d=new Date(); d.setHours(d.getHours()+1,0,0,0);
+    sheetState.schedTime=String(d.getHours()).padStart(2,'0')+':00';
+  }
+  renderCatBody();
+}
+function confirmSheetSched(){
+  if(!sheetState)return;
+  const t=sheetState.schedTime||'';
+  if(!/^\d{2}:\d{2}$/.test(t)){toast('Escolha um horário');return;}
+  addScheduled(sheetState.catId,t,sheetState.intensity,(sheetState.note||'').trim());
+  closeSheet();
 }
 function updateSheetNote(v){if(sheetState)sheetState.note=v;}
 
@@ -2153,7 +2173,8 @@ function submitSheet(){
   db.entries.push(e);save();
   trackEvent('entry_registered',{type:cat(e.categoryId)?.type||'unknown'});
   const c=cat(e.categoryId),cost=entryCost(e),isR=c?.type==='recuperacao';
-  toast(isR?`${c.icon} Recuperação! ${Math.abs(cost)} pts devolvidos`:`${c?.icon??''} Registrado — ${cost} pts usados`);
+  const pl=v=>v+(v===1?' ponto':' pontos');
+  toast(isR?`${c.icon} Recarga registrada: ${pl(Math.abs(cost))} de volta`:`${c?.icon??''} Registrado: ${pl(cost)}`);
   sheetState=null;go('home');
 }
 
@@ -4947,48 +4968,58 @@ function checkinOverlayHTML(){
     </div>`;
 }
 
-function categorySheetHTML(){
-  if(!sheetState)return'';
-  const c=cat(sheetState.catId);if(!c)return'';
-  const cost=Math.round(c.cost*(INTS[sheetState.intensity]?.mult??1)*10)/10;
+function catBodyHTML(){
+  const st=sheetState, c=cat(st.catId);
   const isR=c.type==='recuperacao';
+  const cost=Math.abs(Math.round(c.cost*(INTS[st.intensity]?.mult??1)*10)/10);
+  const fav=(db.settings.favorites||[]).includes(c.id);
+  const faces=TRIG_FACES[isR?'recuperacao':'drain'];
+  return `
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 20px 4px">
+      <span class="ico-circle" style="width:52px;height:52px;font-size:26px;background:${TYPE_BG[c.type]}">${c.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:18px;font-weight:800;color:var(--text);line-height:1.2">${catLabel(c)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">${TYPES[c.type]?.label??''}, ${isR?'devolve energia':'drena energia'}</div>
+      </div>
+      <button class="sh-close" onclick="closeSheet()" aria-label="Fechar">✕</button>
+    </div>
+    <div style="padding:12px 20px 24px">
+      ${CAT_INFO[c.id]?.desc?`<p style="font-size:13px;color:var(--text2);line-height:1.5;margin:0 0 12px">${CAT_INFO[c.id].desc}</p>`:''}
+      <button class="tap note-chip" aria-pressed="${fav}" onclick="toggleSheetFav()" style="margin-bottom:16px;${fav?'background:var(--accent-bg);color:var(--accent-lt)':''}">${fav?'⭐ Nos seus atalhos':'☆ Adicionar aos atalhos'}</button>
+      <div class="battery-label" style="margin-bottom:8px">Com que intensidade?</div>
+      <div style="display:flex;gap:10px">
+        ${Object.entries(INTS).map(([k,v])=>`<button class="tap int-tile ${st.intensity===k?'sel':''}" aria-pressed="${st.intensity===k}" onclick="setSheetInt('${k}')">
+          <span class="ico-circle ${st.intensity===k?'dial-pop':''}" style="width:40px;height:40px;font-size:22px">${faces[k]}</span>${v.label}</button>`).join('')}
+      </div>
+      <div style="text-align:center;margin:12px 0 4px">
+        <span style="display:inline-block;padding:7px 14px;border-radius:99px;font-size:13px;font-weight:700;background:${isR?'var(--stat-a-bg)':'var(--stat-c-bg)'};color:${isR?'var(--stat-a-fg)':'var(--stat-c-fg)'}">${isR?'Devolve':'Custa'} ${String(cost).replace('.',',')} ${cost===1?'ponto':'pontos'}</span>
+      </div>
+      <div class="battery-label" style="margin:14px 0 8px">Conta pra Pilly <span style="font-weight:400;color:var(--muted)">(opcional)</span></div>
+      <div class="note-row">
+        <img src="img/pilly-aponta.webp" alt="" width="64">
+        <div class="note-bubble">
+          <textarea rows="2" placeholder="O que aconteceu? Como você está?" oninput="updateSheetNote(this.value);autoGrow(this)">${esc(st.note)}</textarea>
+        </div>
+      </div>
+      <button class="btn btn-p" onclick="submitSheet()">Registrar agora</button>
+      ${isR?'':`
+      <button class="btn" style="margin-top:8px;background:var(--card2);border:none;color:var(--text);font-size:14px" aria-expanded="${!!st.sched}" onclick="toggleSheetSched()">⏰ ${st.sched?'Cancelar agendamento':'Agendar para mais tarde'}</button>
+      ${st.sched?`<div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+        <label for="sched-time" style="font-size:13px;font-weight:600;color:var(--text2)">Hoje às</label>
+        <input type="time" id="sched-time" class="soft-input" style="flex:1;margin:0" value="${esc(st.schedTime||'')}" oninput="sheetState.schedTime=this.value">
+        <button class="btn btn-p" style="width:auto;margin:0;padding:13px 18px" onclick="confirmSheetSched()">Agendar</button>
+      </div>`:''}`}
+    </div>`;
+}
+function categorySheetHTML(){
+  if(!sheetState||!cat(sheetState.catId))return'';
   return `
     <div class="backdrop" onclick="if(event.target===this)closeSheet()">
       <div class="sheet">
         <div class="sh-handle"></div>
-        <div class="cat-sh-hdr">
-          <div class="cat-sh-ico" style="background:${TYPE_BG[c.type]}">${c.icon}</div>
-          <div>
-            <div class="cat-sh-name">${catLabel(c)}</div>
-            <div class="cat-sh-type">${TYPES[c.type]?.label??''} · ${isR?'devolve energia':'drena energia'}</div>
-          </div>
-        </div>
-        <div class="cat-sh-body">
-          ${CAT_INFO[c.id]?.desc?`<p style="font-size:13px;color:var(--muted);line-height:1.5;margin:0 0 16px;padding-bottom:14px;border-bottom:1px solid var(--border)">${CAT_INFO[c.id].desc}</p>`:''}
-          <div class="sec">Intensidade</div>
-          <div class="int-row">
-            ${Object.entries(INTS).map(([k,v])=>`<button class="int-btn ${sheetState.intensity===k?'sel':''}" data-k="${k}" onclick="setSheetInt('${k}')">${v.label}</button>`).join('')}
-          </div>
-          <div class="cost-prev">${isR?'Devolve':'Custa'}: <strong><span id="sh-cost">${Math.abs(cost)}</span> pontos</strong></div>
-          <div class="sec">Nota (opcional)</div>
-          <textarea class="note" rows="3" placeholder="O que aconteceu? Como você está?" oninput="updateSheetNote(this.value)">${sheetState.note}</textarea>
-          <button class="btn btn-p" onclick="submitSheet()">Registrar agora</button>
-          ${c.type!=='recuperacao'?`
-          <button class="btn" style="margin-top:8px;border:1px solid rgba(245,158,11,.3);color:var(--amber);background:rgba(245,158,11,.06);display:flex;align-items:center;justify-content:center;gap:8px" onclick="openSchedPicker('${c.id}','${sheetState.intensity}')">
-            ⏰ Agendar para mais tarde
-          </button>`:''}
-        </div>
+        <div id="cat-body">${catBodyHTML()}</div>
       </div>
     </div>`;
-}
-
-function openSchedPicker(catId, intensity){
-  // picker simples: prompt de horário
-  const time = prompt('Que horas? (formato HH:MM, ex: 16:30)');
-  if(!time || !/^\d{2}:\d{2}$/.test(time)){ if(time!==null) toast('Use o formato HH:MM'); return; }
-  const note = sheetState?.note||'';
-  addScheduled(catId, time, intensity, note);
-  closeSheet();
 }
 
 function triggerBodyHTML(){
@@ -5443,7 +5474,7 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.23.0 disponível!</strong>
+        <strong>✨ Versão 2.24.0 disponível!</strong>
         Novidade: Mapa de Energia novo, com resumo do período, seus últimos 7 dias e gráficos mais claros. E ainda selos, check-in de arrastar e sintomas que enchem.</div>
       <div style="font-size:11px;font-weight:600;color:var(--warn-fg);display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -5464,7 +5495,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.23.0';
+const APP_VERSION = '2.24.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
