@@ -38,7 +38,7 @@
    aplicada via JS (ver applyAccentColor) — não depende de paleta fixa. */
 body {
   --bg-d:    #0E0A1F; --card-d:  #1C1535; --card2-d: #251D42;
-  --bg-l:    #F5F3FF; --card-l:  #ffffff; --card2-l: #EDE9FE;
+  --bg-l:    #E9E6F4; --card-l:  #ffffff; --card2-l: #F1EFFA;
   /* fallback antes do JS aplicar a cor escolhida — violeta da LP/Instagram */
   --accent:    #7906FF;
   --accent-lt: #9B4DFF;
@@ -51,10 +51,18 @@ body {
 body[data-theme="dark"] {
   --bg: var(--bg-d); --card: var(--card-d); --card2: var(--card2-d);
   --text: #F0EDF8; --text2: #C4B8E8; --muted: #9B8FC0;
+  /* blocos de estatística (cards tipo "chip") — bem saturados no escuro */
+  --stat-a-bg: #34D399; --stat-a-fg: #0b3b2a;
+  --stat-b-bg: #60A5FA; --stat-b-fg: #0b2a4d;
+  --stat-c-bg: #FBBF77; --stat-c-fg: #4d2e05;
 }
 body[data-theme="light"] {
   --bg: var(--bg-l); --card: var(--card-l); --card2: var(--card2-l);
   --text: #1a1030; --text2: #3d2c6b; --muted: #6b5fa0;
+  /* mesmos blocos, em pastel — sóbrio, sem neon sobre fundo claro */
+  --stat-a-bg: #DFF5EA; --stat-a-fg: #136b45;
+  --stat-b-bg: #E1EBFC; --stat-b-fg: #1d4f8f;
+  --stat-c-bg: #FDEBD8; --stat-c-fg: #8a4b10;
 }
 
 /* Aliases para compatibilidade com código existente */
@@ -131,7 +139,6 @@ body {
 .card {
   background: var(--card); border-radius: var(--r);
   padding: 16px; margin-bottom: 14px;
-  border: 1px solid var(--border); box-shadow: var(--sh);
 }
 .card2 { background: var(--card2); }
 .sec {
@@ -262,7 +269,7 @@ body {
 .reg-bar {
   display: flex; align-items: center; gap: 10px;
   background: var(--card); border-radius: 14px; padding: 12px 14px;
-  margin-bottom: 14px; border: 1px solid var(--border); box-shadow: var(--sh);
+  margin-bottom: 14px;
 }
 .reg-bar-pts { font-size: 24px; font-weight: 800; min-width: 36px; text-align: right; }
 
@@ -1546,7 +1553,10 @@ function applyAccentColor(hex){
   // pra ler — diferente da cor sólida (--accent), que segue exatamente o que a pessoa
   // escolheu e é usada em botões/preenchimentos, não como texto
   const sat=Math.max(45,Math.min(85,s));
-  const lt=hslToHex(h,sat,58);
+  const theme=db.settings.theme||'dark';
+  // --accent-lt também é usado como TEXTO: precisa de luminosidade diferente em cada
+  // tema pra manter contraste ≥4.5:1 (claro no escuro, escuro no claro)
+  const lt=hslToHex(h,sat,theme==='light'?40:70);
   const dk=hslToHex(h,sat,38);
   const b=document.body.style;
   b.setProperty('--accent',hex);
@@ -2881,29 +2891,44 @@ function homeHTML(){
       </div>
     </div>`:'';
 
+  // Pilly reage ao nível de energia do dia — emerge do bloco roxo
+  const pillyPose = rem<=0 ? 'cansada' : rem<=alertAt ? 'sentada' : 'acena';
+  const streakN = calcStreak();
+  const doneCheckinsN = Object.keys(PERIODS).filter(pid=>periodCheckin(pid)).length;
+  const heroHTML = `
+    <div style="position:relative;overflow:hidden;background:linear-gradient(160deg,var(--accent),var(--accent-dk));border-radius:28px;padding:20px 18px;margin-bottom:12px;min-height:148px">
+      <div style="position:relative;z-index:1;max-width:62%">
+        ${nameGreet?`<div style="font-size:13px;color:rgba(255,255,255,.85);margin-bottom:2px">Olá, <strong style="color:#fff">${db.settings.name}</strong> 👋</div>`:''}
+        <div style="font-size:12px;color:rgba(255,255,255,.7)">${fmtDate(viewDate)}</div>
+        <div style="margin-top:6px;line-height:1">
+          <span style="font-size:52px;font-weight:800;color:#fff">${remRound}</span>
+          <span style="font-size:15px;font-weight:600;color:rgba(255,255,255,.65)"> / ${dailyPts} colheres</span>
+        </div>
+        <div style="font-size:13px;color:rgba(255,255,255,.85);margin-top:4px">${pct}% de energia restante <button class="info-btn" onclick="openHelp('colheres')" style="background:rgba(255,255,255,.18);color:#fff;border:none">ⓘ</button></div>
+        ${affirmation?`<div style="font-size:12px;color:rgba(255,255,255,.75);font-style:italic;margin-top:8px;line-height:1.4">"${db.settings.affirmation}"</div>`:''}
+      </div>
+      <img src="img/pilly-${pillyPose}.webp" alt="Pilly" style="position:absolute;right:-8px;bottom:-10px;width:148px;height:auto;z-index:0">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div style="background:var(--stat-a-bg);border-radius:18px;padding:14px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.4px;color:var(--stat-a-fg)">CHECK-INS HOJE</div>
+        <div style="font-size:26px;font-weight:800;color:var(--stat-a-fg);margin-top:2px">${doneCheckinsN}/3</div>
+      </div>
+      <div style="background:var(--stat-b-bg);border-radius:18px;padding:14px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.4px;color:var(--stat-b-fg)">REGISTROS HOJE</div>
+        <div style="font-size:26px;font-weight:800;color:var(--stat-b-fg);margin-top:2px">${es.length}</div>
+      </div>
+      ${streakN>=2?`<div style="grid-column:1/-1;background:var(--stat-c-bg);border-radius:18px;padding:12px 14px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:20px">🔥</span><span style="font-size:13px;font-weight:700;color:var(--stat-c-fg)">${streakN} dias seguidos de check-in</span>
+      </div>`:''}
+    </div>
+    ${(recoveryBar||hardBtn)?`<div class="card" style="padding:14px 16px">${recoveryBar}${hardBtn}</div>`:''}`;
+
   return `
     ${backupBanner}
     ${diaryIntro}
     ${dateNav}
-    <div class="card" id="tour-energy">
-      <div class="nrg">
-        ${nameGreet}
-        ${affirmation}
-        <div class="nrg-date">${fmtDate(viewDate)}</div>
-        <div class="nrg-row">
-          <div class="nrg-val ${rem<=0?'pulse':''}" style="color:${col}">${remRound}</div>
-          <span class="nrg-spoon">🥄</span>
-          <div class="nrg-total" style="color:var(--muted)">${dailyPts}</div>
-        </div>
-        <div class="nrg-label">Restante · Total <button class="info-btn" onclick="openHelp('colheres')">ⓘ</button></div>
-        <div class="nrg-bar"><div class="nrg-fill" style="width:${p}%;background:${col}"></div></div>
-        <div class="nrg-pct">${pct}% de energia restante</div>
-        <div class="spoon-bar">${spoons}</div>
-        ${(()=>{const s=calcStreak();return s>=2?`<div style="text-align:center;font-size:12px;color:var(--muted);margin-top:6px">🔥 <strong style="color:var(--accent-lt)">${s} dias</strong> seguidos de check-in</div>`:''})()}
-        ${recoveryBar}
-        ${hardBtn}
-      </div>
-    </div>
+    ${heroHTML}
     ${hard?hardBanner:''}
     ${autoHardDaySuggestion}
     ${alert}
@@ -4566,8 +4591,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.10.1 disponível!</strong>
-        Polimento visual: contraste melhor, datas certas no Diário e cantinhos mais consistentes.</div>
+        <strong>✨ Versão 2.11.0 disponível!</strong>
+        Tela Hoje com a Pilly de verdade, fundo mais sóbrio no modo claro e sem sombra nos cards — mais perto do nosso jeito.</div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
         ? `<button class="update-banner-btn" onclick="dismissUpdate()">✅ Atualizar agora</button>`
@@ -4586,7 +4611,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.10.1';
+const APP_VERSION = '2.11.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
