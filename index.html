@@ -117,25 +117,33 @@ body {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 8px 0 10px; border: none; background: none; cursor: pointer;
   color: var(--muted); font-size: 10px; gap: 4px; font-family: inherit; transition: color .15s;
-  opacity: .55;
 }
+.nav-btn .nav-ico img.emoji { filter: grayscale(1); opacity: .5; margin: 0; transition: filter .15s, opacity .15s; }
+.nav-btn.on .nav-ico img.emoji, .nav-btn.sos-btn .nav-ico img.emoji { filter: none; opacity: 1; }
+.nav-btn:active .nav-ico { transform: scale(.9); }
 .nav-btn.on {
   color: var(--accent-lt);
   font-weight: 700;
-  opacity: 1;
 }
+.tap { transition: transform .15s ease; cursor: pointer; font-family: inherit; border: none; }
+.tap:active { transform: scale(.96); }
+.ico-circle { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,.8); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.ico-circle img.emoji { margin: 0; }
+@keyframes pillyFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.pilly { animation: pillyFloat 4.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .pilly { animation: none; } }
 .nav-btn.on .nav-ico {
   background: var(--accent-bg);
   border-radius: 12px;
   padding: 5px 13px;
   transform: scale(1.08);
 }
-.nav-btn.sos-btn { color: #F87171; opacity: .75; }
-.nav-btn.sos-btn.on { color: #FF6B6B; opacity: 1; }
+.nav-btn.sos-btn { color: #DC2626; }
+.nav-btn.sos-btn.on { color: #DC2626; }
 .nav-btn.sos-btn.on .nav-ico {
   background: rgba(248,113,113,.22);
 }
-.nav-ico { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+.nav-ico { width: 22px; height: 22px; font-size: 20px; line-height: 1; transition: transform .15s; display: flex; align-items: center; justify-content: center; }
 .nav-ico svg { display: block; }
 
 /* CARD */
@@ -627,12 +635,12 @@ input.accent-picker::-moz-color-swatch { border: none; border-radius: 50%; }
 
 /* BACKUP */
 .backup-remind-banner {
-  background: rgba(251,191,36,.1);
-  border: 1px solid rgba(251,191,36,.3);
-  border-radius: 12px;
+  background: var(--stat-c-bg);
+  border-radius: 16px;
   padding: 12px 16px;
   font-size: 13px;
-  color: #fbbf24;
+  font-weight: 600;
+  color: var(--stat-c-fg);
   text-align: center;
   cursor: pointer;
   margin-bottom: 12px;
@@ -726,7 +734,7 @@ body[data-theme="dark"] .info-btn { color: #FCD34D; }
 .suggest-btn { background: none; border: 1.5px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--muted); cursor: pointer; font-family: inherit; }
 </style>
 </head>
-<body data-theme="dark">
+<body data-theme="light">
 <div id="app"></div>
 <div id="overlays"></div>
 <div id="tour-guide"></div>
@@ -977,7 +985,7 @@ const REST_ACTIVITIES = [
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 
-let db = {entries:[], checkins:[], diary:[], sintomas:{lista:[...SINTOMAS_DEFAULT], registros:[]}, settings:{dailyPts:12, alertAt:3, notifEnabled:false, name:'', theme:'dark', accentColor:'#7906FF', pronoun:null, age:null, diaryCloudBackup:false}};
+let db = {entries:[], checkins:[], diary:[], sintomas:{lista:[...SINTOMAS_DEFAULT], registros:[]}, settings:{dailyPts:12, alertAt:3, notifEnabled:false, name:'', theme:'light', accentColor:'#7906FF', pronoun:null, age:null, diaryCloudBackup:false}};
 let screen = 'home';
 let _pendingUpdate = false;
 let _backupDoneForUpdate = false;
@@ -1558,7 +1566,7 @@ function applyAccentColor(hex){
   // pra ler — diferente da cor sólida (--accent), que segue exatamente o que a pessoa
   // escolheu e é usada em botões/preenchimentos, não como texto
   const sat=Math.max(45,Math.min(85,s));
-  const theme=db.settings.theme||'dark';
+  const theme=db.settings.theme||'light';
   // --accent-lt também é usado como TEXTO: precisa de luminosidade diferente em cada
   // tema pra manter contraste ≥4.5:1 (claro no escuro, escuro no claro)
   const lt=hslToHex(h,sat,theme==='light'?40:70);
@@ -1572,10 +1580,10 @@ function applyAccentColor(hex){
 }
 function setAccentColor(hex){db.settings.accentColor=hex;save();applyAccentColor(hex);render();}
 function applyTheme(){
-  const t=db.settings.theme||'dark';
+  const t=db.settings.theme||'light';
   document.body.setAttribute('data-theme', t);
   applyAccentColor(db.settings.accentColor||'#7906FF');
-  const bgColor = t==='light' ? '#F5F3FF' : '#0E0A1F';
+  const bgColor = t==='light' ? '#E9E6F4' : '#0E0A1F';
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bgColor);
   // Em telas largas o <body> fica centralizado (max-width:430px); sem isso, a área
   // ao redor mostra o fundo padrão do navegador em vez da cor do app.
@@ -2808,12 +2816,12 @@ function homeHTML(){
   const quickCats=isToday?topCategories(3):[];
   const quickSection=quickCats.length<2?'': `
     <div style="padding:0 16px 8px">
-      <div style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.5px;margin-bottom:8px">REGISTRO RÁPIDO</div>
-      <div style="display:flex;gap:8px">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">Registro rápido</div>
+      <div style="display:flex;gap:10px">
         ${quickCats.map(c=>`
-          <button onclick="quickRegister('${c.id}')" style="flex:1;padding:10px 6px;border-radius:12px;border:1px solid ${TYPE_BG[c.type]};background:${TYPE_BG[c.type]};cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">
-            <span style="font-size:20px">${c.icon}</span>
-            <span style="font-size:10px;font-weight:600;color:var(--text);line-height:1.2;text-align:center">${c.label}</span>
+          <button class="tap" onclick="quickRegister('${c.id}')" style="flex:1;padding:12px 6px;border-radius:18px;background:${TYPE_BG[c.type]};display:flex;flex-direction:column;align-items:center;gap:6px">
+            <span class="ico-circle">${c.icon}</span>
+            <span style="font-size:11px;font-weight:600;color:var(--text);line-height:1.2;text-align:center">${c.label}</span>
           </button>`).join('')}
       </div>
     </div>`;
@@ -2881,9 +2889,13 @@ function homeHTML(){
       </div>`:'';
 
   // Botão modo dia difícil (só hoje)
-  const hardBtn=isToday?`<button onclick="toggleHardDay()" style="margin-top:10px;width:100%;padding:9px 12px;border-radius:10px;border:1px solid ${hard?'rgba(139,92,246,.5)':'var(--border)'};background:${hard?'rgba(139,92,246,.15)':'transparent'};color:${hard?'var(--accent-lt)':'var(--muted)'};cursor:pointer;font-family:inherit;text-align:left;display:flex;flex-direction:column;gap:2px">
-    <span style="font-size:12px;font-weight:600">${hard?'✕ Desativar modo dia difícil':`🌙 Acordei já ${g('desgastada','desgastado','desgastadu')} — dia difícil`}</span>
-    ${hard?'':`<span style="font-size:10px;color:var(--muted);opacity:.8">noite mal dormida, ansiedade alta ou corpo pesado desde cedo</span>`}
+  const hardBtn=isToday?`<button class="tap" onclick="toggleHardDay()" style="width:100%;padding:0;background:none;color:var(--text);text-align:left;display:flex;align-items:center;gap:12px">
+    <span class="ico-circle" style="background:var(--accent-bg);width:42px;height:42px;font-size:20px">🌙</span>
+    <span style="flex:1;display:flex;flex-direction:column;gap:2px">
+      <span style="font-size:13px;font-weight:700;color:${hard?'var(--accent-lt)':'var(--text)'}">${hard?'Desativar modo dia difícil':`Acordei já ${g('desgastada','desgastado','desgastadu')}`}</span>
+      <span style="font-size:11px;color:var(--muted)">${hard?'hoje você está com metade das colheres':'ativar modo dia difícil: noite mal dormida, ansiedade alta ou corpo pesado'}</span>
+    </span>
+    <span style="font-size:18px;color:var(--muted)">${hard?'✕':'›'}</span>
   </button>`:'';
 
   const diaryIntro=diaryIntroPending()?`
@@ -2901,31 +2913,42 @@ function homeHTML(){
   const streakN = calcStreak();
   const doneCheckinsN = Object.keys(PERIODS).filter(pid=>periodCheckin(pid)).length;
   const heroHTML = `
-    <div style="position:relative;overflow:hidden;background:linear-gradient(160deg,var(--accent),var(--accent-dk));border-radius:28px;padding:20px 18px;margin-bottom:12px;min-height:148px">
-      <div style="position:relative;z-index:1;max-width:62%">
+    <div style="position:relative;background:linear-gradient(160deg,var(--accent),var(--accent-dk));border-radius:28px;padding:20px 18px;margin:0 0 56px;min-height:148px">
+      <div style="position:relative;z-index:1;max-width:60%">
         ${nameGreet?`<div style="font-size:13px;color:rgba(255,255,255,.85);margin-bottom:2px">Olá, <strong style="color:#fff">${db.settings.name}</strong> 👋</div>`:''}
         <div style="font-size:12px;color:rgba(255,255,255,.7)">${fmtDate(viewDate)}</div>
-        <div style="margin-top:6px;line-height:1">
-          <span style="font-size:52px;font-weight:800;color:#fff">${remRound}</span>
-          <span style="font-size:15px;font-weight:600;color:rgba(255,255,255,.65)"> / ${dailyPts} colheres</span>
+        <div style="margin-top:12px;display:flex;align-items:center;gap:14px">
+          <div style="position:relative;width:88px;height:88px;flex-shrink:0;border-radius:50%;background:conic-gradient(#fff ${p*3.6}deg, rgba(255,255,255,.22) 0deg);display:flex;align-items:center;justify-content:center">
+            <div style="width:70px;height:70px;border-radius:50%;background:var(--accent);display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <span style="font-size:24px;font-weight:800;color:#fff;line-height:1">${remRound}</span>
+              <span style="font-size:9px;color:rgba(255,255,255,.7)">/ ${dailyPts}</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:13px;color:#fff;font-weight:700">${pct}% de energia</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.75)">restante hoje <button class="info-btn" onclick="openHelp('colheres')" style="background:rgba(255,255,255,.18);color:#fff;border:none">ⓘ</button></div>
+          </div>
         </div>
-        <div style="font-size:13px;color:rgba(255,255,255,.85);margin-top:4px">${pct}% de energia restante <button class="info-btn" onclick="openHelp('colheres')" style="background:rgba(255,255,255,.18);color:#fff;border:none">ⓘ</button></div>
-        ${affirmation?`<div style="font-size:12px;color:rgba(255,255,255,.75);font-style:italic;margin-top:8px;line-height:1.4">"${db.settings.affirmation}"</div>`:''}
+        ${affirmation?`<div style="font-size:12px;color:rgba(255,255,255,.75);font-style:italic;margin-top:10px;line-height:1.4">"${db.settings.affirmation}"</div>`:''}
       </div>
-      <img src="img/pilly-${pillyPose}.webp" alt="Pilly" style="position:absolute;right:-8px;bottom:-10px;width:148px;height:auto;z-index:0">
+      <img class="pilly" src="img/pilly-${pillyPose}.webp" alt="Pilly" style="position:absolute;right:4px;bottom:-56px;width:152px;height:auto;z-index:2;filter:drop-shadow(0 8px 10px rgba(0,0,0,.18))">
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <div style="background:var(--stat-a-bg);border-radius:18px;padding:14px">
-        <div style="font-size:10px;font-weight:700;letter-spacing:.4px;color:var(--stat-a-fg)">CHECK-INS HOJE</div>
-        <div style="font-size:26px;font-weight:800;color:var(--stat-a-fg);margin-top:2px">${doneCheckinsN}/3</div>
-      </div>
-      <div style="background:var(--stat-b-bg);border-radius:18px;padding:14px">
-        <div style="font-size:10px;font-weight:700;letter-spacing:.4px;color:var(--stat-b-fg)">REGISTROS HOJE</div>
-        <div style="font-size:26px;font-weight:800;color:var(--stat-b-fg);margin-top:2px">${es.length}</div>
-      </div>
-      ${streakN>=2?`<div style="grid-column:1/-1;background:var(--stat-c-bg);border-radius:18px;padding:12px 14px;display:flex;align-items:center;gap:8px">
-        <span style="font-size:20px">🔥</span><span style="font-size:13px;font-weight:700;color:var(--stat-c-fg)">${streakN} dias seguidos de check-in</span>
-      </div>`:''}
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px">
+      <button class="tap" onclick="document.getElementById('tour-checkin')?.scrollIntoView({behavior:'smooth',block:'center'})" style="background:var(--stat-a-bg);border-radius:18px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:6px">
+        <span class="ico-circle">✅</span>
+        <span style="font-size:20px;font-weight:800;color:var(--stat-a-fg);line-height:1">${doneCheckinsN}/3</span>
+        <span style="font-size:11px;font-weight:600;color:var(--stat-a-fg)">Check-ins</span>
+      </button>
+      <button class="tap" onclick="go('register')" style="background:var(--stat-b-bg);border-radius:18px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:6px">
+        <span class="ico-circle">📝</span>
+        <span style="font-size:20px;font-weight:800;color:var(--stat-b-fg);line-height:1">${es.length}</span>
+        <span style="font-size:11px;font-weight:600;color:var(--stat-b-fg)">Registros</span>
+      </button>
+      <button class="tap" onclick="go('mapa')" style="background:var(--stat-c-bg);border-radius:18px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:6px">
+        <span class="ico-circle">🔥</span>
+        <span style="font-size:20px;font-weight:800;color:var(--stat-c-fg);line-height:1">${streakN}</span>
+        <span style="font-size:11px;font-weight:600;color:var(--stat-c-fg)">${streakN===1?'Dia seguido':'Dias seguidos'}</span>
+      </button>
     </div>
     ${(recoveryBar||hardBtn)?`<div class="card" style="padding:14px 16px">${recoveryBar}${hardBtn}</div>`:''}`;
 
@@ -4445,12 +4468,12 @@ function helpSheetHTML(){
 // ── RENDER ────────────────────────────────────────────────────────────────────
 
 const NAV=[
-  {id:'home',     icon:ICO.home,     label:'Hoje',      cls:''},
-  {id:'register', icon:ICO.plus,     label:'Registrar', cls:''},
-  {id:'mapa',     icon:ICO.chart,    label:'Mapa',      cls:''},
-  {id:'diary',    icon:ICO.diary,    label:'Diário',    cls:''},
-  {id:'sos',      icon:ICO.sos,      label:'SOS',       cls:'sos-btn'},
-  {id:'settings', icon:ICO.settings, label:'Config',    cls:''},
+  {id:'home',     icon:'🏠', label:'Hoje',      cls:''},
+  {id:'register', icon:'🥄', label:'Registrar', cls:''},
+  {id:'mapa',     icon:'📊', label:'Mapa',      cls:''},
+  {id:'diary',    icon:'📔', label:'Diário',    cls:''},
+  {id:'sos',      icon:'🆘', label:'SOS',       cls:'sos-btn'},
+  {id:'settings', icon:'⚙️', label:'Config',    cls:''},
 ];
 const TITLES={home:'Recarregue',register:'Registrar',mapa:'Mapa de Energia',sintomas:'Sintomas',diary:'📔 Diário',sos:'SOS',settings:'Configurações'};
 const CONTENT={home:homeHTML,register:registerHTML,mapa:mapaHTML,sintomas:renderSintomas,diary:diaryHTML,sos:sosHTML,settings:settingsHTML};
@@ -4602,8 +4625,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.12.0 disponível!</strong>
-        Ícones flat e coloridos no lugar do emoji nativo do seu celular — visual mais consistente em todo o app.</div>
+        <strong>✨ Versão 2.13.0 disponível!</strong>
+        Tela Hoje mais leve e colorida: modo claro como padrão, anel de energia, Pilly e menu com ícones novos.</div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
         ? `<button class="update-banner-btn" onclick="dismissUpdate()">✅ Atualizar agora</button>`
@@ -4623,7 +4646,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.12.0';
+const APP_VERSION = '2.13.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
