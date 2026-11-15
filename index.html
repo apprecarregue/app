@@ -524,6 +524,20 @@ body {
 .cal-moon img.emoji { margin: 0; }
 .dial-step:disabled { opacity: .35; cursor: default; }
 textarea.soft-input { resize: none; line-height: 1.5; min-height: 52px; max-height: 220px; }
+.sos-night { position: relative; overflow: hidden; height: 340px; border-radius: 28px; margin-bottom: 18px; background-color: #2b1769; background-image: radial-gradient(1.5px 1.5px at 12% 22%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 30% 62%, rgba(255,255,255,.8) 50%, transparent 51%), radial-gradient(1.5px 1.5px at 48% 40%, rgba(255,255,255,.9) 50%, transparent 51%), radial-gradient(1px 1px at 66% 58%, #fff 50%, transparent 51%), radial-gradient(1.5px 1.5px at 82% 30%, rgba(255,255,255,.85) 50%, transparent 51%), radial-gradient(1px 1px at 92% 52%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 6% 50%, rgba(255,255,255,.7) 50%, transparent 51%), linear-gradient(170deg, #2b1769, #5b2fb3); }
+.sos-moon { position: absolute; left: 50%; bottom: -290px; width: 420px; height: 420px; margin-left: -210px; border-radius: 50%; background: linear-gradient(180deg, #e3d4ff, #b79cf5); }
+.breath-stage { height: 230px; display: flex; align-items: center; justify-content: center; }
+.breath-wrap .breath-circle { width: 130px; height: 130px; border: none; margin: 0; font-size: 16px; color: #fff; background: radial-gradient(circle at 35% 30%, #c9a8ff, #7906FF); box-shadow: 0 0 0 14px rgba(121,6,255,.12), 0 0 0 30px rgba(121,6,255,.06); }
+@keyframes breathExpand    { from{transform:scale(1)} to{transform:scale(1.45)} }
+@keyframes breathHoldFull  { from{transform:scale(1.45)} to{transform:scale(1.45)} }
+@keyframes breathShrink    { from{transform:scale(1.45)} to{transform:scale(1)} }
+@keyframes breathHoldEmpty { from{transform:scale(1)} to{transform:scale(1)} }
+.breath-wrap .breath-count { color: var(--accent-lt); min-height: 34px; }
+#main .cl-item { border-bottom: none; background: var(--card2); border-radius: 16px; padding: 12px 14px; margin-bottom: 8px; outline: none; }
+#main .cl-item:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+#main .cl-check { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--muted); color: #fff; font-weight: 800; }
+#main .cl-check.checked { background: #1f9d6b; border-color: #1f9d6b; }
+@media (prefers-reduced-motion: reduce) { .breath-circle { animation: none !important; } }
 /* SOCIAL BATTERY — arrastável */
 .bat-wrap { display: flex; align-items: center; gap: 4px; margin: 10px 0; }
 .bat-bar { position: relative; flex: 1; height: 72px; border-radius: 24px; background: var(--card2); overflow: hidden; touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
@@ -674,10 +688,10 @@ input.accent-picker::-moz-color-swatch { border: none; border-radius: 50%; }
   margin: 0 auto 12px; display: flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 700; color: var(--purple-lt);
 }
-@keyframes breathExpand    { from{transform:scale(1);background:rgba(139,92,246,.2)} to{transform:scale(1.5);background:rgba(139,92,246,.4)} }
-@keyframes breathHoldFull  { from{transform:scale(1.5);background:rgba(139,92,246,.4)} to{transform:scale(1.5);background:rgba(139,92,246,.4)} }
-@keyframes breathShrink    { from{transform:scale(1.5);background:rgba(139,92,246,.4)} to{transform:scale(1);background:rgba(139,92,246,.2)} }
-@keyframes breathHoldEmpty { from{transform:scale(1);background:rgba(139,92,246,.2)} to{transform:scale(1);background:rgba(139,92,246,.2)} }
+@keyframes breathExpand    { from{transform:scale(1)} to{transform:scale(1.5)} }
+@keyframes breathHoldFull  { from{transform:scale(1.5)} to{transform:scale(1.5)} }
+@keyframes breathShrink    { from{transform:scale(1.5)} to{transform:scale(1)} }
+@keyframes breathHoldEmpty { from{transform:scale(1)} to{transform:scale(1)} }
 .breath-circle.anim-expand     { animation: breathExpand    4s ease-in-out forwards; }
 .breath-circle.anim-hold-full  { animation: breathHoldFull  4s linear forwards; }
 .breath-circle.anim-shrink     { animation: breathShrink    4s ease-in-out forwards; }
@@ -2050,7 +2064,7 @@ function toast(msg){
 
 // ── NAV ───────────────────────────────────────────────────────────────────────
 
-function go(s){if(screen==='diary'&&s!=='diary')diaryUnlocked=false;screen=s;sheetState=null;triggerSheetState=null;showReport=false;showBadges=false;viewDate=todayStr();markTabVisited(s);if(s==='sos'&&!db.settings.sosUsed){db.settings.sosUsed=true;save();}render();trackEvent('screen_viewed',{screen:s});}
+function go(s){if(screen==='diary'&&s!=='diary')diaryUnlocked=false;if(breath.active)stopBreathing();if(s==='sos'&&screen!=='sos')sosTool=null;screen=s;sheetState=null;triggerSheetState=null;showReport=false;showBadges=false;viewDate=todayStr();markTabVisited(s);if(s==='sos'&&!db.settings.sosUsed){db.settings.sosUsed=true;save();}render();trackEvent('screen_viewed',{screen:s});}
 
 // ── CHECK-IN ──────────────────────────────────────────────────────────────────
 
@@ -3132,32 +3146,34 @@ function runBreathPhase(phaseIdx, cycle){
 // Grounding
 function startGrounding(){groundingStep=0;renderGrounding();}
 function nextGrounding(){if(groundingStep<4)groundingStep++;renderGrounding();}
+const GROUND_STEPS=[
+  {n:5,icon:'👀',color:'#A78BFA',text:'coisas que você vê'},
+  {n:4,icon:'✋',color:'#34D399',text:'coisas que você pode tocar'},
+  {n:3,icon:'👂',color:'#60A5FA',text:'sons que você ouve'},
+  {n:2,icon:'👃',color:'#FBBF24',text:'cheiros que você percebe'},
+  {n:1,icon:'👅',color:'#F87171',text:'gosto na sua boca'},
+];
+function groundingHTML(){
+  if(groundingStep<0)return `<p style="font-size:14px;color:var(--text2);line-height:1.6;margin:0 0 14px">Um passo de cada vez, você vai notar o que está à sua volta. Não precisa falar nem escrever nada, só perceber.</p>
+    <button class="btn btn-p" onclick="startGrounding()">Começar</button>`;
+  const cur=GROUND_STEPS[groundingStep];
+  return `<div style="display:flex;justify-content:center;gap:8px;margin-bottom:16px">
+      ${GROUND_STEPS.map((g,i)=>`<span class="ico-circle" style="width:36px;height:36px;font-size:15px;font-weight:800;color:${i<=groundingStep?'#fff':'var(--muted)'};background:${i<groundingStep?'#34D399':i===groundingStep?g.color:'var(--card2)'}">${i<groundingStep?'✓':g.n}</span>`).join('')}
+    </div>
+    <div class="res-in" style="background:${hexToRgba(cur.color,.18)};border-radius:24px;padding:22px 16px;text-align:center">
+      <div style="font-size:40px;line-height:1">${cur.icon}</div>
+      <div style="font-size:44px;font-weight:800;color:var(--text);line-height:1.1;margin-top:6px">${cur.n}</div>
+      <div style="font-size:16px;font-weight:600;color:var(--text);margin-top:2px">${cur.text}</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:8px">Sem pressa. Quando tiver percebido, siga em frente.</div>
+    </div>
+    ${groundingStep<4
+      ?`<button class="btn btn-p" style="margin-top:14px" onclick="nextGrounding()">Próximo</button>`
+      :`<div style="text-align:center;font-size:15px;font-weight:700;color:var(--text);margin:16px 0 4px">🌿 Você voltou para o presente.</div>
+         <button class="btn" style="background:var(--card2);border:none;color:var(--text);margin-top:8px" onclick="groundingStep=-1;renderGrounding()">Fazer de novo</button>`}`;
+}
 function renderGrounding(){
   const wrap=document.getElementById('ground-wrap');if(!wrap)return;
-  const steps=[
-    {n:5, q:'Vejo',   color:'#A78BFA', placeholder:'5 coisas que você vê agora'},
-    {n:4, q:'Toco',   color:'#34D399', placeholder:'4 coisas que você pode tocar'},
-    {n:3, q:'Ouço',   color:'#60A5FA', placeholder:'3 sons que você ouve'},
-    {n:2, q:'Cheiro', color:'#FBBF24', placeholder:'2 cheiros que você percebe'},
-    {n:1, q:'Provo',  color:'#F87171', placeholder:'1 gosto na sua boca'},
-  ];
-  if(groundingStep<0){
-    wrap.innerHTML=`<button class="btn btn-p" onclick="startGrounding()">Iniciar 5-4-3-2-1</button>`;
-    return;
-  }
-  const stepsHTML=steps.map((s,i)=>{
-    const st=i<groundingStep?'done':i===groundingStep?'active':'';
-    return `<div class="ground-step ${st}">
-      <span class="ground-step-n" style="color:${s.color}">${s.n}</span>
-      ${st==='active'?s.placeholder:s.q+' — '+s.n+' item(s)'}
-      ${st==='done'?'✅':''}
-    </div>`;
-  }).join('');
-  wrap.innerHTML=stepsHTML+(groundingStep<4
-    ?`<button class="btn btn-p" style="margin-top:12px" onclick="nextGrounding()">Próximo →</button>`
-    :`<div style="text-align:center;padding:12px;color:var(--green);font-weight:700">✅ Exercício completo!</div>
-      <button class="btn" style="background:var(--card2);color:var(--text2);margin-top:4px" onclick="groundingStep=-1;renderGrounding()">Recomeçar</button>`
-  );
+  wrap.innerHTML=groundingHTML(); applyFlatEmoji(wrap);
 }
 
 // Affirmation
@@ -3166,6 +3182,7 @@ function nextAffirmation(){affirmIdx=(affirmIdx+1)%AFFIRMATIONS.length;const el=
 // Checklist
 function toggleChecklist(idx){
   sosChecklist[idx]=!sosChecklist[idx];
+  const cnt=document.getElementById('calm-count'); if(cnt)cnt.textContent=Object.values(sosChecklist).filter(Boolean).length;
   const item=document.querySelectorAll('.cl-item')[idx];if(!item)return;
   const chk=item.querySelector('.cl-check');const txt=item.querySelector('.cl-text');
   if(chk)chk.classList.toggle('checked',!!sosChecklist[idx]);
@@ -4350,174 +4367,147 @@ function heatmapHTML(){
     </div>`;
 }
 
-function sosHTML(){
-  const OVERLOAD_LIST=[
-    'Diminuir estímulos (luzes, volume)',
-    'Tomar água',
-    'Sair do ambiente por 5 min',
-    'Colocar fone de ouvido',
-    'Respirar fundo 3×',
-    'Sentar no chão (regulação)',
-    'Apertar algo macio',
-  ];
-  const criseOpen=openModules.crise;
-  const sobOpen=openModules.sobrecarga;
-  const batColor=batteryColor(pomo.timeLeft/pomoDuration(pomo.phase)*10);
+let sosTool=null;
+const SOS_TOOLS=[
+  ['breath','🌬️','Respirar','Um minuto de respiração guiada','--type-tarefa'],
+  ['ground','🌿','Voltar ao presente','Exercício 5-4-3-2-1 com os sentidos','--type-recuperacao'],
+  ['calm','🎧','Acalmar o ambiente','Pequenos ajustes para reduzir estímulos','--type-emocional'],
+  ['comfort','💙','Lista de conforto','O que te ajuda quando está difícil','--type-gatilho'],
+  ['affirm','✨','Uma frase gentil','Palavras para este momento','--type-recuperacao'],
+  ['rest','🛋️','Ideia de descanso','Uma sugestão simples para agora','--type-tarefa'],
+  ['focus','⏱️','Timer de foco','Blocos de foco e de pausa','--type-gatilho'],
+  ['silent','🔕','Silenciar avisos','Pausar as notificações por um tempo','--type-emocional'],
+];
+const SOS_OVERLOAD=['Diminuir as luzes ou o volume','Tomar água','Sair do ambiente por 5 minutos','Colocar fone de ouvido','Respirar fundo 3 vezes','Sentar no chão','Apertar algo macio'];
+function renderSos(){const m=document.getElementById('main'); m.innerHTML=sosHTML(); applyFlatEmoji(m); m.scrollTop=0;}
+function openSosTool(k){sosTool=k; renderSos();}
+function closeSosTool(){if(breath.active)stopBreathing(); sosTool=null; renderSos();}
 
-  return `
-    <div class="sos-banner">
-      <div style="display:flex;align-items:center;gap:8px;justify-content:center">
-        <div class="sos-banner-title">⚠️ Modo SOS</div>
-        <button class="info-btn" onclick="openHelp('sos')" style="opacity:.7">ⓘ</button>
-      </div>
-      <div class="sos-banner-sub">Ferramentas de regulação — escolha o que precisar agora</div>
-    </div>
-
-    ${(()=>{
-      const active=Date.now()<silentUntil;
-      const rem=active?Math.ceil((silentUntil-Date.now())/60000):'';
-      return`<div style="margin-bottom:8px;padding:12px 16px;border-radius:12px;background:${active?'rgba(139,92,246,.12)':'var(--card)'};border:1px solid ${active?'rgba(139,92,246,.3)':'var(--border)'}">
-        <div style="font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.4px;margin-bottom:8px">🔕 MODO SILENCIOSO</div>
-        ${active
-          ?`<div style="font-size:13px;color:var(--accent-lt);margin-bottom:10px">Notificações pausadas · ainda ${rem} min</div>
-            <button onclick="setSilentMode(0)" style="padding:7px 16px;border-radius:8px;border:1px solid rgba(139,92,246,.4);background:transparent;color:var(--accent-lt);font-size:12px;cursor:pointer;font-family:inherit">Reativar agora</button>`
-          :`<div style="font-size:12px;color:var(--text2);margin-bottom:8px">Pausa temporária nas notificações:</div>
-            <div style="display:flex;gap:6px">
-              ${[1,2,4].map(h=>`<button onclick="setSilentMode(${h})" style="flex:1;padding:8px 0;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:12px;cursor:pointer;font-family:inherit">${h}h</button>`).join('')}
-            </div>`}
+function sosToolBodyHTML(){
+  if(sosTool==='breath'){
+    const ph=breath.active?BREATH_PHASES.find(p=>p.name===breath.phase):null;
+    return `<p style="font-size:14px;color:var(--text2);line-height:1.6;margin:0;text-align:center">Acompanhe o círculo: ele cresce quando você inspira e diminui quando você solta o ar. Quatro segundos em cada passo.</p>
+      <div class="breath-wrap">
+        <div class="breath-stage"><div class="breath-circle ${ph?ph.anim:''}" id="breath-circ">${breath.active?breath.phase:'Respirar'}</div></div>
+        <div class="breath-count" id="breath-cnt">${breath.active?breath.timeLeft:''}</div>
+        <div class="breath-instruction" id="breath-inst" style="display:none"></div>
+        <div class="breath-cycle" id="breath-cyc">${breath.active?'Ciclo '+(breath.cycle+1):'4 ciclos, cerca de um minuto'}</div>
+        <button class="btn btn-p" id="breath-start" onclick="startBreathing()">${breath.active?'Parar':'Iniciar respiração'}</button>
       </div>`;
-    })()}
-
-    <div class="sos-module">
-      <div class="sos-module-hdr" onclick="toggleModule('crise')">
-        <div class="sos-module-title"><span class="sos-module-ico">🆘</span> Modo Crise</div>
-        <span class="sos-chevron ${criseOpen?'open':''}">▼</span>
-      </div>
-      ${criseOpen?`<div class="sos-module-body">
-
-        <!-- POMODORO -->
-        <div style="margin-top:14px">
-          <div class="sec">Timer de Foco</div>
-          <div style="display:flex;gap:6px;margin-bottom:10px">
-            <button class="pomo-btn ${pomo.phase==='foco'?'primary':''}" onclick="setPomoPhase('foco')" style="font-size:12px">🎯 25min</button>
-            <button class="pomo-btn ${pomo.phase==='pausa_curta'?'primary':''}" onclick="setPomoPhase('pausa_curta')" style="font-size:12px">☕ 5min</button>
-            <button class="pomo-btn ${pomo.phase==='pausa_longa'?'primary':''}" onclick="setPomoPhase('pausa_longa')" style="font-size:12px">🌟 15min</button>
+  }
+  if(sosTool==='ground')return `<div id="ground-wrap">${groundingHTML()}</div>`;
+  if(sosTool==='calm'){
+    const done=Object.values(sosChecklist).filter(Boolean).length;
+    return `<p style="font-size:14px;color:var(--text2);line-height:1.6;margin:0 0 6px">Escolha só o que fizer sentido agora. Não precisa fazer tudo.</p>
+      <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px"><span id="calm-count">${done}</span> de ${SOS_OVERLOAD.length} feitos</div>
+      ${SOS_OVERLOAD.map((item,i)=>`
+        <div class="cl-item" role="checkbox" tabindex="0" aria-checked="${!!sosChecklist[i]}" onclick="toggleChecklist(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleChecklist(${i})}">
+          <div class="cl-check ${sosChecklist[i]?'checked':''}">${sosChecklist[i]?'✓':''}</div>
+          <div class="cl-text ${sosChecklist[i]?'checked':''}">${item}</div>
+        </div>`).join('')}`;
+  }
+  if(sosTool==='comfort'){
+    const list=db.settings.comfortList||[];
+    return `<p style="font-size:14px;color:var(--text2);line-height:1.6;margin:0 0 10px">O que te ajuda quando está difícil? Monte a sua lista; ela fica guardada aqui para os dias em que for difícil lembrar.</p>
+      ${list.length===0?'<div style="font-size:13px;color:var(--muted);padding:6px 0 10px">Sua lista ainda está vazia.</div>'
+        :list.map((item,i)=>`
+        <div class="cl-item">
+          <div role="checkbox" tabindex="0" aria-checked="${!!item.done}" onclick="toggleComfortItem(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleComfortItem(${i})}" style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer">
+            <div class="cl-check ${item.done?'checked':''}">${item.done?'✓':''}</div>
+            <div class="cl-text ${item.done?'checked':''}">${esc(item.text)}</div>
           </div>
-          <div class="pomo-display">
-            <div class="pomo-time" id="pomo-time">${fmtPomo(pomo.timeLeft)}</div>
-            <div class="pomo-phase" id="pomo-phase">${pomoPhaseLabel()}</div>
-          </div>
-          <div class="pomo-btns">
-            <button class="pomo-btn primary" id="pomo-start" onclick="togglePomo()">${pomoBtnLabel()}</button>
-            <button class="pomo-btn" onclick="resetPomo()">Reset</button>
-          </div>
-        </div>
-
-        <!-- BREATHING -->
-        <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
-          <div class="sec">Respiração Box (4-4-4-4)</div>
-          <div class="breath-wrap">
-            <div class="breath-circle ${breath.active?BREATH_PHASES.find(p=>p.name===breath.phase)?.cls??'':''}" id="breath-circ">
-              ${breath.active?breath.phase:'Respirar'}
-            </div>
-            <div class="breath-instruction" id="breath-inst">${breath.active?breath.phase:''}</div>
-            <div class="breath-count" id="breath-cnt">${breath.active?breath.timeLeft:''}</div>
-            <div class="breath-cycle" id="breath-cyc">${breath.active?'Ciclo '+(breath.cycle+1):''}</div>
-            <button class="btn btn-p btn-sm" id="breath-start" onclick="startBreathing()" style="width:auto;padding:10px 24px">
-              ${breath.active?'Parar':'Iniciar respiração'}
-            </button>
-          </div>
-        </div>
-
-        <!-- GROUNDING -->
-        <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
-          <div class="sec">Método 5-4-3-2-1</div>
-          <p style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.5">Ancoragem nos sentidos para reduzir ansiedade</p>
-          <div id="ground-wrap">
-            <button class="btn btn-p" onclick="startGrounding()">Iniciar 5-4-3-2-1</button>
-          </div>
-        </div>
-
-        <!-- AFFIRMATION -->
-        <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
-          <div class="sec">Afirmação</div>
-          <div class="affirm-card">
-            <div class="affirm-text" id="affirm-text">${AFFIRMATIONS[affirmIdx]}</div>
-            <button class="btn" style="background:var(--card);color:var(--purple-lt);border:1.5px solid var(--border);padding:10px;font-size:14px" onclick="nextAffirmation()">
-              Próxima →
-            </button>
-          </div>
-        </div>
-
-      </div>`:''}
+          <button class="sh-close" onclick="delComfortItem(${i})" aria-label="Remover ${esc(item.text)}" style="font-size:14px;padding:6px">✕</button>
+        </div>`).join('')}
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <input id="comfort-input" type="text" class="soft-input" style="flex:1" placeholder="Ex: ouvir música, abraçar o gato" autocomplete="off" onkeydown="if(event.key==='Enter')addComfortItem()">
+        <button class="btn btn-p" style="width:auto;margin:0;padding:0 18px" onclick="addComfortItem()" aria-label="Adicionar à lista">+</button>
+      </div>`;
+  }
+  if(sosTool==='affirm')return `<div class="note-row" style="margin:0 0 14px;align-items:center">
+      <img src="img/pilly-acena.webp" alt="" width="84">
+      <div class="note-bubble" style="padding:16px"><div id="affirm-text" style="font-size:16px;font-weight:600;color:var(--text);line-height:1.5">${AFFIRMATIONS[affirmIdx]}</div></div>
     </div>
-
-    <div class="sos-module">
-      <div class="sos-module-hdr" onclick="toggleModule('sobrecarga')">
-        <div class="sos-module-title"><span class="sos-module-ico">⚡</span> Redução de Sobrecarga</div>
-        <span class="sos-chevron ${sobOpen?'open':''}">▼</span>
-      </div>
-      ${sobOpen?`<div class="sos-module-body">
-        <div style="margin-top:14px">
-          <div class="sec">Checklist de regulação</div>
-          ${OVERLOAD_LIST.map((item,i)=>`
-            <div class="cl-item" onclick="toggleChecklist(${i})">
-              <div class="cl-check ${sosChecklist[i]?'checked':''}">${sosChecklist[i]?'✓':''}</div>
-              <div class="cl-text ${sosChecklist[i]?'checked':''}">${item}</div>
-            </div>`).join('')}
-        </div>
-        <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
-          <div class="sec">Atividade para descansar</div>
-          <div class="suggest-card">
-            <div class="suggest-text" id="suggest-text">${REST_ACTIVITIES[restIdx]}</div>
-            <button class="suggest-btn" onclick="nextRest()">Outra</button>
-          </div>
-        </div>
-      </div>`:''}
+    <button class="btn" style="background:var(--card2);border:none;color:var(--text)" onclick="nextAffirmation()">Outra frase</button>`;
+  if(sosTool==='rest')return `<div style="background:var(--type-recuperacao);border-radius:24px;padding:22px 16px;text-align:center;margin-bottom:14px">
+      <div style="font-size:36px;line-height:1">🛋️</div>
+      <div id="suggest-text" style="font-size:16px;font-weight:600;color:var(--text);line-height:1.5;margin-top:10px">${REST_ACTIVITIES[restIdx]}</div>
     </div>
-
-    <div class="sos-module">
-      <div class="sos-module-hdr" onclick="toggleModule('conforto')">
-        <div class="sos-module-title"><span class="sos-module-ico">💙</span> Minha lista de conforto</div>
-        <span class="sos-chevron ${openModules.conforto?'open':''}">▼</span>
-      </div>
-      ${openModules.conforto?`<div class="sos-module-body">
-        <p style="font-size:13px;color:var(--muted);margin:10px 0 14px;line-height:1.5">O que te ajuda quando está difícil? Crie sua lista pessoal — ela fica salva aqui.</p>
-        ${(db.settings.comfortList||[]).length===0
-          ?`<div style="font-size:13px;color:var(--muted);text-align:center;padding:10px 0 4px">Nenhum item ainda. Adicione abaixo ↓</div>`
-          :(db.settings.comfortList||[]).map((item,i)=>`
-            <div class="cl-item" style="display:flex;align-items:center;gap:0">
-              <div onclick="toggleComfortItem(${i})" style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer">
-                <div class="cl-check ${item.done?'checked':''}">${item.done?'✓':''}</div>
-                <div class="cl-text ${item.done?'checked':''}">${item.text}</div>
-              </div>
-              <button onclick="delComfortItem(${i})" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:4px 8px;flex-shrink:0">✕</button>
-            </div>`).join('')
-        }
-        <div style="display:flex;gap:8px;margin-top:12px">
-          <input id="comfort-input" type="text" placeholder="Ex: ouvir música, abraçar o gato…" autocomplete="off"
-            style="flex:1;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:13px;font-family:inherit"
-            onkeydown="if(event.key==='Enter')addComfortItem()">
-          <button onclick="addComfortItem()" style="padding:10px 16px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">+</button>
-        </div>
-      </div>`:''}
+    <button class="btn" style="background:var(--card2);border:none;color:var(--text)" onclick="nextRest()">Outra ideia</button>`;
+  if(sosTool==='focus')return `<div style="display:flex;gap:8px;margin-bottom:6px">
+      ${[['foco','Foco, 25 min'],['pausa_curta','Pausa, 5 min'],['pausa_longa','Pausa, 15 min']].map(([k,l])=>`<button class="tap" aria-pressed="${pomo.phase===k}" onclick="setPomoPhase('${k}')" style="flex:1;padding:10px 2px;border-radius:99px;font-size:12px;font-weight:600;background:${pomo.phase===k?'var(--accent)':'var(--card2)'};color:${pomo.phase===k?'#fff':'var(--text2)'}">${l}</button>`).join('')}
     </div>
-    <div class="card" style="border:1.5px solid rgba(248,113,113,.3);background:rgba(248,113,113,.06)">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <span style="font-size:22px">💙</span>
-        <div>
-          <div style="font-size:14px;font-weight:700;color:var(--text)">Precisa conversar?</div>
-          <div style="font-size:12px;color:var(--muted)">CVV — Centro de Valorização da Vida</div>
-        </div>
-      </div>
-      <p style="font-size:13px;color:var(--text2);line-height:1.6;margin:0 0 12px">Se estiver passando por um momento muito difícil, pensamentos de se machucar ou simplesmente precisar de alguém para ouvir — o CVV está disponível 24h, de graça e em sigilo.</p>
-      <a href="tel:188" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border-radius:12px;background:rgba(248,113,113,.15);border:1.5px solid rgba(248,113,113,.3);text-decoration:none;color:var(--text);font-weight:700;font-size:16px;margin-bottom:8px">
-        📞 Ligar para o CVV — 188
-      </a>
-      <a href="https://cvv.org.br/chat" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:12px;background:transparent;border:1px solid var(--border);text-decoration:none;color:var(--muted);font-size:13px">
-        💬 Chat online — cvv.org.br
-      </a>
+    <div class="pomo-display">
+      <div class="pomo-time" id="pomo-time">${fmtPomo(pomo.timeLeft)}</div>
+      <div class="pomo-phase" id="pomo-phase">${pomoPhaseLabel()}</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-p" style="flex:2;margin:0" id="pomo-start" onclick="togglePomo()">${pomoBtnLabel()}</button>
+      <button class="btn" style="flex:1;margin:0;background:var(--card2);border:none;color:var(--text)" onclick="resetPomo()">Zerar</button>
     </div>`;
+  // silent
+  const active=Date.now()<silentUntil, rem=active?Math.ceil((silentUntil-Date.now())/60000):0;
+  return active
+    ?`<p style="font-size:14px;color:var(--text2);line-height:1.6;margin:0 0 14px">Os avisos do app estão pausados por mais <b>${rem} min</b>.</p>
+       <button class="btn" style="background:var(--card2);border:none;color:var(--text)" onclick="setSilentMode(0)">Voltar a receber avisos</button>`
+    :`<p style="font-size:14px;color:var(--text2);line-height:1.6;margin:0 0 14px">Pause os lembretes do app por um tempo. Eles voltam sozinhos depois.</p>
+       <div style="display:flex;gap:8px">${[1,2,4].map(h=>`<button class="tap" onclick="setSilentMode(${h})" style="flex:1;padding:14px 0;border-radius:18px;background:var(--card2);color:var(--text);font-size:15px;font-weight:700">${h} ${h===1?'hora':'horas'}</button>`).join('')}</div>`;
+}
+
+function sosHTML(){
+  const cvv=`<div class="card" style="margin-top:6px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <span class="ico-circle" style="background:var(--type-gatilho);width:42px;height:42px;font-size:20px">💙</span>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text)">Precisa conversar com alguém?</div>
+          <div style="font-size:12px;color:var(--muted)">CVV, Centro de Valorização da Vida</div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:var(--text2);line-height:1.6;margin:0 0 12px">Se o momento estiver muito difícil, se houver pensamentos de se machucar ou se você só precisar de alguém para ouvir, o CVV atende 24 horas, de graça e em sigilo.</p>
+      <a href="tel:188" class="btn btn-p" style="display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;margin-bottom:8px">📞 Ligar para o CVV: 188</a>
+      <a href="https://cvv.org.br/chat" target="_blank" rel="noopener" class="btn" style="display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;background:var(--card2);border:none;color:var(--text);font-size:14px">💬 Chat online em cvv.org.br</a>
+    </div>`;
+
+  if(sosTool){
+    const t=SOS_TOOLS.find(x=>x[0]===sosTool)||SOS_TOOLS[0];
+    return `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <button class="tap note-chip" style="background:var(--card)" onclick="closeSosTool()">‹ Voltar</button>
+        <button class="info-btn" onclick="openHelp('sos')" style="margin-left:auto">ⓘ</button>
+      </div>
+      <div class="card" style="padding:18px 16px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <span class="ico-circle" style="background:var(${t[4]});width:48px;height:48px;font-size:24px">${t[1]}</span>
+          <div style="font-size:18px;font-weight:800;color:var(--text)">${t[2]}</div>
+        </div>
+        ${sosToolBodyHTML()}
+      </div>
+      <a href="tel:188" class="card tap" style="display:flex;align-items:center;gap:10px;text-decoration:none;padding:12px 14px">
+        <span class="ico-circle" style="background:var(--type-gatilho)">💙</span>
+        <span style="flex:1;font-size:13px;font-weight:600;color:var(--text)">Precisa conversar? CVV, ligue 188</span>
+        <span style="font-size:18px;color:var(--muted)">›</span>
+      </a>`;
+  }
+
+  const silentOn=Date.now()<silentUntil;
+  return `
+    <div class="sos-night">
+      <div style="position:relative;z-index:1;text-align:center;padding:22px 20px 0">
+        <div style="font-size:21px;font-weight:800;color:#fff;line-height:1.25">Respira. Você está em um lugar seguro.</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.8);margin-top:6px;line-height:1.5">Sem pressa. Escolha só o que ajudar agora. <button class="info-btn" onclick="openHelp('sos')" style="background:rgba(255,255,255,.18);color:#fff;border:none">ⓘ</button></div>
+      </div>
+      <div class="sos-moon"></div>
+      <img class="pilly" src="img/pilly-sentada.webp" alt="Pilly" style="position:absolute;left:50%;margin-left:-58px;bottom:74px;width:116px;height:auto;z-index:1">
+      <button class="tap" onclick="openSosTool('breath');startBreathing()" style="position:absolute;left:50%;transform:translateX(-50%);bottom:18px;z-index:2;background:#fff;color:#3b1d8a;font-size:15px;font-weight:700;padding:12px 24px;border-radius:99px;white-space:nowrap">Respirar comigo</button>
+    </div>
+    <div class="type-hdr" style="padding:0 0 10px">O que ajudaria agora?</div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px">
+      ${SOS_TOOLS.map(([k,icon,name,desc,bg])=>`<button class="tap" onclick="openSosTool('${k}')" style="background:var(${bg});border-radius:20px;padding:14px 12px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left">
+        <span class="ico-circle" style="width:42px;height:42px;font-size:22px">${icon}</span>
+        <span style="font-size:14px;font-weight:700;color:var(--text);line-height:1.2">${name}</span>
+        <span style="font-size:11px;color:var(--text2);line-height:1.35">${k==='silent'&&silentOn?'Avisos pausados agora':desc}</span>
+      </button>`).join('')}
+    </div>
+    ${cvv}`;
 }
 
 function settingsHTML(){
@@ -5577,7 +5567,7 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.25.1 disponível!</strong>
+        <strong>✨ Versão 2.26.0 disponível!</strong>
         Novidade: Diário novo, com seu mês em sentimentos, lembranças e pote de pequenas vitórias. E ainda Mapa em abas, selos e check-in de arrastar.</div>
       <div style="font-size:11px;font-weight:600;color:var(--warn-fg);display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -5598,7 +5588,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.25.1';
+const APP_VERSION = '2.26.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
