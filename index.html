@@ -50,7 +50,7 @@ body {
 /* ── TEMAS ────────────────────────────────────────────── */
 body[data-theme="dark"] {
   --bg: var(--bg-d); --card: var(--card-d); --card2: var(--card2-d);
-  --text: #F0EDF8; --text2: #C4B8E8; --muted: #7C6FA0;
+  --text: #F0EDF8; --text2: #C4B8E8; --muted: #9B8FC0;
 }
 body[data-theme="light"] {
   --bg: var(--bg-l); --card: var(--card-l); --card2: var(--card2-l);
@@ -1101,6 +1101,9 @@ function showCatInfo(id,e){e.stopPropagation();catInfoId=id;renderOverlays();}
 function closeCatInfo(){catInfoId=null;renderOverlays();}
 // ── DIÁRIO ────────────────────────────────────────────────────────────────────
 function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+// Maiúscula só na primeira letra — diferente de text-transform:capitalize, não
+// capitaliza preposições no meio da frase ("8 de novembro", não "8 De Novembro")
+function capFirst(t){t=String(t||'');return t.charAt(0).toUpperCase()+t.slice(1);}
 function emptyDiaryDraft(){return {id:null,humor:null,sinto:'',porque:'',vitoria:'',photos:[],stickers:[]};}
 const STICKERS = ['🌈','☀️','🌧️','❄️','🎉','🎵','☕','🐶','🐱','🌿','💊','🛌','🏃','📚','🎮','🍕','💤','❤️','🔥','🌙'];
 let diaryDayView = null;   // 'YYYY-MM-DD' em detalhe, no calendário
@@ -1265,7 +1268,7 @@ function setDiaryCloud(on){
 
 function diaryMonthGridHTML(){
   const y=diaryCalMonth.getFullYear(), m=diaryCalMonth.getMonth();
-  const monthLabel=diaryCalMonth.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  const monthLabel=capFirst(diaryCalMonth.toLocaleDateString('pt-BR',{month:'long',year:'numeric'}));
   const startOffset=new Date(y,m,1).getDay();
   const daysInMonth=new Date(y,m+1,0).getDate();
   const byDay=diaryByDay(db.diary||[]);
@@ -1286,7 +1289,7 @@ function diaryMonthGridHTML(){
   }
   return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
     <button onclick="diaryCalShift(-1)" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px">‹</button>
-    <span style="font-size:13px;font-weight:700;color:var(--text);text-transform:capitalize">${monthLabel}</span>
+    <span style="font-size:13px;font-weight:700;color:var(--text)">${monthLabel}</span>
     <button onclick="diaryCalShift(1)" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 8px">›</button>
   </div>
   <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px">${weekHead}</div>
@@ -1341,12 +1344,12 @@ function saveInlineVictory(id){
 }
 function diaryDayDetailHTML(ds){
   const es=diaryEntriesOnDay(ds);
-  const dateLabel=new Date(ds+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
+  const dateLabel=capFirst(new Date(ds+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'}));
   const isToday=ds===todayStr();
   if(!es.length){
     return `<div class="card" style="margin-top:14px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:13px;font-weight:700;color:var(--text);text-transform:capitalize">${dateLabel}</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text)">${dateLabel}</span>
         <button onclick="closeDiaryDayView()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0;line-height:1">×</button>
       </div>
       <div style="font-size:13px;color:var(--muted);text-align:center;padding:12px 0">${isToday?'Nada registrado hoje ainda. Que tal registrar seu dia?':'Nada foi registrado nesse dia.'}</div>
@@ -1361,7 +1364,7 @@ function diaryDayDetailHTML(ds){
   const showVictoryPrompt=(hard||!h)&&!e.vitoria;
   return `<div class="card" style="margin-top:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <span style="font-size:13px;font-weight:700;color:var(--text);text-transform:capitalize">${dateLabel}</span>
+      <span style="font-size:13px;font-weight:700;color:var(--text)">${dateLabel}</span>
       <button onclick="closeDiaryDayView()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0;line-height:1">×</button>
     </div>
     <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px">${h?`${h.icon} Me senti ${esc(humorLabel(h).toLowerCase())}`:'📔 Anotação'}</div>
@@ -1557,7 +1560,11 @@ function applyTheme(){
   const t=db.settings.theme||'dark';
   document.body.setAttribute('data-theme', t);
   applyAccentColor(db.settings.accentColor||'#7906FF');
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t==='light'?'#F5F3FF':'#0E0A1F');
+  const bgColor = t==='light' ? '#F5F3FF' : '#0E0A1F';
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bgColor);
+  // Em telas largas o <body> fica centralizado (max-width:430px); sem isso, a área
+  // ao redor mostra o fundo padrão do navegador em vez da cor do app.
+  document.documentElement.style.background = bgColor;
 }
 function load() {
   try {
@@ -3139,7 +3146,7 @@ function renderSintomas(){
       const isCustom=s.custom===true;
       return`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05)">
         <div onclick="openSintomaEvol('${s.id}')" style="font-size:20px;width:26px;text-align:center;flex-shrink:0;cursor:pointer">${s.icon}</div>
-        <div style="flex:1;min-width:0" onclick="openSintomaEvol('${s.id}')" style="cursor:pointer">
+        <div style="flex:1;min-width:0;cursor:pointer" onclick="openSintomaEvol('${s.id}')">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;cursor:pointer">
             <span style="font-size:13px;font-weight:600;color:var(--text)">${s.label}</span>
             ${isCustom?`<button onclick="event.stopPropagation();removeSintomaCustom('${s.id}')" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--muted);opacity:.6;padding:0;line-height:1" title="Remover">🗑️</button>`:''}
@@ -3370,7 +3377,12 @@ function mapaHTML(){
     ${!hasData
       ?`<div class="card"><div class="empty">
           <div class="e-icon">📊</div>
-          <div class="e-msg">Registre pelo menos 5 eventos para ver o mapa.<br><br>Continue por alguns dias!</div>
+          <div class="e-msg">Registre pelo menos 5 eventos para ver o mapa.</div>
+          <div style="width:100%;max-width:220px;margin:14px auto 6px">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:5px"><span>Progresso</span><span>${Math.min(recent.length,5)}/5</span></div>
+            <div class="nrg-bar"><div class="nrg-fill" style="width:${Math.min(100,recent.length/5*100)}%;background:var(--accent)"></div></div>
+          </div>
+          <div class="e-msg" style="margin-top:10px;font-size:12px">Continue por alguns dias! 💜</div>
         </div></div>`
       :`<div class="card">
           <div class="sec">O que mais te drena (${mapaRange} dias)</div>
@@ -3659,13 +3671,17 @@ function settingsHTML(){
       </div>
       <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:10px;margin-top:4px">
         <div class="s-lbl">Cor de destaque</div>
-        <div style="display:flex;align-items:center;gap:14px">
-          <input type="color" class="accent-picker" value="${accentColor}" onchange="setAccentColor(this.value)">
-          <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <div style="width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--card2)">
+          <div style="display:flex;align-items:center;gap:12px">
+            <input type="color" class="accent-picker" value="${accentColor}" onchange="setAccentColor(this.value)">
+            <div style="font-size:11px;color:var(--muted);line-height:1.4">Qualquer cor<br>que você quiser</div>
+          </div>
+          <div style="height:1px;background:var(--border);margin:12px 0"></div>
+          <div style="font-size:10px;font-weight:600;letter-spacing:.4px;color:var(--muted);margin-bottom:8px">ATALHOS RÁPIDOS</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
             ${['#7906FF','#05D9B2','#3B82F6','#F472B6','#F59E0B','#EF4444'].map(c=>`<button onclick="setAccentColor('${c}')" style="width:24px;height:24px;border-radius:50%;background:${c};border:2px solid ${accentColor.toLowerCase()===c.toLowerCase()?'var(--text)':'transparent'};cursor:pointer"></button>`).join('')}
           </div>
         </div>
-        <div style="font-size:11px;color:var(--muted)">Toque no círculo grande pra escolher qualquer cor que você quiser</div>
       </div>
       <div class="s-row" style="margin-top:4px">
         <div><div class="s-lbl">🔒 Bloquear diário com PIN</div><div class="s-desc">Pede um código de 4 dígitos toda vez que você abrir o diário</div></div>
@@ -4546,12 +4562,12 @@ function render(){
   document.getElementById('app').innerHTML=`
     <div class="hdr">
       <span class="hdr-title">${TITLES[screen]}</span>
-      <div style="display:flex;align-items:center;gap:8px"><span class="beta-badge">beta</span><img src="icon.png" class="hdr-icon" style="width:28px;height:28px;border-radius:7px;object-fit:cover"></div>
+      <div style="display:flex;align-items:center;gap:8px"><span class="beta-badge">beta</span><img src="icon.png" class="hdr-icon" style="width:28px;height:28px;border-radius:50%;object-fit:cover;cursor:pointer" onclick="go('home')" title="Ir para Hoje"></div>
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.10.0 disponível!</strong>
-        Nova identidade visual: agora o app segue o roxo/violeta da nossa LP e do Instagram — mais arredondado, mais nosso.</div>
+        <strong>✨ Versão 2.10.1 disponível!</strong>
+        Polimento visual: contraste melhor, datas certas no Diário e cantinhos mais consistentes.</div>
       <div style="font-size:11px;color:#F59E0B;display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
         ? `<button class="update-banner-btn" onclick="dismissUpdate()">✅ Atualizar agora</button>`
@@ -4570,7 +4586,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.10.0';
+const APP_VERSION = '2.10.1';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
