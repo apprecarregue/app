@@ -514,6 +514,15 @@ body {
 .day-pill.on { border-color: var(--accent); color: var(--accent-lt); }
 .day-ring { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .day-ring span { width: 24px; height: 24px; border-radius: 50%; background: var(--card); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--text); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-cell { position: relative; aspect-ratio: 1; border-radius: 12px; border: 2px solid transparent; font-size: 12px; font-weight: 600; color: var(--text); font-family: inherit; cursor: pointer; padding: 0; transition: transform .15s; }
+.cal-cell:active { transform: scale(.92); }
+.cal-cell:disabled { opacity: .35; cursor: default; }
+.cal-cell.today { font-weight: 800; border-color: var(--muted); }
+.cal-cell.on { border-color: var(--accent); }
+.cal-moon { position: absolute; top: -3px; right: -3px; font-size: 10px; line-height: 1; }
+.cal-moon img.emoji { margin: 0; }
+.dial-step:disabled { opacity: .35; cursor: default; }
 /* SOCIAL BATTERY — arrastável */
 .bat-wrap { display: flex; align-items: center; gap: 4px; margin: 10px 0; }
 .bat-bar { position: relative; flex: 1; height: 72px; border-radius: 24px; background: var(--card2); overflow: hidden; touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
@@ -3269,6 +3278,7 @@ function homeHTML(){
     ${diaryIntro}
     ${dateNav}
     ${heroHTML}
+    ${isToday?gentleDayNoticeHTML():''}
     ${hard?hardBanner:''}
     ${autoHardDaySuggestion}
     ${alert}
@@ -3763,7 +3773,189 @@ function buildInsights(){
   return insights;
 }
 
-let mapaDay=null;
+let mapaDay=null, mapaMonthOff=0, mapaCalDay=null;
+const mapaTitle=t=>`<div class="type-hdr" style="padding:0 0 10px">${t}</div>`;
+function eIsRec(e){const c=cat(e.categoryId);return c?c.type==='recuperacao':entryCost(e)<0;}
+function prevDayKey(k){const d=new Date(k+'T12:00:00');d.setDate(d.getDate()-1);return dateKey(d);}
+function avgOf(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:null;}
+
+// 1. Sentidos e bateria social (dados que o check-in já coleta)
+function mapaSensesHTML(cis){
+  const sens=SENSORIAL_ITEMS.map(x=>{const v=cis.map(c=>c.sensorial?.[x.id]).filter(n=>n!=null);return{...x,n:v.length,avg:avgOf(v)};}).filter(x=>x.n>=3);
+  const bat=Object.keys(PERIODS).map(pid=>{const v=cis.filter(c=>c.period===pid&&c.socialBattery!=null).map(c=>c.socialBattery);return{pid,n:v.length,avg:avgOf(v)};}).filter(x=>x.n>=2);
+  if(!sens.length&&!bat.length)return'';
+  let sensHTML='';
+  if(sens.length){
+    const top=sens.slice().sort((a,b)=>b.avg-a.avg)[0];
+    sensHTML=`<div style="display:flex;justify-content:space-around;gap:8px;padding-top:16px">
+      ${sens.map(x=>{const c=SENS_COLORS[x.id]||'#C084FC';return `<div class="sens-col">
+        <div style="position:relative;width:56px;height:120px;border-radius:28px;background:${hexToRgba(c,.2)}">
+          <div class="sens-fill" style="background:${c};height:${56+64*x.avg/5}px"><span class="sens-face" style="box-shadow:${sensRings(c,Math.round(x.avg))}">${SENS_FACES[Math.round(x.avg)]}</span></div>
+        </div>
+        <div class="sens-val">${x.avg.toFixed(1)}</div>
+        <div class="sens-name"><span>${x.icon}</span>${x.label}</div>
+      </div>`;}).join('')}
+    </div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.5;margin-top:12px">${top.avg>=1?`<b>${top.label}</b> é o que mais pesou nos seus sentidos neste período (média de 0 a 5).`:'Seus sentidos estiveram tranquilos neste período.'}</div>`;
+  }
+  let batHTML='';
+  if(bat.length){
+    const lo=bat.slice().sort((a,b)=>a.avg-b.avg)[0], hi=bat.slice().sort((a,b)=>b.avg-a.avg)[0];
+    const when={manha:'de manhã',tarde:'à tarde',noite:'à noite'};
+    batHTML=`<div style="font-size:13px;font-weight:700;color:var(--text);margin:${sens.length?'18px':'0'} 0 10px">Bateria social ao longo do dia</div>
+    <div style="display:grid;grid-template-columns:repeat(${bat.length},minmax(0,1fr));gap:8px">
+      ${bat.map(x=>`<div style="background:var(--card2);border-radius:16px;padding:10px 8px;text-align:center">
+        <div style="font-size:18px;line-height:1">${PERIODS[x.pid].icon}</div>
+        <div style="font-size:15px;font-weight:800;color:var(--text);margin:4px 0">${x.avg.toFixed(1)}</div>
+        <div style="height:8px;border-radius:99px;background:var(--card)"><div style="height:8px;border-radius:99px;background:${batteryColor(x.avg)};width:${Math.max(6,x.avg*10)}%"></div></div>
+        <div style="font-size:10px;font-weight:600;color:var(--muted);margin-top:5px">${PERIODS[x.pid].label}</div>
+      </div>`).join('')}
+    </div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.5;margin-top:12px">${bat.length>1&&hi.avg-lo.avg>=1?`Sua bateria social costuma estar mais baixa <b>${when[lo.pid]}</b>.`:'Sua bateria social fica parecida ao longo do dia.'}</div>`;
+  }
+  return `<div class="card">${mapaTitle('Sentidos e bateria social')}${sensHTML}${batHTML}</div>`;
+}
+
+// 2. O que faz a energia subir: check-in antes e depois de cada recarga, no mesmo dia
+function rechargeEffects(){
+  const cut=lastDayKeys(60)[0], byCat={};
+  db.entries.filter(e=>e.date>=cut&&e.createdAt&&cat(e.categoryId)?.type==='recuperacao').forEach(e=>{
+    const day=db.checkins.filter(c=>c.date===e.date&&c.createdAt);
+    const before=day.filter(c=>c.createdAt<=e.createdAt).sort((a,b)=>a.createdAt<b.createdAt?1:-1)[0];
+    const after=day.filter(c=>c.createdAt>e.createdAt).sort((a,b)=>a.createdAt<b.createdAt?-1:1)[0];
+    if(before&&after)(byCat[e.categoryId]=byCat[e.categoryId]||[]).push(after.energy-before.energy);
+  });
+  return Object.entries(byCat).filter(([,d])=>d.length>=3).map(([id,d])=>({id,n:d.length,avg:avgOf(d)})).filter(x=>x.avg>=.5).sort((a,b)=>b.avg-a.avg).slice(0,3);
+}
+function rechargeEffectHTML(){
+  const fx=rechargeEffects();
+  if(!fx.length)return `<div style="font-size:12px;color:var(--muted);line-height:1.5;margin-top:6px">Com mais check-ins antes e depois das suas recargas, vou mostrar aqui o que mais faz sua energia subir.</div>`;
+  return `<div style="font-size:13px;font-weight:700;color:var(--text);margin:14px 0 8px">O que faz sua energia subir</div>
+    ${fx.map(x=>{const c=cat(x.id),v=Math.round(x.avg*10)/10;return `<div style="background:var(--stat-a-bg);color:var(--stat-a-fg);border-radius:16px;padding:10px 12px;font-size:13px;line-height:1.45;margin-bottom:8px">${c.icon} Depois de <b>${catLabel(c).toLowerCase()}</b>, sua energia costuma subir <b>${String(v).replace('.',',')} ${v===1?'ponto':'pontos'}</b> (visto ${x.n} vezes).</div>`;}).join('')}`;
+}
+
+// 3. Calendário do mês
+function mapaCalHTML(){
+  const base=new Date();base.setDate(1);base.setMonth(base.getMonth()+mapaMonthOff);
+  const y=base.getFullYear(), m=base.getMonth(), nDays=new Date(y,m+1,0).getDate(), lead=(new Date(y,m,1).getDay()+6)%7, today=todayStr();
+  const cells=[];
+  for(let i=0;i<lead;i++)cells.push('<span></span>');
+  for(let d=1;d<=nDays;d++){
+    const k=dateKey(new Date(y,m,d)), avg=avgOf(db.checkins.filter(c=>c.date===k).map(c=>c.energy)), hard=isHardDay(k);
+    const bg=avg===null?'var(--card2)':avg>=7?'var(--stat-a-bg)':avg>=4?'var(--stat-c-bg)':'var(--type-gatilho)';
+    cells.push(`<button class="cal-cell ${k===mapaCalDay?'on':''} ${k===today?'today':''}" ${k>today?'disabled':''} aria-pressed="${k===mapaCalDay}" aria-label="Dia ${d}${avg===null?', sem check-in':', energia média '+Math.round(avg)}${hard?', dia difícil':''}" onclick="selectCalDay('${k}')" style="background:${bg}">${d}${hard?'<span class="cal-moon">🌙</span>':''}</button>`);
+  }
+  const sw=(bg,l)=>`<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:4px;background:${bg}"></span>${l}</span>`;
+  const navBtn=(d,l,off)=>`<button class="dial-step" style="width:36px;height:36px;font-size:18px" ${off?'disabled':''} onclick="setMapaMonth(${d})" aria-label="${d<0?'Mês anterior':'Próximo mês'}">${l}</button>`;
+  return `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      ${navBtn(-1,'‹',false)}
+      <div style="font-size:14px;font-weight:700;color:var(--text)">${capFirst(base.toLocaleDateString('pt-BR',{month:'long',year:'numeric'}))}</div>
+      ${navBtn(1,'›',mapaMonthOff>=0)}
+    </div>
+    <div class="cal-grid" style="margin-bottom:4px">${['seg','ter','qua','qui','sex','sáb','dom'].map(d=>`<span style="font-size:10px;font-weight:600;color:var(--muted);text-align:center">${d}</span>`).join('')}</div>
+    <div class="cal-grid">${cells.join('')}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px 12px;font-size:11px;color:var(--muted);margin-top:10px">${sw('var(--stat-a-bg)','Energia boa')}${sw('var(--stat-c-bg)','Moderada')}${sw('var(--type-gatilho)','Baixa')}<span>🌙 Dia difícil</span></div>
+    ${mapaCalDay?`<div style="border-top:1px solid var(--card2);margin-top:12px;padding-top:12px">${mapaDayHTML(mapaCalDay)}</div>`:''}`;
+}
+function renderMapaCal(){const el=document.getElementById('mapa-cal'); if(!el)return; el.innerHTML=mapaCalHTML(); applyFlatEmoji(el);}
+function setMapaMonth(d){mapaMonthOff=Math.min(0,mapaMonthOff+d);mapaCalDay=null;renderMapaCal();}
+function selectCalDay(k){mapaCalDay=mapaCalDay===k?null:k;renderMapaCal();}
+
+// 4. Equilíbrio entre gasto e recarga
+function mapaBalanceHTML(recent){
+  const out=Math.round(recent.filter(e=>!eIsRec(e)).reduce((t,e)=>t+Math.abs(entryCost(e)),0)*10)/10;
+  const back=Math.round(recent.filter(eIsRec).reduce((t,e)=>t+Math.abs(entryCost(e)),0)*10)/10;
+  if(out+back===0)return'';
+  const max=Math.max(out,back);
+  const row=(l,v,c)=>`<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:var(--text)"><span>${l}</span><span>${v} ${v===1?'colher':'colheres'}</span></div>
+      <div style="height:10px;border-radius:99px;background:var(--card2);margin-top:5px"><div style="height:10px;border-radius:99px;background:${c};width:${v?Math.max(4,v/max*100):0}%"></div></div>
+    </div>`;
+  const msg=back===0?'Ainda não há recargas registradas neste período. Um descanso também conta como registro.'
+    :back>=out*.5?'Você devolveu a si boa parte do que gastou. Isso é cuidado.'
+    :`Para cada 10 colheres gastas, voltaram ${Math.max(1,Math.round(back/out*10))}.`;
+  return `<div class="card">${mapaTitle('Gasto e recarga')}${row('Saíram',out,'var(--accent)')}${row('Voltaram',back,'#34D399')}
+    <div style="font-size:13px;color:var(--text2);line-height:1.5">${msg}</div></div>`;
+}
+
+// 5. O que costuma vir antes de um dia difícil (últimos 90 dias)
+function beforeHardDayHTML(){
+  const cut=lastDayKeys(90)[0];
+  const dataDays=[...new Set(db.entries.filter(e=>e.date>=cut).map(e=>e.date))];
+  const ciDays=[...new Set(db.checkins.filter(c=>c.date>=cut).map(c=>c.date))];
+  const hard=[...new Set([...(db.hardDays||[]).filter(d=>d>=cut),...ciDays.filter(d=>avgOf(db.checkins.filter(c=>c.date===d).map(c=>c.energy))<=3)])];
+  const eves=[...new Set(hard.map(prevDayKey))].filter(k=>dataDays.includes(k));
+  if(eves.length<3)return'';
+  const others=dataDays.filter(k=>!eves.includes(k));
+  if(others.length<3)return'';
+  const recN=k=>db.entries.filter(e=>e.date===k&&eIsRec(e)).length;
+  const share=(days,fn)=>days.filter(fn).length/days.length;
+  const lista=db.sintomas?.lista||SINTOMAS_DEFAULT, regs=db.sintomas?.registros||[];
+  const found=[];
+  const eveLoad=avgOf(eves.map(dayLoad)), baseLoad=avgOf(others.map(dayLoad));
+  const fmt=v=>String(Math.round(v*10)/10).replace('.',',');
+  if(eveLoad>=baseLoad*1.25)found.push(`⚡ Na véspera você costuma gastar mais energia: em média <b>${fmt(eveLoad)} colheres</b>, contra ${fmt(baseLoad)} nos outros dias.`);
+  const eveRec=avgOf(eves.map(recN)), baseRec=avgOf(others.map(recN));
+  if(baseRec>0&&eveRec<=baseRec*.6)found.push('🌿 Na véspera costuma haver <b>menos momentos de recarga</b> do que nos outros dias.');
+  const catIds=[...new Set(db.entries.filter(e=>eves.includes(e.date)&&!eIsRec(e)&&cat(e.categoryId)).map(e=>e.categoryId))];
+  const topCat=catIds.map(id=>({id,eve:share(eves,k=>db.entries.some(e=>e.date===k&&e.categoryId===id)),base:share(others,k=>db.entries.some(e=>e.date===k&&e.categoryId===id))})).filter(x=>x.eve>=.5&&x.base<x.eve*.6).sort((a,b)=>b.eve-a.eve)[0];
+  if(topCat){const c=cat(topCat.id);found.push(`${c.icon} <b>${catLabel(c)}</b> apareceu na véspera de ${Math.round(topCat.eve*eves.length)} dos ${eves.length} dias difíceis.`);}
+  const sinIds=[...new Set(regs.filter(r=>eves.includes(r.date)).map(r=>r.sintomaId))];
+  const topSin=sinIds.map(id=>({id,eve:share(eves,k=>regs.some(r=>r.date===k&&r.sintomaId===id)),base:share(others,k=>regs.some(r=>r.date===k&&r.sintomaId===id))})).filter(x=>x.eve>=.5&&x.base<x.eve*.6).sort((a,b)=>b.eve-a.eve)[0];
+  if(topSin){const x=lista.find(q=>q.id===topSin.id);if(x)found.push(`${x.icon} <b>${esc(x.label)}</b> costuma aparecer na véspera (${Math.round(topSin.eve*eves.length)} de ${eves.length} vezes).`);}
+  return `<div class="card">${mapaTitle('Antes de um dia difícil')}
+    ${found.length?found.map(t=>`<div style="background:var(--stat-b-bg);color:var(--stat-b-fg);border-radius:16px;padding:10px 12px;font-size:13px;line-height:1.45;margin-bottom:8px">${t}</div>`).join('')
+      :'<div style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:8px">Ainda não apareceu um padrão claro nas vésperas. Tudo bem: nem todo dia difícil tem um motivo.</div>'}
+    <div style="font-size:11px;color:var(--muted);line-height:1.5">Baseado em ${eves.length} dias difíceis dos últimos 90 dias. São coincidências que se repetem, não certezas.</div>
+  </div>`;
+}
+
+// 6. Horários em que os drenos se concentram
+function mapaHoursHTML(recent){
+  const blocks=[[0,6],[6,9],[9,12],[12,15],[15,18],[18,21],[21,24]];
+  const drains=recent.filter(e=>e.createdAt&&!eIsRec(e));
+  if(drains.length<5)return'';
+  const sums=blocks.map(([a,b])=>drains.filter(e=>{const h=new Date(e.createdAt).getHours();return h>=a&&h<b;}).reduce((t,e)=>t+Math.abs(entryCost(e)),0));
+  const max=Math.max(...sums), top=sums.indexOf(max), accent=db.settings.accentColor||'#7906FF';
+  return `<div class="card">${mapaTitle('Horários que mais drenam')}
+    <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;align-items:end;height:110px">
+      ${sums.map((v,i)=>`<div style="height:${v?Math.max(8,v/max*100):3}%;border-radius:10px;background:${i===top?accent:hexToRgba(accent,.3)}"></div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:6px">
+      ${blocks.map(([a,b],i)=>`<span style="font-size:10px;font-weight:${i===top?700:600};color:${i===top?'var(--accent-lt)':'var(--muted)'};text-align:center">${a}–${b}h</span>`).join('')}
+    </div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.5;margin-top:12px">O que te drena se concentra entre <b>${blocks[top][0]}h e ${blocks[top][1]}h</b>.</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:4px">Conta o horário em que você fez o registro.</div>
+  </div>`;
+}
+
+// 7. Aviso gentil na home: o dia da semana que costuma pesar mais
+const NOTICE_KEY='recarregue_notice_dismissed';
+function heaviestWeekday(){
+  const keys=lastDayKeys(30,1).filter(k=>db.entries.some(e=>e.date===k));
+  if(keys.length<10)return null;
+  const by={};
+  keys.forEach(k=>{const w=new Date(k+'T12:00:00').getDay();(by[w]=by[w]||[]).push(dayLoad(k));});
+  const all=avgOf(keys.map(dayLoad));
+  const top=Object.entries(by).filter(([,v])=>v.length>=2).map(([w,v])=>({w:+w,avg:avgOf(v)})).sort((a,b)=>b.avg-a.avg)[0];
+  return top&&top.avg>=all*1.2?top.w:null;
+}
+function gentleDayNoticeHTML(){
+  try{if(localStorage.getItem(NOTICE_KEY)===todayStr())return'';}catch(_){}
+  const w=heaviestWeekday(); if(w===null)return'';
+  const names=['domingo','segunda','terça','quarta','quinta','sexta','sábado'], dow=new Date().getDay();
+  const msg=w===dow?`Hoje é ${names[w]}, que costuma ser seu dia mais puxado. Vá com calma e reserve uma pausa.`
+    :w===(dow+1)%7?`Amanhã é ${names[w]}, que costuma ser seu dia mais puxado. Que tal reservar uma pausa?`:'';
+  if(!msg)return'';
+  return `<div style="background:var(--stat-b-bg);color:var(--stat-b-fg);border-radius:18px;padding:12px 12px 12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
+    <span class="ico-circle">💜</span>
+    <span style="flex:1;font-size:13px;font-weight:600;line-height:1.45">${msg}</span>
+    <button onclick="dismissDayNotice()" aria-label="Dispensar aviso" style="background:none;border:none;color:inherit;font-size:16px;cursor:pointer;padding:6px;font-family:inherit">✕</button>
+  </div>`;
+}
+function dismissDayNotice(){try{localStorage.setItem(NOTICE_KEY,todayStr());}catch(_){}render();}
+
 function lastDayKeys(n,offset=0){
   const out=[];
   for(let i=n-1+offset;i>=offset;i--){const d=new Date();d.setDate(d.getDate()-i);out.push(dateKey(d));}
@@ -3899,8 +4091,14 @@ function mapaHTML(){
     ${title('Seus últimos 7 dias')}
     ${dayStrip}
     <div class="card" id="mapa-day">${mapaDayHTML(mapaDay)}</div>
+    ${title('Seu mês')}
+    <div class="card" id="mapa-cal">${mapaCalHTML()}</div>
+    ${mapaBalanceHTML(recent)}
     ${drains.length?`<div class="card">${title('O que mais te drena')}${rank(drains,drains[0][1],c=>TYPES[c.type].color,v=>Math.round(v*10)/10+' pts')}</div>`:''}
-    ${recs.length?`<div class="card">${title('O que mais te recarrega')}${rank(recs,recs[0][1],()=>'#34D399',v=>v+'×')}</div>`:''}
+    ${recs.length?`<div class="card">${title('O que mais te recarrega')}${rank(recs,recs[0][1],()=>'#34D399',v=>v+'×')}${rechargeEffectHTML()}</div>`:''}
+    ${mapaHoursHTML(recent)}
+    ${mapaSensesHTML(recentCi)}
+    ${beforeHardDayHTML()}
     ${insightSection}
     <div class="card">
       ${title('Energia gasta por dia')}
@@ -5180,7 +5378,7 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.20.0 disponível!</strong>
+        <strong>✨ Versão 2.21.0 disponível!</strong>
         Novidade: Mapa de Energia novo, com resumo do período, seus últimos 7 dias e gráficos mais claros. E ainda selos, check-in de arrastar e sintomas que enchem.</div>
       <div style="font-size:11px;font-weight:600;color:var(--warn-fg);display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -5201,7 +5399,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.20.0';
+const APP_VERSION = '2.21.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
