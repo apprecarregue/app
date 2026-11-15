@@ -492,6 +492,23 @@ body {
 .soft-input { display: block; width: 100%; padding: 13px 14px; background: var(--card2); border: 2px solid transparent; border-radius: 16px; font-size: 15px; color: var(--text); font-family: inherit; outline: none; transition: border-color .15s; }
 .soft-input:focus { border-color: var(--accent); }
 .soft-input::placeholder { color: var(--muted); }
+.sin-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+.sin-tile { position: relative; overflow: hidden; border-radius: 18px; padding: 14px 6px 6px; display: flex; flex-direction: column; align-items: center; gap: 5px; text-align: center; cursor: pointer; user-select: none; -webkit-user-select: none; transition: transform .15s; outline: none; border: 2px solid transparent; }
+.sin-tile:active { transform: scale(.96); }
+.sin-tile:focus-visible { border-color: var(--accent); }
+.sin-tile > * { position: relative; }
+.sin-tile .sin-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: var(--sc); opacity: .45; transition: height .4s cubic-bezier(.3,1.4,.5,1); pointer-events: none; }
+.sin-tile[data-lv="1"] .sin-fill { height: 34%; }
+.sin-tile[data-lv="2"] .sin-fill { height: 67%; }
+.sin-tile[data-lv="3"] .sin-fill { height: 100%; }
+.sin-tile .ico-circle { transition: box-shadow .3s; }
+.sin-lv { font-size: 10px; font-weight: 700; color: var(--text); min-height: 13px; line-height: 13px; }
+.sin-tile .sin-clear, .sin-tile .sin-del { position: absolute; top: 4px; width: 26px; height: 26px; border-radius: 50%; border: none; background: rgba(255,255,255,.85); color: var(--text); font-size: 12px; cursor: pointer; align-items: center; justify-content: center; padding: 0; font-family: inherit; }
+.sin-tile .sin-clear { right: 4px; display: none; }
+.sin-tile:not([data-lv="0"]) .sin-clear { display: flex; }
+.sin-tile .sin-del { left: 4px; display: flex; }
+.sin-hist { display: flex; align-items: center; justify-content: center; gap: 3px; background: none; border: none; padding: 6px 4px; cursor: pointer; min-height: 22px; }
+@media (prefers-reduced-motion: reduce) { .sin-tile .sin-fill { transition: none; } }
 /* SOCIAL BATTERY — arrastável */
 .bat-wrap { display: flex; align-items: center; gap: 4px; margin: 10px 0; }
 .bat-bar { position: relative; flex: 1; height: 72px; border-radius: 24px; background: var(--card2); overflow: hidden; touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
@@ -1836,7 +1853,7 @@ function toggleHardDay(){
   const idx=db.hardDays.indexOf(today);
   if(idx>=0) db.hardDays.splice(idx,1);
   else{ db.hardDays.push(today); trackEvent('hard_day_activated'); }
-  save(); document.getElementById('main').innerHTML=homeHTML();
+  save(); document.getElementById('main').innerHTML=homeHTML();applyFlatEmoji(document.getElementById('main'));
 }
 function toggleFavorite(id){
   if(!db.settings.favorites) db.settings.favorites=[];
@@ -1861,7 +1878,7 @@ function navDay(delta){
   const next=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   if(next>todayStr())return;
   viewDate=next;
-  document.getElementById('main').innerHTML=homeHTML();
+  document.getElementById('main').innerHTML=homeHTML();applyFlatEmoji(document.getElementById('main'));
 }
 
 function topCategories(n=3){
@@ -1878,7 +1895,7 @@ function quickRegister(catId){
   save();
   const c=cat(catId);
   toast(`${c.icon} ${c.label} registrado`);
-  document.getElementById('main').innerHTML=homeHTML();
+  document.getElementById('main').innerHTML=homeHTML();applyFlatEmoji(document.getElementById('main'));
 }
 function remPct(rem){return Math.max(0,Math.min(100,(rem/db.settings.dailyPts)*100));}
 
@@ -2177,7 +2194,7 @@ function delEntry(id){
   const label=e.categoryId==='_custom_trigger'?e.triggerDesc:cat(e.categoryId)?.label??'registro';
   if(!confirm(`Remover "${label}"?`))return;
   db.entries=db.entries.filter(x=>x.id!==id);save();
-  document.getElementById('main').innerHTML=homeHTML();
+  document.getElementById('main').innerHTML=homeHTML();applyFlatEmoji(document.getElementById('main'));
 }
 
 // ── RECUPERAÇÃO RÁPIDA (Modo Descanso) ───────────────────────────────────────
@@ -2187,7 +2204,7 @@ function quickRecover(catId){
     categoryId:catId,intensity:'normal',note:''});
   save();
   toast(`${c.icon} ${c.label} registrado — +${Math.abs(c.cost)} pts devolvidos`);
-  document.getElementById('main').innerHTML=homeHTML();
+  document.getElementById('main').innerHTML=homeHTML();applyFlatEmoji(document.getElementById('main'));
 }
 
 // ── AGENDAMENTOS ─────────────────────────────────────────────────────────────
@@ -2255,7 +2272,7 @@ function adj(key,delta){
   const{dailyPts,alertAt}=db.settings;
   if(key==='dailyPts')db.settings.dailyPts=Math.max(1,Math.min(24,dailyPts+delta));
   if(key==='alertAt')db.settings.alertAt=Math.max(1,Math.min(dailyPts-1,alertAt+delta));
-  save();document.getElementById('main').innerHTML=settingsHTML();
+  save();document.getElementById('main').innerHTML=settingsHTML();applyFlatEmoji(document.getElementById('main'));
 }
 function clearData(){if(!confirm('Apagar TODOS os registros permanentemente?'))return;db.entries=[];db.checkins=[];db.diary=[];save();toast('Dados apagados');go('home');}
 
@@ -2557,7 +2574,7 @@ async function requestNotifPermission(){
   } else {
     toast('Permissão negada. Ative nas configurações do celular.');
   }
-  document.getElementById('main').innerHTML=settingsHTML();
+  document.getElementById('main').innerHTML=settingsHTML();applyFlatEmoji(document.getElementById('main'));
 }
 
 async function deactivateNotifs(){
@@ -2821,7 +2838,7 @@ function copyReport(){
 
 function toggleModule(name){
   openModules[name]=!openModules[name];
-  document.getElementById('main').innerHTML=sosHTML();
+  document.getElementById('main').innerHTML=sosHTML();applyFlatEmoji(document.getElementById('main'));
   if(screen==='sos')requestAnimationFrame(()=>{});
 }
 
@@ -2860,17 +2877,17 @@ function togglePomo(){
       const pb=document.getElementById('pomo-start');if(pb)pb.textContent=pomoBtnLabel();
     },1000);
   }
-  document.getElementById('main').innerHTML=sosHTML();
+  document.getElementById('main').innerHTML=sosHTML();applyFlatEmoji(document.getElementById('main'));
 }
 function resetPomo(){
   clearInterval(pomo.interval);pomo.interval=null;pomo.running=false;
   pomo.phase='foco';pomo.timeLeft=pomoDuration('foco');
-  document.getElementById('main').innerHTML=sosHTML();
+  document.getElementById('main').innerHTML=sosHTML();applyFlatEmoji(document.getElementById('main'));
 }
 function setPomoPhase(p){
   clearInterval(pomo.interval);pomo.interval=null;pomo.running=false;
   pomo.phase=p;pomo.timeLeft=pomoDuration(p);
-  document.getElementById('main').innerHTML=sosHTML();
+  document.getElementById('main').innerHTML=sosHTML();applyFlatEmoji(document.getElementById('main'));
 }
 
 // Breathing (box: 4-4-4-4)
@@ -3405,7 +3422,7 @@ function saveAddSintoma(){
   save();
   addSintomaSheet=null;
   renderOverlays();
-  document.getElementById('main').innerHTML=CONTENT[screen]();
+  document.getElementById('main').innerHTML=CONTENT[screen]();applyFlatEmoji(document.getElementById('main'));
   toast('Sintoma adicionado ✅');
 }
 
@@ -3414,7 +3431,7 @@ function removeSintomaCustom(id){
   db.sintomas.lista=db.sintomas.lista.filter(s=>s.id!==id);
   db.sintomas.registros=(db.sintomas.registros||[]).filter(r=>r.sintomaId!==id);
   save();
-  document.getElementById('main').innerHTML=CONTENT[screen]();
+  document.getElementById('main').innerHTML=CONTENT[screen]();applyFlatEmoji(document.getElementById('main'));
 }
 
 function addSintomaSheetHTML(){
@@ -3461,82 +3478,113 @@ function toggleSintoma(sintomaId, intensidade){
     trackEvent('sintoma_registrado',{sintomaId,cat:s?.cat||'unknown',intensidade});
   }
   save();
-  document.getElementById('main').innerHTML=CONTENT[screen]();
+  document.getElementById('main').innerHTML=CONTENT[screen]();applyFlatEmoji(document.getElementById('main'));
 }
 
-function renderSintomas(){
+const SIN_STYLE={
+  fisico:{hex:'#F87171',bg:'var(--type-gatilho)',icon:'🤕'},
+  emocional:{hex:'#FBBF24',bg:'var(--type-emocional)',icon:'💛'},
+  cognitivo:{hex:'#A78BFA',bg:'var(--type-tarefa)',icon:'🧠'},
+};
+const SIN_LEVELS=['','Leve','Moderado','Forte'];
+let sinFilter='all';
+function setSinFilter(k){sinFilter=k;document.getElementById('main').innerHTML=CONTENT[screen]();applyFlatEmoji(document.getElementById('main'));}
+function sintomaHoje(id){
+  return (db.sintomas?.registros||[]).find(r=>r.date===todayStr()&&r.sintomaId===id)?.intensidade||0;
+}
+function setSintomaHoje(id,n){
+  if(!db.sintomas)db.sintomas={lista:[...SINTOMAS_DEFAULT],registros:[]};
+  if(!db.sintomas.registros)db.sintomas.registros=[];
   const today=todayStr();
-  const todaySin=(db.sintomas?.registros||[]).filter(r=>r.date===today);
-  const lista=db.sintomas?.lista||SINTOMAS_DEFAULT;
+  const idx=db.sintomas.registros.findIndex(r=>r.date===today&&r.sintomaId===id);
+  if(n===0){if(idx>=0)db.sintomas.registros.splice(idx,1);}
+  else if(idx>=0)db.sintomas.registros[idx].intensidade=n;
+  else{
+    db.sintomas.registros.push({id:uid(),date:today,createdAt:new Date().toISOString(),sintomaId:id,intensidade:n});
+    const s=(db.sintomas.lista||SINTOMAS_DEFAULT).find(x=>x.id===id);
+    trackEvent('sintoma_registrado',{sintomaId:id,cat:s?.cat||'unknown',intensidade:n});
+  }
+  save();
+}
+function sinCountText(){
+  const t=(db.sintomas?.registros||[]).filter(r=>r.date===todayStr()).length;
+  return t===0?'Nenhum sintoma marcado hoje':t===1?'1 sintoma marcado hoje':t+' sintomas marcados hoje';
+}
+function sinTileUpdate(id,n){
+  const t=document.getElementById('sin-'+id); if(!t)return;
+  t.dataset.lv=n;
+  t.setAttribute('aria-label',t.dataset.label+(n?', '+SIN_LEVELS[n].toLowerCase():', não marcado'));
+  const ico=t.querySelector('.ico-circle');
+  ico.style.boxShadow=sensRings(t.dataset.hex,n);
+  ico.classList.remove('dial-pop');void ico.offsetWidth;ico.classList.add('dial-pop');
+  t.querySelector('.sin-lv').textContent=SIN_LEVELS[n];
+  const dot=t.querySelector('.sin-hist span:last-child');
+  if(dot){const sz=n?4+n*2:5;dot.style.width=dot.style.height=sz+'px';dot.style.background=n?t.dataset.hex:'rgba(120,110,150,.3)';}
+  const c=document.getElementById('sin-count'); if(c)c.textContent=sinCountText();
+  try{navigator.vibrate?.(8);}catch(_){}
+}
+function cycleSintoma(id){
+  const cur=sintomaHoje(id), n=cur>=3?0:cur+1;
+  setSintomaHoje(id,n); sinTileUpdate(id,n);
+}
+function clearSintoma(ev,id){ev.stopPropagation();setSintomaHoje(id,0);sinTileUpdate(id,0);}
+function sinTileKey(ev,id){if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();cycleSintoma(id);}}
 
-  // histórico seguindo mapaRange (máx 14 dias na aba — acima disso fica pequeno demais)
-  const histDays=Math.min(mapaRange,14);
+function renderSintomas(){
+  const lista=db.sintomas?.lista||SINTOMAS_DEFAULT;
+  const regs=db.sintomas?.registros||[];
   const last7=[];
-  for(let i=histDays-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);last7.push(d.toISOString().slice(0,10));}
+  for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);last7.push(d.toISOString().slice(0,10));}
 
   // frequência dos últimos 30 dias para ordenar
   const freqCutoff=new Date();freqCutoff.setDate(freqCutoff.getDate()-30);
   const freqById={};
-  (db.sintomas?.registros||[]).filter(r=>new Date(r.date)>=freqCutoff).forEach(r=>{freqById[r.sintomaId]=(freqById[r.sintomaId]||0)+1;});
+  regs.filter(r=>new Date(r.date)>=freqCutoff).forEach(r=>{freqById[r.sintomaId]=(freqById[r.sintomaId]||0)+1;});
 
-  const groupsHTML=SINTOMAS_CATS.map(gc=>{
-    const items=lista.filter(s=>s.cat===gc.id)
-      .sort((a,b)=>(freqById[b.id]||0)-(freqById[a.id]||0));
-    const itemsHTML=items.map(s=>{
-      const reg=todaySin.find(r=>r.sintomaId===s.id);
-      const curInt=reg?.intensidade||0;
+  const chips=`<div class="reg-chips" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+    ${[['all','Tudo','✨'],...SINTOMAS_CATS.map(c=>[c.id,c.label,SIN_STYLE[c.id]?.icon||'🩺'])].map(([k,l,i])=>`<button class="tap reg-chip ${sinFilter===k?'on':''}" aria-pressed="${sinFilter===k}" onclick="setSinFilter('${k}')"><span class="ico-circle">${i}</span>${l}</button>`).join('')}
+  </div>`;
 
-      const histHTML=last7.map(d=>{
-        const r=(db.sintomas?.registros||[]).find(r=>r.date===d&&r.sintomaId===s.id);
-        if(!r)return`<div style="width:5px;height:5px;border-radius:50%;background:var(--border)"></div>`;
-        const sz=r.intensidade===3?10:r.intensidade===2?8:6;
-        const op=r.intensidade===3?1:r.intensidade===2?.7:.45;
-        return`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${gc.color};opacity:${op};flex-shrink:0"></div>`;
+  const groupsHTML=SINTOMAS_CATS.filter(gc=>sinFilter==='all'||sinFilter===gc.id).map(gc=>{
+    const st=SIN_STYLE[gc.id]||SIN_STYLE.cognitivo;
+    const items=lista.filter(s=>s.cat===gc.id).sort((a,b)=>(freqById[b.id]||0)-(freqById[a.id]||0));
+    const tiles=items.map(s=>{
+      const lv=sintomaHoje(s.id);
+      const hist=last7.map(d=>{
+        const r=regs.find(r=>r.date===d&&r.sintomaId===s.id);
+        const sz=r?4+r.intensidade*2:5;
+        return `<span style="width:${sz}px;height:${sz}px;border-radius:50%;background:${r?st.hex:'rgba(120,110,150,.3)'}"></span>`;
       }).join('');
-
-      const circles=[1,2,3].map(n=>{
-        const active=curInt>=n;
-        return`<button onclick="toggleSintoma('${s.id}',${n})" style="width:28px;height:28px;border-radius:50%;border:2px solid ${active?gc.color:'var(--border)'};background:${active?gc.color:'transparent'};cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;font-size:12px;color:${active?'#fff':'var(--muted)'}">${active?'●':'○'}</button>`;
-      }).join('');
-
-      const isCustom=s.custom===true;
-      return`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05)">
-        <div onclick="openSintomaEvol('${s.id}')" style="font-size:20px;width:26px;text-align:center;flex-shrink:0;cursor:pointer">${s.icon}</div>
-        <div style="flex:1;min-width:0;cursor:pointer" onclick="openSintomaEvol('${s.id}')">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;cursor:pointer">
-            <span style="font-size:13px;font-weight:600;color:var(--text)">${s.label}</span>
-            ${isCustom?`<button onclick="event.stopPropagation();removeSintomaCustom('${s.id}')" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--muted);opacity:.6;padding:0;line-height:1" title="Remover">🗑️</button>`:''}
-          </div>
-          <div style="display:flex;gap:3px;align-items:center">${histHTML}</div>
-        </div>
-        <div style="display:flex;gap:5px;align-items:center;flex-shrink:0">${circles}</div>
+      return `<div class="sin-tile" id="sin-${s.id}" role="button" tabindex="0" data-lv="${lv}" data-hex="${st.hex}" data-label="${esc(s.label)}" aria-label="${esc(s.label)}${lv?', '+SIN_LEVELS[lv].toLowerCase():', não marcado'}" style="background:${st.bg};--sc:${st.hex}" onclick="cycleSintoma('${s.id}')" onkeydown="sinTileKey(event,'${s.id}')">
+        <span class="sin-fill"></span>
+        <button class="sin-clear" onclick="clearSintoma(event,'${s.id}')" aria-label="Desmarcar ${esc(s.label)}">✕</button>
+        ${s.custom===true?`<button class="sin-del" onclick="event.stopPropagation();removeSintomaCustom('${s.id}')" aria-label="Remover ${esc(s.label)} da lista">🗑️</button>`:''}
+        <span class="ico-circle" style="width:42px;height:42px;font-size:22px;box-shadow:${sensRings(st.hex,lv)}">${s.icon}</span>
+        <span style="font-size:12px;font-weight:600;color:var(--text);line-height:1.2">${esc(s.label)}</span>
+        <span class="sin-lv">${SIN_LEVELS[lv]}</span>
+        <button class="sin-hist" onclick="event.stopPropagation();openSintomaEvol('${s.id}')" aria-label="Ver evolução de ${esc(s.label)}">${hist}</button>
       </div>`;
     }).join('');
-
-    return`<div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <div style="width:4px;height:18px;border-radius:2px;background:${gc.color}"></div>
-          <span style="font-size:11px;font-weight:700;color:${gc.color};letter-spacing:.6px">${gc.label.toUpperCase()}</span>
-        </div>
-        <button onclick="openAddSintoma('${gc.id}')" style="display:flex;align-items:center;gap:4px;background:none;border:1px solid ${gc.color};border-radius:8px;padding:4px 10px;cursor:pointer;font-size:11px;color:${gc.color};font-family:inherit;opacity:.8">＋ Personalizar</button>
+    return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="type-hdr" style="padding:0">${gc.label}</div>
+        <button class="tap note-chip" style="background:var(--card)" onclick="openAddSintoma('${gc.id}')">＋ Adicionar</button>
       </div>
-      ${itemsHTML}
-    </div>`;
+      <div class="sin-grid">${tiles}</div>`;
   }).join('');
 
-  const totalHoje=todaySin.length;
-  return`
-    <div class="card" style="padding:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <span style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px">SINTOMAS DE HOJE</span>
-        <button class="info-btn" onclick="openHelp('sintomas')">ⓘ</button>
-      </div>
-      ${totalHoje>0?`<div style="margin-top:6px;font-size:12px;color:var(--muted)">${totalHoje} sintoma${totalHoje>1?'s':''} registrado${totalHoje>1?'s':''} hoje</div>`:''}
+  return `
+    <div class="card" style="display:flex;align-items:center;gap:12px">
+      <span class="ico-circle" style="background:var(--accent-bg);width:42px;height:42px;font-size:20px">🩺</span>
+      <span style="flex:1;display:flex;flex-direction:column;gap:2px">
+        <span id="sin-count" style="font-size:13px;font-weight:700;color:var(--text)">${sinCountText()}</span>
+        <span style="font-size:11px;color:var(--muted);line-height:1.4">Toque para encher: 1 toque leve, 2 moderado, 3 forte</span>
+      </span>
+      <button class="info-btn" onclick="openHelp('sintomas')">ⓘ</button>
     </div>
+    ${chips}
     ${groupsHTML}
-    <div style="text-align:center;padding:4px 0 16px;font-size:11px;color:var(--muted)">
-      Toque nos círculos: leve · moderado · intenso
+    <div style="text-align:center;padding:0 0 16px;font-size:11px;color:var(--muted)">
+      Os pontinhos mostram os últimos 7 dias. Toque neles para ver a evolução.
     </div>`;
 }
 
@@ -5028,7 +5076,7 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.18.0 disponível!</strong>
+        <strong>✨ Versão 2.19.0 disponível!</strong>
         Novidade: dias de cuidado e selos de conquista com a Pilly, check-in novo de arrastar e tela Registrar mais colorida.</div>
       <div style="font-size:11px;font-weight:600;color:var(--warn-fg);display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -5049,7 +5097,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.18.0';
+const APP_VERSION = '2.19.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
