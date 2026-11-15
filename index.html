@@ -509,6 +509,11 @@ body {
 .sin-tile .sin-del { left: 4px; display: flex; }
 .sin-hist { display: flex; align-items: center; justify-content: center; gap: 3px; background: none; border: none; padding: 6px 4px; cursor: pointer; min-height: 22px; }
 @media (prefers-reduced-motion: reduce) { .sin-tile .sin-fill { transition: none; } }
+.day-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; }
+.day-pill { background: var(--card); border-radius: 18px; padding: 8px 0; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 10px; font-weight: 600; color: var(--muted); border: 2px solid transparent; }
+.day-pill.on { border-color: var(--accent); color: var(--accent-lt); }
+.day-ring { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.day-ring span { width: 24px; height: 24px; border-radius: 50%; background: var(--card); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--text); }
 /* SOCIAL BATTERY — arrastável */
 .bat-wrap { display: flex; align-items: center; gap: 4px; margin: 10px 0; }
 .bat-bar { position: relative; flex: 1; height: 72px; border-radius: 24px; background: var(--card2); overflow: hidden; touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
@@ -600,13 +605,13 @@ input.accent-picker::-moz-color-swatch { border: none; border-radius: 50%; }
 .heatmap-wrap { overflow-x: auto; margin-top: 8px; }
 .heatmap-grid {
   display: grid;
-  grid-template-columns: 52px repeat(7, 1fr);
-  gap: 3px; min-width: 280px;
+  grid-template-columns: 30px repeat(7, minmax(0, 1fr));
+  gap: 4px;
 }
-.hm-head { font-size: 9px; font-weight: 700; text-transform: uppercase; color: var(--muted); text-align: center; padding: 4px 2px; }
+.hm-head { font-size: 10px; font-weight: 600; color: var(--muted); text-align: center; padding: 4px 2px; }
 .hm-row-lbl { font-size: 10px; color: var(--muted); display: flex; align-items: center; padding-right: 4px; font-weight: 600; }
 .hm-cell {
-  aspect-ratio: 1; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  border-radius: 12px; padding: 6px 0; display: flex; flex-direction: column; gap: 2px; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 700; cursor: default; transition: opacity .2s;
 }
 
@@ -3598,21 +3603,21 @@ function sintomasTopHTML(){
   if(!top3.length)return'';
   const lista=db.sintomas?.lista||SINTOMAS_DEFAULT;
   return`<div class="card">
-    <div class="sec">Sintomas mais frequentes (${mapaRange} dias)</div>
+    <div class="type-hdr" style="padding:0 0 10px">Sintomas mais frequentes</div>
     ${top3.map(([id,d])=>{
       const s=lista.find(x=>x.id===id)||{label:id,icon:'🩺',cat:'fisico'};
       const gc=SINTOMAS_CATS.find(c=>c.id===s.cat)||SINTOMAS_CATS[0];
       const avg=(d.total/d.count).toFixed(1);
       const pct=Math.round((d.total/(d.count*3))*100);
-      return`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">
-        <div style="font-size:18px">${s.icon}</div>
+      return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span class="ico-circle" style="background:${(SIN_STYLE[s.cat]||SIN_STYLE.cognitivo).bg};width:38px;height:38px">${s.icon}</span>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:600;color:var(--text)">${s.label}</div>
-          <div style="height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:4px">
-            <div style="height:4px;border-radius:2px;background:${gc.color};width:${pct}%;transition:width .4s"></div>
+          <div style="height:8px;background:var(--card2);border-radius:99px;margin-top:5px">
+            <div style="height:8px;border-radius:99px;background:${(SIN_STYLE[s.cat]||SIN_STYLE.cognitivo).hex};width:${pct}%"></div>
           </div>
         </div>
-        <div style="text-align:right;flex-shrink:0;font-size:12px;color:var(--muted)">${d.count}× · int.${avg}</div>
+        <div style="text-align:right;flex-shrink:0;font-size:12px;color:var(--muted)">${d.count}×</div>
       </div>`;
     }).join('')}
   </div>`;
@@ -3758,68 +3763,164 @@ function buildInsights(){
   return insights;
 }
 
-function mapaHTML(){
-  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-mapaRange);
-  const recent=db.entries.filter(e=>new Date(e.date)>=cutoff);
-  const hasData=recent.length>=5;
-  const insights=[...buildInsights(),...buildDiaryInsights(30,true)];
-  const insightSection=insights.length===0?'': `
-    <div class="card">
-      <div class="sec">✨ Insights</div>
-      ${insights.map(i=>`<div style="font-size:13px;color:var(--text2);line-height:1.6;padding:8px 0;border-bottom:1px solid var(--border)">${i}</div>`).join('')}
-    </div>`;
-  const rangeBtn=(n,label)=>`<button onclick="setMapaRange(${n})" style="padding:5px 14px;border-radius:99px;border:1.5px solid ${mapaRange===n?'var(--accent)':'var(--border)'};background:${mapaRange===n?'var(--accent-bg)':'transparent'};color:${mapaRange===n?'var(--accent)':'var(--muted)'};font-size:12px;font-weight:600;cursor:pointer;transition:all .2s">${label}</button>`;
+let mapaDay=null;
+function lastDayKeys(n,offset=0){
+  const out=[];
+  for(let i=n-1+offset;i>=offset;i--){const d=new Date();d.setDate(d.getDate()-i);out.push(dateKey(d));}
+  return out;
+}
+function mapaDayHTML(ds){
+  const max=effectiveDailyPts(ds), used=Math.min(max,Math.round(dayLoad(ds)*10)/10);
+  const cis=db.checkins.filter(c=>c.date===ds);
+  const regs=db.entries.filter(e=>e.date===ds).length;
+  const sins=(db.sintomas?.registros||[]).filter(r=>r.date===ds).length;
+  const face=e=>e>=7?'😊':e>=4?'😐':'😣';
   return `
-    <div class="card" style="padding:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <span style="font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.5px">MAPA DE ENERGIA</span>
-        <button class="info-btn" onclick="openHelp('mapa')">ⓘ</button>
-      </div>
-      <div style="display:flex;gap:6px">${rangeBtn(7,'7d')}${rangeBtn(14,'14d')}${rangeBtn(30,'30d')}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:14px;font-weight:700;color:var(--text)">${ds===todayStr()?'Hoje':capFirst(fmtDate(ds))}</div>
+      <div style="font-size:12px;font-weight:600;color:var(--text2)">${used} de ${max} colheres usadas</div>
     </div>
-    ${insightSection}
-    ${!hasData
-      ?`<div class="card"><div class="empty">
-          <div class="e-icon">📊</div>
-          <div class="e-msg">Registre pelo menos 5 eventos para ver o mapa.</div>
-          <div style="width:100%;max-width:220px;margin:14px auto 6px">
-            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:5px"><span>Progresso</span><span>${Math.min(recent.length,5)}/5</span></div>
-            <div class="nrg-bar"><div class="nrg-fill" style="width:${Math.min(100,recent.length/5*100)}%;background:var(--accent)"></div></div>
-          </div>
-          <div class="e-msg" style="margin-top:10px;font-size:12px">Continue por alguns dias! 💜</div>
-        </div></div>`
-      :`<div class="card">
-          <div class="sec">O que mais te drena (${mapaRange} dias)</div>
-          <div class="chart-wrap" style="height:260px"><canvas id="radarC"></canvas></div>
-        </div>
-        <div class="card">
-          <div class="sec">Últimos ${mapaRange} dias — energia gasta</div>
-          <div class="chart-wrap" style="height:200px"><canvas id="weekC"></canvas></div>
-        </div>
-        <div class="card">
-          <div class="sec">Sintomas × Energia (${mapaRange} dias)</div>
-          <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Roxo = energia gasta · Vermelho = carga de sintomas</p>
-          <div class="chart-wrap" style="height:200px"><canvas id="sintomasC"></canvas></div>
-        </div>
-        ${sintomasTopHTML()}
-        <div class="card">
-          <div class="sec">Humor por período</div>
-          <div class="chart-wrap" style="height:220px"><canvas id="humorC"></canvas></div>
-        </div>
-        <div class="card">
-          <div class="sec">Mapa de cruzamento — quando você performa melhor</div>
-          <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Energia média por período e dia da semana (últimos ${mapaRange} dias)</p>
-          ${heatmapHTML()}
-        </div>`
-    }
-    <div class="card" style="padding:12px;display:flex;gap:8px">
-      <button class="btn btn-p" onclick="generateReport()" style="flex:1;margin:0;padding:13px;font-size:13px">
-        📄 Relatório em texto
-      </button>
-      <button class="btn" onclick="exportPDF()" style="flex:1;margin:0;padding:13px;font-size:13px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:12px">
-        📑 Exportar PDF
-      </button>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+      ${Object.keys(PERIODS).map(pid=>{const c=cis.find(x=>x.period===pid);return `
+        <div style="background:var(--card2);border-radius:16px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:20px;line-height:1">${c?face(c.energy):PERIODS[pid].icon}</span>
+          <span style="font-size:14px;font-weight:800;color:var(--text);line-height:1">${c?c.energy+'/10':'–'}</span>
+          <span style="font-size:10px;font-weight:600;color:var(--muted)">${PERIODS[pid].label}</span>
+        </div>`;}).join('')}
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:10px">${regs} ${regs===1?'registro':'registros'} e ${sins} ${sins===1?'sintoma':'sintomas'} neste dia</div>`;
+}
+function selectMapaDay(ds){
+  mapaDay=ds;
+  document.querySelectorAll('.day-pill').forEach(b=>{const on=b.dataset.d===ds;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);});
+  const el=document.getElementById('mapa-day'); if(!el)return;
+  el.innerHTML=mapaDayHTML(ds); applyFlatEmoji(el);
+}
+function mapaHTML(){
+  const keys=lastDayKeys(mapaRange), keySet=new Set(keys);
+  const recent=db.entries.filter(e=>keySet.has(e.date));
+  const recentCi=db.checkins.filter(c=>keySet.has(c.date));
+  const hasData=recent.length>=5;
+  const title=t=>`<div class="type-hdr" style="padding:0 0 10px">${t}</div>`;
+
+  const rangeBtn=(n)=>`<button class="tap" aria-pressed="${mapaRange===n}" onclick="setMapaRange(${n})" style="flex:1;padding:9px 0;border-radius:99px;background:${mapaRange===n?'var(--accent)':'var(--card)'};color:${mapaRange===n?'#fff':'var(--text2)'};font-size:13px;font-weight:600">${n} dias</button>`;
+  const rangeRow=`<div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">${rangeBtn(7)}${rangeBtn(14)}${rangeBtn(30)}<button class="info-btn" onclick="openHelp('mapa')" style="padding:0 6px">ⓘ</button></div>`;
+
+  const reportRow=`<div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="btn btn-p" onclick="generateReport()" style="flex:1;margin:0;padding:13px;font-size:13px">📄 Relatório em texto</button>
+      <button class="btn" onclick="exportPDF()" style="flex:1;margin:0;padding:13px;font-size:13px;background:var(--card);border:none;color:var(--text);border-radius:12px">📑 Exportar PDF</button>
     </div>`;
+
+  if(!hasData){
+    const n=Math.min(recent.length,5);
+    return `
+      ${rangeRow}
+      <div style="position:relative;background:linear-gradient(160deg,var(--accent),var(--accent-dk));border-radius:28px;padding:20px 18px;margin:0 0 44px;min-height:132px">
+        <div style="display:flex;align-items:center;gap:14px;max-width:66%">
+          <div style="width:76px;height:76px;flex-shrink:0;border-radius:50%;background:conic-gradient(#fff ${n/5*360}deg, rgba(255,255,255,.22) 0deg);display:flex;align-items:center;justify-content:center">
+            <div style="width:60px;height:60px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff">${n}/5</div>
+          </div>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#fff;line-height:1.25">Seu mapa está nascendo</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.8);margin-top:4px;line-height:1.4">Com 5 registros ele aparece aqui.</div>
+          </div>
+        </div>
+        <img class="pilly" src="img/pilly-sentada.webp" alt="Pilly" style="position:absolute;right:6px;bottom:-34px;width:118px;height:auto;filter:drop-shadow(0 8px 10px rgba(0,0,0,.18))">
+      </div>
+      <button class="btn btn-p" onclick="go('register')" style="margin-bottom:14px">Fazer um registro</button>
+      ${reportRow}`;
+  }
+
+  // Resumo do período, comparado com o período anterior
+  const load=ks=>{const withData=ks.filter(k=>db.entries.some(e=>e.date===k));return withData.length?withData.reduce((t,k)=>t+dayLoad(k),0)/withData.length:null;};
+  const cur=load(keys), prev=load(lastDayKeys(mapaRange,mapaRange));
+  const [headline,sub]=prev===null||cur===null
+    ?[`Seu mapa dos últimos ${mapaRange} dias`,'Quanto mais você registra, mais ele te conhece.']
+    :cur<prev*.9?['Período mais leve que o anterior','Você gastou menos energia por dia. Que bom.']
+    :cur>prev*1.1?['Período mais puxado que o anterior','Vale reservar momentos de recarga.']
+    :['Ritmo parecido com o período anterior','Sua energia está seguindo um padrão estável.'];
+
+  const avgEnergy=recentCi.length?(recentCi.reduce((t,c)=>t+c.energy,0)/recentCi.length).toFixed(1):'–';
+  const bestP=Object.keys(PERIODS).map(pid=>{const l=recentCi.filter(c=>c.period===pid);return{pid,avg:l.length?l.reduce((t,c)=>t+c.energy,0)/l.length:-1};}).sort((a,b)=>b.avg-a.avg)[0];
+  const byId={},recById={};
+  recent.forEach(e=>{const c=cat(e.categoryId);if(!c)return;
+    if(c.type==='recuperacao')recById[c.id]=(recById[c.id]||0)+1;
+    else byId[c.id]=(byId[c.id]||0)+Math.abs(entryCost(e));});
+  const drains=Object.entries(byId).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const recs=Object.entries(recById).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  const topDrain=drains[0]?cat(drains[0][0]):null;
+
+  const tile=(bg,fg,icon,big,label)=>`<div style="background:var(${bg});border-radius:18px;padding:12px 6px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center">
+      <span class="ico-circle">${icon}</span>
+      <span style="font-size:15px;font-weight:800;color:var(${fg});line-height:1.1">${big}</span>
+      <span style="font-size:11px;font-weight:600;color:var(${fg})">${label}</span>
+    </div>`;
+
+  const rank=(rows,max,color,unit)=>rows.map(([id,v])=>{const c=cat(id);return `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span class="ico-circle" style="background:${TYPE_BG[c.type]};width:38px;height:38px">${c.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:600;color:var(--text)"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${catLabel(c)}</span><span style="color:var(--muted);font-weight:600;flex-shrink:0">${unit(v)}</span></div>
+        <div style="height:8px;border-radius:99px;background:var(--card2);margin-top:5px"><div style="height:8px;border-radius:99px;background:${color(c)};width:${Math.max(6,v/max*100)}%"></div></div>
+      </div>
+    </div>`;}).join('');
+
+  const week=lastDayKeys(7);
+  if(!mapaDay||!week.includes(mapaDay))mapaDay=todayStr();
+  const dayStrip=`<div class="day-strip">${week.map(k=>{
+    const d=new Date(k+'T12:00:00'), pct=Math.min(100,dayLoad(k)/effectiveDailyPts(k)*100);
+    return `<button class="tap day-pill ${k===mapaDay?'on':''}" data-d="${k}" aria-pressed="${k===mapaDay}" onclick="selectMapaDay('${k}')">
+      ${d.toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','')}
+      <span class="day-ring" style="background:conic-gradient(var(--accent) ${pct*3.6}deg, var(--card2) 0deg)"><span>${d.getDate()}</span></span>
+    </button>`;}).join('')}</div>`;
+
+  const insights=[...buildInsights(),...buildDiaryInsights(30,true)];
+  const tones=[['--stat-a-bg','--stat-a-fg'],['--stat-b-bg','--stat-b-fg'],['--stat-c-bg','--stat-c-fg']];
+  const insightSection=insights.length===0?'':`
+    ${title('O que o mapa percebeu')}
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px">
+      ${insights.map((t,i)=>`<div style="background:var(${tones[i%3][0]});color:var(${tones[i%3][1]});border-radius:18px;padding:12px 14px;font-size:13px;line-height:1.5">${t}</div>`).join('')}
+    </div>`;
+
+  return `
+    ${rangeRow}
+    <div style="position:relative;background:linear-gradient(160deg,var(--accent),var(--accent-dk));border-radius:28px;padding:20px 18px;margin:0 0 44px;min-height:124px">
+      <div style="max-width:64%">
+        <div style="font-size:17px;font-weight:800;color:#fff;line-height:1.25">${headline}</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.82);margin-top:6px;line-height:1.4">${sub}</div>
+      </div>
+      <img class="pilly" src="img/pilly-acena.webp" alt="Pilly" style="position:absolute;right:6px;bottom:-40px;width:122px;height:auto;filter:drop-shadow(0 8px 10px rgba(0,0,0,.18))">
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:18px">
+      ${tile('--stat-a-bg','--stat-a-fg','⚡',avgEnergy,'Energia média')}
+      ${tile('--stat-b-bg','--stat-b-fg',bestP&&bestP.avg>=0?PERIODS[bestP.pid].icon:'🕒',bestP&&bestP.avg>=0?PERIODS[bestP.pid].label:'–','Melhor período')}
+      ${tile('--stat-c-bg','--stat-c-fg',topDrain?topDrain.icon:'🌿',topDrain?catLabel(topDrain):'–','Mais drenou')}
+    </div>
+    ${title('Seus últimos 7 dias')}
+    ${dayStrip}
+    <div class="card" id="mapa-day">${mapaDayHTML(mapaDay)}</div>
+    ${drains.length?`<div class="card">${title('O que mais te drena')}${rank(drains,drains[0][1],c=>TYPES[c.type].color,v=>Math.round(v*10)/10+' pts')}</div>`:''}
+    ${recs.length?`<div class="card">${title('O que mais te recarrega')}${rank(recs,recs[0][1],()=>'#34D399',v=>v+'×')}</div>`:''}
+    ${insightSection}
+    <div class="card">
+      ${title('Energia gasta por dia')}
+      <div class="chart-wrap" style="height:200px"><canvas id="weekC"></canvas></div>
+    </div>
+    <div class="card">
+      ${title('Sintomas e energia')}
+      <div class="chart-wrap" style="height:210px"><canvas id="sintomasC"></canvas></div>
+    </div>
+    ${sintomasTopHTML()}
+    <div class="card">
+      ${title('Humor por período')}
+      <div class="chart-wrap" style="height:240px"><canvas id="humorC"></canvas></div>
+    </div>
+    <div class="card">
+      ${title('Quando sua energia costuma estar melhor')}
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">Energia média dos check-ins por período e dia da semana</p>
+      ${heatmapHTML()}
+    </div>
+    ${reportRow}`;
 }
 
 function heatmapHTML(){
@@ -3847,15 +3948,11 @@ function heatmapHTML(){
   const rows=PERIOD_IDS.map((p,pi)=>{
     const cells=DAYS.map((_,d)=>{
       const {sum,count}=grid[p][d];
-      if(count===0)return`<div class="hm-cell" style="background:rgba(255,255,255,.05);color:var(--muted)">—</div>`;
-      const avg=sum/count;
-      const pct=avg/10;
-      const r=Math.round(248*(1-pct));
-      const g=Math.round(185*pct+113*(1-pct));
-      const b=pct>0.6?129:pct>0.3?11:113;
-      const bg=`rgba(${r},${g},${b},.3)`;
-      const border=`rgba(${r},${g},${b},.6)`;
-      return`<div class="hm-cell" style="background:${bg};border:1px solid ${border};color:#fff">${avg.toFixed(0)}</div>`;
+      if(count===0)return`<div class="hm-cell" style="background:var(--card2);color:var(--muted)">–</div>`;
+      const avg=Math.round(sum/count);
+      const bg=avg>=7?'var(--stat-a-bg)':avg>=4?'var(--stat-c-bg)':'var(--type-gatilho)';
+      const fg=avg>=7?'var(--stat-a-fg)':avg>=4?'var(--stat-c-fg)':'var(--text)';
+      return`<div class="hm-cell" style="background:${bg};color:${fg}"><span style="font-size:14px;line-height:1">${avg>=7?'😊':avg>=4?'😐':'😣'}</span>${avg.toFixed(0)}</div>`;
     }).join('');
     return`<div class="hm-row-lbl">${PERIOD_LABELS[pi].split(' ')[0]}</div>${cells}`;
   }).join('');
@@ -4710,41 +4807,48 @@ const charts={};
 function killCharts(){Object.values(charts).forEach(c=>c.destroy());Object.keys(charts).forEach(k=>delete charts[k]);}
 function mkChart(id,cfg){const el=document.getElementById(id);if(!el)return;charts[id]=new Chart(el,cfg);}
 
-const CD={color:'#C4B8E8',gridColor:'rgba(255,255,255,.06)',tickColor:'#7C6FA0'};
+const CD={
+  get light(){return (db.settings.theme||'light')==='light';},
+  get color(){return this.light?'#3d2c6b':'#C4B8E8';},
+  get gridColor(){return this.light?'rgba(61,44,107,.08)':'rgba(255,255,255,.06)';},
+  get tickColor(){return this.light?'#6b5fa0':'#7C6FA0';},
+};
 
 function initCharts(){
-  if(typeof Chart==='undefined')return;
+  if(typeof Chart==='undefined'||!document.getElementById('weekC'))return;
+  killCharts();
   Chart.defaults.color=CD.color;
-  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-mapaRange);
-  const recent=db.entries.filter(e=>new Date(e.date)>=cutoff&&e.categoryId!=='_custom_trigger');
-  if(recent.length<5)return;
+  Chart.defaults.font.family=getComputedStyle(document.body).fontFamily;
+  const accent=db.settings.accentColor||'#7906FF', max=db.settings.dailyPts;
+  const keys=lastDayKeys(mapaRange), today=todayStr();
+  const labels=keys.map(k=>{const d=new Date(k+'T12:00:00');return mapaRange<=7?d.toLocaleDateString('pt-BR',{weekday:'short'}).replace('.',''):String(d.getDate());});
+  const used=keys.map(k=>Math.min(dayLoad(k),max));
+  const sin=keys.map(k=>(db.sintomas?.registros||[]).filter(r=>r.date===k).reduce((t,r)=>t+r.intensidade,0));
+  const xTicks={color:CD.tickColor,font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:10};
 
-  const byId={};
-  recent.forEach(e=>{const c=cat(e.categoryId);if(c&&c.type!=='recuperacao'){byId[e.categoryId]=(byId[e.categoryId]||0)+Math.abs(entryCost(e));}});
-  const top=Object.entries(byId).filter(([id])=>cat(id)).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  mkChart('radarC',{type:'radar',data:{labels:top.map(([id])=>`${cat(id).icon} ${cat(id).label}`),datasets:[{data:top.map(([,v])=>v),backgroundColor:'rgba(139,92,246,.15)',borderColor:'#8B5CF6',pointBackgroundColor:'#A78BFA',pointRadius:4,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{r:{beginAtZero:true,ticks:{font:{size:10},color:CD.tickColor,maxTicksLimit:4,backdropColor:'transparent'},pointLabels:{font:{size:11},color:CD.color},grid:{color:CD.gridColor},angleLines:{color:CD.gridColor}}}}});
+  mkChart('weekC',{type:'bar',data:{labels,datasets:[{data:used,backgroundColor:keys.map(k=>k===today?accent:hexToRgba(accent,.3)),borderRadius:8,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max,border:{display:false},grid:{color:CD.gridColor},ticks:{color:CD.tickColor,font:{size:10},maxTicksLimit:5}},x:{border:{display:false},grid:{display:false},ticks:xTicks}}}});
 
-  const days=[],used=[];
-  for(let i=mapaRange-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const ds=d.toISOString().slice(0,10);days.push(d.toLocaleDateString('pt-BR',{weekday:'short',day:'numeric'}));const du=db.entries.filter(e=>e.date===ds&&e.categoryId!=='_custom_trigger').reduce((s,e)=>{const c=cat(e.categoryId);return c&&c.type!=='recuperacao'?s+Math.abs(entryCost(e)):s;},0);used.push(Math.min(du,db.settings.dailyPts));}
-  mkChart('weekC',{type:'bar',data:{labels:days,datasets:[{data:used,backgroundColor:used.map(v=>{const p=(v/db.settings.dailyPts)*100;return p>70?'rgba(248,113,113,.7)':p>40?'rgba(252,211,77,.7)':'rgba(52,211,153,.7)';}),borderRadius:7}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:db.settings.dailyPts,grid:{color:CD.gridColor},ticks:{color:CD.tickColor,font:{size:11}}},x:{grid:{display:false},ticks:{color:CD.tickColor,font:{size:11}}}}}});
+  mkChart('sintomasC',{type:'line',data:{labels,datasets:[
+      {label:'Energia gasta',data:used,borderColor:accent,backgroundColor:hexToRgba(accent,.14),tension:.4,pointRadius:0,pointHitRadius:12,borderWidth:2.5,yAxisID:'y',fill:true},
+      {label:'Carga de sintomas',data:sin,borderColor:'#F87171',backgroundColor:'rgba(248,113,113,.12)',tension:.4,pointRadius:0,pointHitRadius:12,borderWidth:2.5,yAxisID:'y2',fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:10,boxHeight:10,usePointStyle:true,padding:12,color:CD.color}}},
+      scales:{y:{beginAtZero:true,max,border:{display:false},grid:{color:CD.gridColor},ticks:{color:CD.tickColor,font:{size:10},maxTicksLimit:5}},
+        y2:{beginAtZero:true,max:Math.max(...sin,3)*1.3,position:'right',border:{display:false},grid:{display:false},ticks:{display:false}},
+        x:{border:{display:false},grid:{display:false},ticks:xTicks}}}});
 
-  // Gráfico Sintomas × Energia
-  const sinDays=[],sinEn=[],sinSin=[];
-  for(let i=mapaRange-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const ds=d.toISOString().slice(0,10);sinDays.push(d.toLocaleDateString('pt-BR',{weekday:'short',day:'numeric'}));const du=db.entries.filter(e=>e.date===ds&&e.categoryId!=='_custom_trigger').reduce((s,e)=>{const c=cat(e.categoryId);return c&&c.type!=='recuperacao'?s+Math.abs(entryCost(e)):s;},0);sinEn.push(Math.min(du,db.settings.dailyPts));const st=(db.sintomas?.registros||[]).filter(r=>r.date===ds).reduce((s,r)=>s+r.intensidade,0);sinSin.push(st);}
-  const maxSin=Math.max(...sinSin,3);
-  mkChart('sintomasC',{type:'line',data:{labels:sinDays,datasets:[{label:'Energia gasta',data:sinEn,borderColor:'#8B5CF6',backgroundColor:'rgba(139,92,246,.1)',tension:.35,pointRadius:4,pointBackgroundColor:'#8B5CF6',yAxisID:'y',fill:true},{label:'Carga sintomas',data:sinSin,borderColor:'#F87171',backgroundColor:'rgba(248,113,113,.08)',tension:.35,pointRadius:4,pointBackgroundColor:'#F87171',yAxisID:'y2',fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:8,color:CD.color}}},scales:{y:{beginAtZero:true,max:db.settings.dailyPts,grid:{color:CD.gridColor},ticks:{color:CD.tickColor,font:{size:10}},position:'left',title:{display:true,text:'pts',color:CD.tickColor,font:{size:9}}},y2:{beginAtZero:true,max:maxSin*1.3,grid:{display:false},ticks:{color:'#F87171',font:{size:10}},position:'right',title:{display:true,text:'sint.',color:'#F87171',font:{size:9}}}}}});
-
-  const ciCutoff=new Date();ciCutoff.setDate(ciCutoff.getDate()-mapaRange);
-  const recentCi=db.checkins.filter(c=>new Date(c.date)>=ciCutoff);
+  const keySet=new Set(keys);
+  const recentCi=db.checkins.filter(c=>keySet.has(c.date)&&c.humor);
   if(recentCi.length>0){
-    const pLabels=Object.values(PERIODS).map(p=>`${p.icon} ${p.label}`);
-    const hColors=['#86EFAC','#93C5FD','#FCA5A5','#C4B5FD','#6EE7B7','#FDE68A'];
-    const datasets=HUMORS.map((h,i)=>({
-      label:`${h.icon} ${humorLabel(h)}`,
+    const used2=HUMORS.filter(h=>recentCi.some(c=>c.humor===h.id));
+    const datasets=used2.map(h=>({
+      label:humorLabel(h),
       data:Object.keys(PERIODS).map(pid=>recentCi.filter(c=>c.period===pid&&c.humor===h.id).length),
-      backgroundColor:hColors[i%hColors.length],borderRadius:4,
+      backgroundColor:h.color,borderRadius:6,borderSkipped:false,
     }));
-    mkChart('humorC',{type:'bar',data:{labels:pLabels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:6,color:CD.color}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:CD.tickColor,font:{size:11}}},y:{stacked:true,beginAtZero:true,grid:{color:CD.gridColor},ticks:{color:CD.tickColor,font:{size:11},stepSize:1}}}}});
+    mkChart('humorC',{type:'bar',data:{labels:Object.values(PERIODS).map(p=>p.label),datasets},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:10,boxHeight:10,usePointStyle:true,padding:10,color:CD.color}}},
+        scales:{x:{stacked:true,border:{display:false},grid:{display:false},ticks:{color:CD.tickColor,font:{size:11}}},y:{stacked:true,beginAtZero:true,border:{display:false},grid:{color:CD.gridColor},ticks:{color:CD.tickColor,font:{size:10},precision:0,maxTicksLimit:5}}}}});
   }
 }
 
@@ -5076,8 +5180,8 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.19.0 disponível!</strong>
-        Novidade: dias de cuidado e selos de conquista com a Pilly, check-in novo de arrastar e tela Registrar mais colorida.</div>
+        <strong>✨ Versão 2.20.0 disponível!</strong>
+        Novidade: Mapa de Energia novo, com resumo do período, seus últimos 7 dias e gráficos mais claros. E ainda selos, check-in de arrastar e sintomas que enchem.</div>
       <div style="font-size:11px;font-weight:600;color:var(--warn-fg);display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
       ${_backupDoneForUpdate
         ? `<button class="update-banner-btn" onclick="dismissUpdate()">✅ Atualizar agora</button>`
@@ -5097,7 +5201,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.19.0';
+const APP_VERSION = '2.20.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
