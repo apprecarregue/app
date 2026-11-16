@@ -1208,7 +1208,7 @@ function checkBadges(silent){
     if(!silent)_badgeQueue.push(b.id);
   });
 }
-function openBadges(){showBadges=true;renderOverlays();}
+function openBadges(){showBadges=true;featureUsed('badges');renderOverlays();}
 function closeBadges(){showBadges=false;renderOverlays();}
 function nextBadge(open){
   _badgeQueue.shift();
@@ -1309,6 +1309,7 @@ function diaryShowDay(ds){
   render(); diaryScrollToDay();
 }
 function diaryRandomGood(){
+  featureUsed('diary_random_good');
   const today=todayStr();
   const pool=(db.diary||[]).filter(e=>diaryDay(e)!==today&&diaryDay(e)!==diaryDayView&&((e.humor&&!DIARY_HARD_HUMORS.includes(e.humor))||e.vitoria||e.photos?.length));
   if(!pool.length){toast('Suas lembranças boas vão aparecer aqui 💜');return;}
@@ -1316,7 +1317,7 @@ function diaryRandomGood(){
 }
 let diaryVictOpen=false, diaryFeedHumor=null;
 function setDiaryFeedHumor(id){diaryFeedHumor=id;render();}
-function toggleDiaryVict(){diaryVictOpen=!diaryVictOpen;render();}
+function toggleDiaryVict(){diaryVictOpen=!diaryVictOpen;if(diaryVictOpen)featureUsed('vict_jar');render();}
 let showFeedback = false;
 let feedbackSent = false;
 let feedbackState = {tipo:'sugestao', mensagem:''};
@@ -1343,7 +1344,7 @@ function onboardSetPronoun(p){
   db.settings.pronoun=p; save(); renderOverlays();
 }
 function onboardNext(){
-  if(onboardingStep < 3){ onboardingStep++; renderOverlays(); scheduleOnboardRead(); }
+  if(onboardingStep < 3){ onboardingStep++; trackEvent('onboarding_step',{step:onboardingStep}); renderOverlays(); scheduleOnboardRead(); }
   else {
     localStorage.setItem(ONBOARDED_KEY,'1'); onboardingStep=0; renderOverlays();
     // Inicia tour para novos usuários
@@ -1351,7 +1352,7 @@ function onboardNext(){
     // Só dispara onboarding_completed uma vez por dispositivo
     if(!localStorage.getItem('recarregue_onboarding_tracked')){
       localStorage.setItem('recarregue_onboarding_tracked','1');
-      trackEvent('onboarding_completed',{pronoun:db.settings.pronoun,hasAge:!!db.settings.age});
+      trackEvent('onboarding_completed');
     }
     if(!tourStep&&shouldShowCheckin())setTimeout(openCheckin,500);
   }
@@ -1991,7 +1992,7 @@ function toggleHardDay(){
   const today=todayStr();
   const idx=db.hardDays.indexOf(today);
   if(idx>=0) db.hardDays.splice(idx,1);
-  else{ db.hardDays.push(today); trackEvent('hard_day_activated'); }
+  else{ db.hardDays.push(today); }
   save(); document.getElementById('main').innerHTML=homeHTML();applyFlatEmoji(document.getElementById('main'));
 }
 function toggleFavorite(id){
@@ -2078,6 +2079,7 @@ function go(s){if(screen==='diary'&&s!=='diary')diaryUnlocked=false;if(breath.ac
 
 function openCheckin(pid){
   checkinState={step:1, energy:7, sensorial:{barulho:null,toque:null,cheiro:null}, socialBattery:7, humor:null, note:'', forcePeriod:pid||null};
+  trackEvent('checkin_started');
   renderOverlays();
 }
 
@@ -2226,7 +2228,7 @@ function submitCheckin(){
     createdAt:new Date().toISOString()
   });
   save();
-  trackEvent('checkin_completed',{period:p,energy:db.checkins[db.checkins.length-1].energy});
+  trackEvent('checkin_completed',{period:p});
   checkinState.step=3;
   if(tourStep===2)tourStep=3;
   render();
@@ -2243,7 +2245,7 @@ function submitCheckinExpress(){
     createdAt:new Date().toISOString()
   });
   save();
-  trackEvent('checkin_completed',{period:p,energy:checkinState.energy,express:true});
+  trackEvent('checkin_completed',{period:p,express:true});
   checkinState.humor=null;checkinState.step=3;
   if(tourStep===2)tourStep=3;
   render();
@@ -2255,7 +2257,7 @@ function noteStarter(t){
   checkinState.note=ta.value; autoGrow(ta); ta.focus();
 }
 function closeCheckinResult(){checkinState=null;renderOverlays();}
-function skipCheckin(){checkinSkipped=true;checkinState=null;renderOverlays();}
+function skipCheckin(){if(checkinState&&checkinState.step<3)trackEvent('checkin_abandoned',{step:checkinState.step});checkinSkipped=true;checkinState=null;renderOverlays();}
 
 // ── SHEET ─────────────────────────────────────────────────────────────────────
 
@@ -2455,6 +2457,14 @@ function getDeviceId(){
   if(!id){id=crypto.randomUUID();localStorage.setItem(DEVICE_ID_KEY,id);}
   return id;
 }
+function featureUsed(f){ trackEvent('feature_used',{feature:f}); }
+let _errCount=0;
+function _trackError(kind){
+  if(_errCount>=5) return; _errCount++;
+  try{ trackEvent('app_error',{kind:kind,screen:screen,version:(typeof APP_VERSION!=='undefined'?APP_VERSION:'?')}); }catch(_){}
+}
+window.addEventListener('error',()=>_trackError('error'));
+window.addEventListener('unhandledrejection',()=>_trackError('promise'));
 async function trackEvent(name,meta={}){
   if(!SUPABASE_URL||PREVIEW_MODE||IS_LOCAL)return;
   try{
@@ -2625,6 +2635,7 @@ function buildPdfHTML(autoPrint){
   </body></html>`;
 }
 function exportPDF(){
+  featureUsed('pdf_export');
   const html=buildPdfHTML(true);
   const w=window.open('','_blank');
   if(w){w.document.write(html);w.document.close();return;}
@@ -3691,7 +3702,7 @@ function toggleSintoma(sintomaId, intensidade){
   } else {
     db.sintomas.registros.push({id:uid(),date:today,createdAt:new Date().toISOString(),sintomaId,intensidade});
     const s=(db.sintomas.lista||SINTOMAS_DEFAULT).find(x=>x.id===sintomaId);
-    trackEvent('sintoma_registrado',{sintomaId,cat:s?.cat||'unknown',intensidade});
+    trackEvent('sintoma_registrado');
   }
   save();
   document.getElementById('main').innerHTML=CONTENT[screen]();applyFlatEmoji(document.getElementById('main'));
@@ -3718,7 +3729,7 @@ function setSintomaHoje(id,n){
   else{
     db.sintomas.registros.push({id:uid(),date:today,createdAt:new Date().toISOString(),sintomaId:id,intensidade:n});
     const s=(db.sintomas.lista||SINTOMAS_DEFAULT).find(x=>x.id===id);
-    trackEvent('sintoma_registrado',{sintomaId:id,cat:s?.cat||'unknown',intensidade:n});
+    trackEvent('sintoma_registrado');
   }
   save();
 }
@@ -3976,6 +3987,7 @@ function buildInsights(){
 
 let mapaDay=null, mapaMonthOff=0, mapaCalDay=null, mapaTab='resumo';
 function setMapaTab(k){
+  featureUsed('mapa_'+k);
   mapaTab=k; killCharts();
   const el=document.getElementById('main');
   el.innerHTML=mapaHTML(); applyFlatEmoji(el); el.scrollTop=0;
@@ -4066,7 +4078,7 @@ function mapaCalHTML(){
     ${mapaCalDay?`<div style="border-top:1px solid var(--card2);margin-top:12px;padding-top:12px">${mapaDayHTML(mapaCalDay)}</div>`:''}`;
 }
 function renderMapaCal(){const el=document.getElementById('mapa-cal'); if(!el)return; el.innerHTML=mapaCalHTML(); applyFlatEmoji(el);}
-function setMapaMonth(d){mapaMonthOff=Math.min(0,mapaMonthOff+d);mapaCalDay=null;renderMapaCal();}
+function setMapaMonth(d){featureUsed('month_calendar');mapaMonthOff=Math.min(0,mapaMonthOff+d);mapaCalDay=null;renderMapaCal();}
 function selectCalDay(k){mapaCalDay=mapaCalDay===k?null:k;renderMapaCal();}
 
 // 4. Equilíbrio entre gasto e recarga
@@ -4398,7 +4410,7 @@ const SOS_TOOLS=[
 ];
 const SOS_OVERLOAD=['Diminuir as luzes ou o volume','Tomar água','Sair do ambiente por 5 minutos','Colocar fone de ouvido','Respirar fundo 3 vezes','Sentar no chão','Apertar algo macio'];
 function renderSos(){const m=document.getElementById('main'); m.innerHTML=sosHTML(); applyFlatEmoji(m); m.scrollTop=0;}
-function openSosTool(k){sosTool=k; renderSos();}
+function openSosTool(k){featureUsed('sos_'+k);sosTool=k; renderSos();}
 function closeSosTool(){if(breath.active)stopBreathing(); sosTool=null; renderSos();}
 
 function sosToolBodyHTML(){
@@ -4792,10 +4804,11 @@ function settingsHTML(){
   </div>${groups[settingsTab]}`;
 }
 let settingsTab='perfil';
-function setSettingsTab(k){settingsTab=k;const m=document.getElementById('main');m.innerHTML=settingsHTML();applyFlatEmoji(m);m.scrollTop=0;}
+function setSettingsTab(k){featureUsed('settings_'+k);settingsTab=k;const m=document.getElementById('main');m.innerHTML=settingsHTML();applyFlatEmoji(m);m.scrollTop=0;}
 let showBackupInfo=false;
 function setCloudBackup(on){
   db.settings.cloudBackup=!!on; save();
+  featureUsed(on?'cloud_on':'cloud_off');
   toast(on?'Cópia na nuvem ligada ☁️':'Seus registros ficam só neste aparelho 🔒');
   render();
 }
@@ -4961,8 +4974,8 @@ function privacyHTML(){
         <h3>Seu diário</h3>
         <p>O diário é a parte mais íntima do app. Por padrão ele fica só no seu aparelho. O texto que você escreve nunca aparece no relatório em PDF nem nas estatísticas de uso. As fotos nunca saem do aparelho, a não ser no arquivo de backup que você mesma exporta.</p>
         <h3>Estatísticas de uso</h3>
-        <p>Para entender como o app é usado e o que melhorar, ele envia registros de uso para o nosso banco de dados: quais telas foram abertas, que um check-in foi feito (com o nível de energia e o período do dia), o tipo de registro criado, que um sintoma foi marcado (qual e com que intensidade), que o modo dia difícil foi ativado e que uma página do diário foi criada.</p>
-        <p>Esses registros não levam os textos que você escreve. Eles vão acompanhados apenas de um identificador aleatório do aparelho. Não levam o seu nome nem o seu código de restauração.</p>
+        <p>Para entender como o app é usado e o que melhorar, ele envia ao nosso banco de dados apenas contagens de uso: quais telas e recursos foram abertos (por exemplo o Mapa, o SOS ou o relatório em PDF), que um check-in foi começado ou concluído e em que período do dia, que um registro, um sintoma ou uma página do diário foi criado, em qual passo da introdução a pessoa está, se o app está instalado na tela inicial, qual versão está em uso e se ocorreu uma falha.</p>
+        <p>Nada do que você sente ou escreve vai nesses registros: nem o nível de energia, nem qual sintoma, nem se foi um dia difícil, nem seu pronome, nem os textos. Eles vão acompanhados apenas de um identificador aleatório do aparelho, sem o seu nome e sem o seu código de restauração, e são guardados por até 90 dias.</p>
         <h3>Lembretes</h3>
         <p>Se você ativar os lembretes, guardamos o endereço técnico que permite enviar a notificação para o seu aparelho, junto com o seu código de restauração. Ao desativar os lembretes, esse registro é apagado.</p>
         <h3>Feedback</h3>
@@ -4973,7 +4986,7 @@ function privacyHTML(){
         <p>O relatório em PDF e o relatório em texto são gerados no seu aparelho. Eles só saem dele se você decidir compartilhar.</p>
         <h3>Como apagar seus dados</h3>
         <p>Em Configurações, "Apagar todos os dados" remove do aparelho seus registros, check-ins, sintomas, dias difíceis, agendamentos e o diário. Se a cópia automática estiver ligada, a cópia na nuvem é substituída em seguida pela versão vazia. Desinstalar o app ou limpar os dados do navegador também apaga o que está no aparelho.</p>
-        <p>Para pedir a exclusão completa do que está na nuvem (cópia de segurança, estatísticas de uso e lembretes), escreva para o e-mail abaixo informando o seu código de restauração.</p>
+        <p>Para pedir a exclusão do que está na nuvem (cópia de segurança e lembretes), escreva para o e-mail abaixo informando o seu código de restauração. As estatísticas de uso não ficam ligadas ao seu código e se apagam sozinhas depois de 90 dias.</p>
         <h3>Seus direitos</h3>
         <p>Você pode pedir, a qualquer momento, para saber quais dados seus estão guardados, corrigi-los ou apagá-los. Como o app registra informações ligadas à sua saúde e ao seu bem-estar, tratamos esses dados com cuidado redobrado.</p>
         <h3>Versão de teste</h3>
@@ -5630,7 +5643,7 @@ function tourGuideBarHTML(){
         <div style="display:flex;gap:8px;align-items:center">
           ${tourStep>2?`<button onclick="tourPrev()" style="background:none;border:1.5px solid var(--border);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;padding:10px 12px;border-radius:12px;font-family:inherit;white-space:nowrap">← Voltar</button>`:''}
           <button onclick="${ctaOnclick}" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">${s.cta}</button>
-          <button onclick="tourNext()" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px;font-family:inherit;white-space:nowrap">Pular</button>
+          <button onclick="tourSkip()" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px;font-family:inherit;white-space:nowrap">Pular</button>
         </div>
       </div>
     </div>`;
@@ -5666,9 +5679,16 @@ function tourNext(){
     else { renderOverlays(); renderTourGuide(); }
   } else {
     tourStep=0; localStorage.setItem(TOUR_KEY,'1'); localStorage.setItem(DIARY_INTRO_KEY,'1');
+    trackEvent('tour_finished');
     renderOverlays(); renderTourGuide();
     if(shouldShowCheckin()) setTimeout(openCheckin,400);
   }
+}
+function tourSkip(){
+  tourStep=0; localStorage.setItem(TOUR_KEY,'1'); localStorage.setItem(DIARY_INTRO_KEY,'1');
+  trackEvent('tour_skipped');
+  renderOverlays(); renderTourGuide();
+  if(shouldShowCheckin()) setTimeout(openCheckin,400);
 }
 
 // Ícones flat/coloridos em vez do emoji nativo do aparelho (Twemoji, carregado no <head>)
@@ -5710,7 +5730,7 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.29.0 disponível!</strong>
+        <strong>✨ Versão 2.30.0 disponível!</strong>
         Novidade: Diário novo, com seu mês em sentimentos, lembranças e pote de pequenas vitórias. E ainda Mapa em abas, selos e check-in de arrastar.</div>
       <div style="font-size:11px;font-weight:600;color:var(--warn-fg);display:flex;align-items:center;gap:5px">⚠️ Por segurança, faça um backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -5731,7 +5751,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.29.0';
+const APP_VERSION = '2.30.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
@@ -5792,12 +5812,11 @@ if(Date.now() - _lastSession > 3600000){
   localStorage.setItem('recarregue_last_session', Date.now());
   trackEvent('session_started',{
     returning: !!localStorage.getItem(ONBOARDED_KEY),
-    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    lang: navigator.language,
-    screen: `${screen.width}x${screen.height}`,
-    platform: navigator.platform || navigator.userAgentData?.platform || 'unknown',
+    installed: !!(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true,
+    version: APP_VERSION,
   });
 }
+if(onboardingStep===1) trackEvent('onboarding_step',{step:1});
 if(onboardingStep===0&&!tourStep&&shouldShowCheckin())setTimeout(openCheckin,700);
 
 // Verifica mensagens pendentes do dashboard (NPS, avisos, etc.)
