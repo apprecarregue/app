@@ -538,6 +538,11 @@ textarea.soft-input { resize: none; line-height: 1.5; min-height: 52px; max-heig
 #main .cl-check { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--muted); color: #fff; font-weight: 800; }
 #main .cl-check.checked { background: #1f9d6b; border-color: #1f9d6b; }
 @media (prefers-reduced-motion: reduce) { .breath-circle { animation: none !important; } }
+.hdr { background: var(--bg); border-bottom: none; padding: 12px 16px 8px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); }
+.hdr-title { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 800; letter-spacing: -.4px; }
+.hdr-ico { background: var(--card); width: 40px; height: 40px; font-size: 20px; }
+span.beta-badge { background: var(--accent-bg); border: none; color: var(--accent-lt); text-transform: none; letter-spacing: 0; font-size: 11px; font-weight: 600; padding: 4px 10px; }
+.sec { font-size: 14px; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; }
 /* SOCIAL BATTERY — arrastável */
 .bat-wrap { display: flex; align-items: center; gap: 4px; margin: 10px 0; }
 .bat-bar { position: relative; flex: 1; height: 72px; border-radius: 24px; background: var(--card2); overflow: hidden; touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
@@ -830,7 +835,7 @@ body[data-theme="dark"] .info-btn { color: #FCD34D; }
 }
 .full-sheet-title { font-size: 18px; font-weight: 800; color: var(--text); }
 .privacy-body { font-size: 14px; color: var(--text2); line-height: 1.8; }
-.privacy-body h3 { font-size: 14px; font-weight: 700; color: var(--text); margin: 20px 0 6px; text-transform: uppercase; letter-spacing: .4px; }
+.privacy-body h3 { font-size: 16px; font-weight: 700; color: var(--text); margin: 22px 0 6px; }
 .privacy-body p { margin-bottom: 10px; }
 
 /* FEEDBACK FORM */
@@ -1933,11 +1938,11 @@ function load() {
 }
 function save(){try{checkBadges();}catch(_){}try{localStorage.setItem(KEY,JSON.stringify(db));}catch(_){}autoBackupSilent();}
 // O diário é íntimo: só vai para a nuvem se a pessoa ligar o interruptor nas configurações
-function cloudPayload(){return {...db,diary:db.settings.diaryCloudBackup?(db.diary||[]):[]};}
+function cloudPayload(){return {...db,diary:db.settings.diaryCloudBackup?(db.diary||[]).map(e=>e.photos&&e.photos.length?{...e,photos:[]}:e):[]};}
 
 let _autoBackupTimer=null;
 function autoBackupSilent(){
-  if(!SUPABASE_URL)return;
+  if(!SUPABASE_URL||IS_LOCAL)return;
   clearTimeout(_autoBackupTimer);
   _autoBackupTimer=setTimeout(async()=>{
     try{
@@ -2426,7 +2431,12 @@ function adj(key,delta){
   if(key==='alertAt')db.settings.alertAt=Math.max(1,Math.min(dailyPts-1,alertAt+delta));
   save();document.getElementById('main').innerHTML=settingsHTML();applyFlatEmoji(document.getElementById('main'));
 }
-function clearData(){if(!confirm('Apagar TODOS os registros permanentemente?'))return;db.entries=[];db.checkins=[];db.diary=[];save();toast('Dados apagados');go('home');}
+function clearData(){
+  if(!confirm('Apagar todos os seus registros, check-ins, sintomas e o diário? Isso não pode ser desfeito. Suas configurações e selos continuam.'))return;
+  db.entries=[];db.checkins=[];db.diary=[];db.hardDays=[];db.scheduled=[];
+  if(db.sintomas)db.sintomas.registros=[];
+  save();toast('Dados apagados');go('home');
+}
 
 // ── BACKUP ────────────────────────────────────────────────────────────────────
 const BACKUP_KEY = 'recarregue_restore_code';
@@ -2435,6 +2445,7 @@ const DEVICE_ID_KEY = 'recarregue_device_id';
 const SUPABASE_URL = 'https://zlldecmwobbkfnjfbjew.supabase.co';
 const VAPID_PUBLIC_KEY = 'BMqXpv3XGrS5VWZ9ekku0Q1G87ZZHnZgLuNkUCIAB9LUXiq8xIpvczqt_aLjYK08KVoQREKUNWly6I1XpPO22yk';
 const SESSION_ID = crypto.randomUUID();
+const IS_LOCAL = ['localhost','127.0.0.1','[::1]'].includes(location.hostname);
 
 function getDeviceId(){
   let id=localStorage.getItem(DEVICE_ID_KEY);
@@ -2442,7 +2453,7 @@ function getDeviceId(){
   return id;
 }
 async function trackEvent(name,meta={}){
-  if(!SUPABASE_URL||PREVIEW_MODE)return;
+  if(!SUPABASE_URL||PREVIEW_MODE||IS_LOCAL)return;
   try{
     fetch(`${SUPABASE_URL}/rest/v1/events`,{
       method:'POST',
@@ -2693,7 +2704,11 @@ async function restoreFromCloud(){
     const saved = result.data;
     db.entries = saved.entries || [];
     db.checkins = saved.checkins || [];
-    if((saved.diary||[]).length) db.diary = saved.diary;
+    if((saved.diary||[]).length){
+      // as fotos não vão para a nuvem: mantém as que já estão neste aparelho
+      const localPhotos=Object.fromEntries((db.diary||[]).map(e=>[e.id,e.photos||[]]));
+      db.diary = saved.diary.map(e=>({...e,photos:(e.photos&&e.photos.length)?e.photos:(localPhotos[e.id]||[])}));
+    }
     if(saved.sintomas) db.sintomas = saved.sintomas;
     if(Array.isArray(saved.hardDays)) db.hardDays = saved.hardDays;
     db.settings = {...db.settings, ...(saved.settings||{})};
@@ -2738,7 +2753,7 @@ function backupSheetHTML(){
       <div class="sh-handle"></div>
       <div style="padding:0 4px 4px">
         <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px">📦 Salvar backup</div>
-        <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Seus dados ficam só no seu aparelho. Salve antes de atualizar para não perder nada.</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Salve um backup antes de atualizar, para não correr o risco de perder nada.</div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Último backup na nuvem: <strong style="color:${lastColor}">${lastLbl}</strong></div>
         <button class="btn btn-p" style="width:100%;margin-bottom:10px" onclick="backupCloudAndClose()">☁️ Salvar na nuvem</button>
         <button class="btn" style="width:100%;margin-bottom:16px" onclick="exportAndClose()">⬇️ Exportar arquivo JSON</button>
@@ -4515,20 +4530,22 @@ function settingsHTML(){
   const notifState=('Notification' in window)?Notification.permission:'unsupported';
   const accentColor=db.settings.accentColor||'#7906FF';
 
-  return `
+  const cBadges=`
     <button class="tap card" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left" onclick="openBadges()">
       <span class="ico-circle" style="background:var(--stat-c-bg);width:42px;height:42px;font-size:20px">🏅</span>
       <span style="flex:1;display:flex;flex-direction:column;gap:2px">
         <span style="font-size:13px;font-weight:700;color:var(--text)">Suas conquistas</span>
-        <span style="font-size:11px;color:var(--muted)">${careDays()} ${careDays()===1?'dia de cuidado':'dias de cuidado'} e ${Object.keys(db.settings.badges||{}).length} selos</span>
+        <span style="font-size:11px;color:var(--muted)">${careDays()} ${careDays()===1?'dia de cuidado':'dias de cuidado'} e ${Object.keys(db.settings.badges||{}).length} ${Object.keys(db.settings.badges||{}).length===1?'selo':'selos'}</span>
       </span>
       <span style="font-size:18px;color:var(--muted)">›</span>
     </button>
+`;
+  const cPerson=`
     <div class="card">
-      <div class="sec" style="display:flex;align-items:center;gap:6px">Personalização <button class="info-btn" onclick="openHelp('personalizacao')">ⓘ</button></div>
+      <div class="sec" style="display:flex;align-items:center;gap:6px">Sobre você <button class="info-btn" onclick="openHelp('personalizacao')">ⓘ</button></div>
       <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:8px">
         <div class="s-lbl">Como quer ser ${g('chamada','chamado','chamadu')}?</div>
-        <input type="text" value="${name||''}" placeholder="Seu nome ou apelido..." autocomplete="off"
+        <input type="text" value="${esc(name||'')}" placeholder="Seu nome ou apelido" autocomplete="off"
           style="width:100%;padding:11px 14px;background:var(--card2);border:1px solid var(--border);border-radius:10px;font-size:15px;color:var(--text);font-family:inherit;outline:none"
           onchange="db.settings.name=this.value.trim();save();render()"
         >
@@ -4542,7 +4559,11 @@ function settingsHTML(){
           }).join('')}
         </div>
       </div>
-      <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:8px;margin-top:4px">
+    </div>`;
+  const cLook=`
+    <div class="card">
+      <div class="sec">Aparência</div>
+      <div class="s-row" style="align-items:flex-start;flex-direction:column;gap:8px">
         <div class="s-lbl">Tema</div>
         <div style="display:flex;gap:8px;width:100%">
           <button onclick="setTheme('dark')" style="flex:1;padding:10px;border-radius:10px;border:2px solid ${theme==='dark'?'var(--accent)':'var(--border)'};background:${theme==='dark'?'var(--accent-bg)':'transparent'};cursor:pointer">
@@ -4569,19 +4590,27 @@ function settingsHTML(){
           </div>
         </div>
       </div>
-      <div class="s-row" style="margin-top:4px">
+    </div>`;
+  const cPin=`
+    <div class="card">
+      <div class="sec">Diário</div>
+      <div class="s-row">
         <div><div class="s-lbl">🔒 Bloquear diário com PIN</div><div class="s-desc">Pede um código de 4 dígitos toda vez que você abrir o diário</div></div>
         ${getDiaryPin()?`<button class="btn btn-d btn-sm" onclick="removeDiaryPin()">Remover</button>`:`<button class="btn btn-p btn-sm" onclick="startDiaryPinSetup()">Definir</button>`}
       </div>
     </div>
+`;
+  const cPhrase=`
     <div class="card">
       <div class="sec">Frase pessoal</div>
       <p style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.5">Aparece no card de energia toda vez que você abrir o app. Use como âncora nos dias difíceis.</p>
       <textarea rows="2" placeholder="Ex: Um dia de cada vez. Você está fazendo o melhor que pode."
         style="width:100%;padding:11px 14px;background:var(--card2);border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text);font-family:inherit;outline:none;resize:none;box-sizing:border-box"
         oninput="db.settings.affirmation=this.value.trim();save()"
-      >${db.settings.affirmation||''}</textarea>
+      >${esc(db.settings.affirmation||'')}</textarea>
     </div>
+`;
+  const cGoal=`
     <div class="card">
       <div class="sec">Meta de recuperação diária</div>
       <p style="font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.5">Quantas atividades de recuperação você quer fazer por dia. Aparece como barra de progresso na aba Hoje.</p>
@@ -4594,6 +4623,8 @@ function settingsHTML(){
         </div>
       </div>
     </div>
+`;
+  const cFav=`
     <div class="card">
       <div class="sec">⭐ Categorias favoritas</div>
       <p style="font-size:12px;color:var(--muted);margin:0 0 12px;line-height:1.5">As marcadas aparecem no topo da aba Registrar para acesso rápido.</p>
@@ -4608,6 +4639,8 @@ function settingsHTML(){
           }).join('')}
         </div>`).join('')}
     </div>
+`;
+  const cPts=`
     <div class="card">
       <div class="sec" style="display:flex;align-items:center;gap:6px">Pontos de energia <button class="info-btn" onclick="openHelp('pontos')">ⓘ</button></div>
       <div class="s-row">
@@ -4619,6 +4652,8 @@ function settingsHTML(){
         <div class="ctr"><button class="ctr-btn" onclick="adj('alertAt',-1)">−</button><span class="ctr-val">${alertAt}</span><button class="ctr-btn" onclick="adj('alertAt',1)">+</button></div>
       </div>
     </div>
+`;
+  const cNotif=`
     <div class="card">
       <div class="sec" style="display:flex;align-items:center;gap:6px">Notificações <button class="info-btn" onclick="openHelp('notificacoes')">ⓘ</button></div>
       <div class="s-row">
@@ -4635,12 +4670,16 @@ function settingsHTML(){
       </div>
       <p style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5">Funciona quando o app está instalado na tela inicial.</p>
     </div>
+`;
+  const cStats=`
     <div class="card">
       <div class="sec" style="display:flex;align-items:center;gap:6px">Estatísticas <button class="info-btn" onclick="openHelp('estatisticas')">ⓘ</button></div>
       <div class="s-row"><div class="s-lbl">Total de registros</div><span style="font-size:20px;font-weight:800;color:var(--purple-lt)">${db.entries.length}</span></div>
       <div class="s-row"><div class="s-lbl">Dias registrados</div><span style="font-size:20px;font-weight:800;color:var(--purple-lt)">${new Set(db.entries.map(e=>e.date)).size}</span></div>
       <div class="s-row"><div class="s-lbl">Check-ins realizados</div><span style="font-size:20px;font-weight:800;color:var(--purple-lt)">${db.checkins.length}</span></div>
     </div>
+`;
+  const cAbout=`
     <div class="card">
       <div class="sec">Sobre o Recarregue</div>
       <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px">Criado para monitorar gasto energético com <strong style="color:var(--text2)">TEA, TDAH e TAG</strong>. Baseado na <strong style="color:var(--text2)">Teoria das Colheres</strong>.</p>
@@ -4670,10 +4709,12 @@ function settingsHTML(){
       </div>
       <div style="margin-top:10px;font-size:12px;color:var(--muted)">Versão <strong style="color:var(--text2)">${APP_VERSION}</strong> · beta · apprecarregue@carlamancini.com.br</div>
     </div>
+`;
+  const cPriv=`
     <div class="card">
       <div class="sec">Privacidade &amp; Feedback</div>
       <div class="s-row" style="cursor:pointer" onclick="openPrivacy()">
-        <div><div class="s-lbl">Política de privacidade</div><div class="s-desc">Seus dados ficam só no seu aparelho</div></div>
+        <div><div class="s-lbl">Política de privacidade</div><div class="s-desc">O que fica no aparelho e o que vai para a nuvem</div></div>
         <span style="color:var(--muted);font-size:18px">›</span>
       </div>
       <div class="s-row" style="cursor:pointer" onclick="openFeedback()">
@@ -4681,10 +4722,13 @@ function settingsHTML(){
         <span style="color:var(--muted);font-size:18px">›</span>
       </div>
     </div>
+`;
+  const cBackup=`
     <div class="card">
       <div class="sec" style="display:flex;align-items:center;gap:6px">Backup &amp; Restauração <button class="info-btn" onclick="openHelp('backup')">ⓘ</button></div>
       ${(()=>{const d=backupAgeDays();const lbl=d===null?'Nunca':d===0?'Hoje':d===1?'Ontem':`Há ${d} dias`;return `<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Último backup na nuvem: <strong style="color:${d===null||d>=30?'var(--amber)':'var(--green)'}">${lbl}</strong></div>`})()}
-      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px">Seus dados ficam só no seu aparelho — não compartilhamos, não lemos, não vendemos nada. O backup existe pra <strong style="color:var(--text)">você não perder seu histórico de autoconhecimento</strong>. É pra você, não pra nós.</p>
+      <p style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:12px">Seus registros ficam no seu aparelho. Para você não perder seu histórico, o app também guarda uma cópia de segurança na nuvem, ligada ao seu código de restauração. Não vendemos nem compartilhamos nada.</p>
+      <button class="tap note-chip" onclick="openBackupInfo()" style="margin-bottom:14px">📋 O que entra no backup?</button>
 
       <div style="display:flex;gap:8px;margin-bottom:10px">
         <button class="btn btn-p" style="flex:1;padding:11px;font-size:13px" onclick="exportJSON()">⬇️ Exportar backup</button>
@@ -4704,7 +4748,7 @@ function settingsHTML(){
       ${SUPABASE_URL ? `
       <label style="display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:12px;cursor:pointer">
         <input type="checkbox" ${db.settings.diaryCloudBackup?'checked':''} onchange="setDiaryCloud(this.checked)" style="margin-top:3px;accent-color:var(--purple)">
-        <span style="font-size:12px;color:var(--muted);line-height:1.5"><strong style="color:var(--text)">Incluir meu diário no backup da nuvem</strong><br>Desligado por padrão: o diário é íntimo e fica só no seu aparelho. Ligue se quiser poder restaurá-lo em outro aparelho.</span>
+        <span style="font-size:12px;color:var(--muted);line-height:1.5"><strong style="color:var(--text)">Incluir meu diário no backup da nuvem</strong><br>Desligado por padrão: o diário é íntimo e fica só no seu aparelho. Ligue se quiser poder restaurá-lo em outro aparelho. As fotos nunca vão para a nuvem.</span>
       </label>
       <button class="btn btn-p" style="width:100%;margin-top:12px;font-size:13px" onclick="backupToCloud()">☁️ Salvar backup na nuvem</button>
       <div style="margin-top:12px">
@@ -4716,14 +4760,69 @@ function settingsHTML(){
       </div>` : `
       <p style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center">☁️ Backup na nuvem em breve</p>`}
     </div>
+`;
+  const cDanger=`
     <div class="card">
       <div class="sec" style="color:var(--red)">Zona de perigo</div>
       <button class="btn btn-d" onclick="clearData()">🗑️ Apagar todos os dados</button>
     </div>
+`;
+  const cFoot=`
     <div style="text-align:center;padding:12px 0 4px">
       <span class="beta-badge">Versão de teste</span>
       <p style="font-size:11px;color:var(--muted);margin-top:8px">Recarregue · apprecarregue@carlamancini.com.br</p>
     </div>`;
+  const tabs=[['perfil','Você','👤'],['app','App','🎨'],['dados','Dados','🔒'],['sobre','Sobre','💜']];
+  if(!tabs.some(t=>t[0]===settingsTab))settingsTab='perfil';
+  const groups={
+    perfil:cBadges+cPerson+cPhrase+cStats,
+    app:cLook+cPts+cGoal+cFav+cNotif,
+    dados:cBackup+cPin+cPriv+cDanger,
+    sobre:cAbout+cFoot,
+  };
+  return `<div class="reg-chips" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+    ${tabs.map(([k,l,i])=>`<button class="tap reg-chip ${settingsTab===k?'on':''}" aria-pressed="${settingsTab===k}" onclick="setSettingsTab('${k}')"><span class="ico-circle">${i}</span>${l}</button>`).join('')}
+  </div>${groups[settingsTab]}`;
+}
+let settingsTab='perfil';
+function setSettingsTab(k){settingsTab=k;const m=document.getElementById('main');m.innerHTML=settingsHTML();applyFlatEmoji(m);m.scrollTop=0;}
+let showBackupInfo=false;
+function openBackupInfo(){showBackupInfo=true;renderOverlays();}
+function closeBackupInfo(){showBackupInfo=false;renderOverlays();}
+function backupInfoHTML(){
+  const row=(ok,t,d)=>`<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px">
+      <span class="ico-circle" style="width:28px;height:28px;font-size:13px;font-weight:800;color:#fff;background:${ok?'#1f9d6b':'#9a8fc0'}">${ok?'✓':'✕'}</span>
+      <span style="flex:1"><span style="display:block;font-size:13px;font-weight:700;color:var(--text)">${t}</span>${d?`<span style="display:block;font-size:12px;color:var(--muted);line-height:1.45">${d}</span>`:''}</span>
+    </div>`;
+  const diaryOn=!!db.settings.diaryCloudBackup;
+  return `<div class="backdrop" onclick="if(event.target===this)closeBackupInfo()">
+    <div class="sheet" style="max-height:92vh">
+      <div class="sh-handle"></div>
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 20px 4px">
+        <span class="ico-circle" style="background:var(--accent-bg);width:48px;height:48px;font-size:24px">📋</span>
+        <div style="flex:1;font-size:18px;font-weight:800;color:var(--text)">O que entra no backup</div>
+        <button class="sh-close" onclick="closeBackupInfo()" aria-label="Fechar">✕</button>
+      </div>
+      <div style="padding:12px 20px 24px">
+        <div class="battery-label" style="margin-bottom:4px">☁️ Backup na nuvem</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px">Feito sozinho pelo app sempre que você registra algo, e também pelo botão "Salvar backup na nuvem".</div>
+        ${row(true,'Registros de energia','Categorias, intensidade, horário e as notas que você escreveu')}
+        ${row(true,'Check-ins','Energia, sensibilidade, bateria social, humor e nota')}
+        ${row(true,'Sintomas, dias difíceis e agendamentos')}
+        ${row(true,'Suas configurações','Nome ou apelido, pronome, cores, frase pessoal, lista de conforto, atalhos e selos')}
+        ${row(diaryOn,'Textos do diário',diaryOn?'Incluídos, porque você ligou essa opção: sentimentos, textos, pequenas vitórias e adesivos':'Não incluídos. Só entram se você ligar "Incluir meu diário no backup da nuvem"')}
+        ${row(false,'Fotos do diário','Nunca vão para a nuvem. Para guardá-las, use o backup em arquivo')}
+        ${row(false,'PIN do diário','Fica só neste aparelho')}
+        <div class="battery-label" style="margin:18px 0 4px">⬇️ Backup em arquivo</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px">O arquivo que você baixa em "Exportar backup" e guarda onde quiser.</div>
+        ${row(true,'Tudo o que está na lista da nuvem')}
+        ${row(true,'Diário completo, com as fotos')}
+        ${row(false,'PIN do diário','Fica só neste aparelho')}
+        <div style="background:var(--stat-b-bg);color:var(--stat-b-fg);border-radius:16px;padding:12px 14px;font-size:12px;line-height:1.5;margin-top:8px">Se você trocar de celular, só o backup em arquivo leva as fotos do diário. Guarde também o seu código de restauração.</div>
+        <button class="btn btn-p" style="margin-top:16px" onclick="closeBackupInfo()">Entendi</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 // ── ONBOARDING / PRIVACIDADE / FEEDBACK ──────────────────────────────────────
@@ -4734,7 +4833,7 @@ function onboardingHTML(){
     // 1 — boas-vindas
     {icon:'💜', title:'Seu espaço de autoconhecimento', sub:'Bem-vind@ ao Recarregue.', body:`
       <p>Aqui você registra padrões de energia para se conhecer melhor — no seu ritmo, do seu jeito.</p>
-      <p style="margin-top:10px">Tudo que você anota fica <strong>só no seu aparelho</strong>. Sem login, sem cadastro.</p>
+      <p style="margin-top:10px">Tudo que você anota fica <strong>no seu aparelho</strong>, com uma cópia de segurança na nuvem ligada ao seu código. Sem login, sem cadastro.</p>
       <p style="margin-top:10px">E quando quiser, tem um <strong>📔 diário</strong> só seu para escrever como se sente e por quê.</p>
       <div style="margin-top:14px;padding:10px 12px;border-radius:10px;background:rgba(139,92,246,.08);border:1px solid var(--border);font-size:11px;color:var(--muted);line-height:1.6">
         🔒 Dados locais · Sem servidor · Apague quando quiser em Configurações
@@ -4819,24 +4918,39 @@ function privacyHTML(){
         <div class="full-sheet-title">Política de Privacidade</div>
       </div>
       <div class="privacy-body">
-        <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Última atualização: setembro de 2026</p>
-        <p>O Recarregue foi feito com uma ideia simples: seus dados são seus. Esta política explica isso sem enrolação.</p>
-        <h3>O que coletamos: nada.</h3>
-        <p>O Recarregue não pede login, nome, e-mail nem qualquer dado pessoal. Você usa o app sem se identificar.</p>
-        <h3>Onde ficam seus registros.</h3>
-        <p>Tudo que você anota no app fica armazenado localmente, no seu próprio aparelho. As informações não são enviadas para nenhum servidor e não temos acesso a elas. Se você trocar de aparelho ou apagar o app, esses registros vão junto.</p>
-        <h3>Seu diário é ainda mais íntimo.</h3>
-        <p>O que você escreve no diário fica só no seu aparelho. Ele não vai para a nuvem, a menos que você ligue, por conta própria, a opção "Incluir meu diário no backup da nuvem" em Configurações. Ele sempre entra no backup em arquivo que você mesma exporta.</p>
-        <h3>Backup na nuvem — opcional e seu.</h3>
-        <p>O Recarregue oferece backup voluntário na nuvem para proteger seus dados contra perda de dispositivo ou limpeza de cache. Nenhum dado sensível ou identificável é armazenado — apenas o conteúdo que você já registrou, acessível exclusivamente pelo seu código de restauração pessoal. Nós não conseguimos abrir seu backup. Você pode não usar essa função e manter tudo só no aparelho.</p>
-        <h3>Apagar tudo, quando quiser.</h3>
-        <p>Nas configurações do app existe a opção de apagar todos os seus registros, a qualquer momento. Desinstalar o app também remove as informações guardadas.</p>
-        <h3>E o feedback?</h3>
-        <p>Se você escolher enviar um feedback pelo formulário do app, o texto que você escrever é guardado no nosso banco de dados (Supabase), que usamos só pra receber sugestões e relatos de problemas. O formulário é anônimo: não pedimos nome nem e-mail. Enviar feedback é totalmente opcional — se não enviar, nada sai do seu aparelho.</p>
-        <h3>Versão de teste.</h3>
-        <p>O Recarregue está em fase de testes. Algumas coisas podem mudar, e seu feedback ajuda a melhorar o app.</p>
-        <h3>Contato.</h3>
-        <p>Dúvidas sobre privacidade? Fale com <strong style="color:var(--purple-lt)">apprecarregue@carlamancini.com.br</strong></p>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Última atualização: novembro de 2026</p>
+        <p>O Recarregue foi feito com uma ideia simples: seus dados são seus. Esta política explica, sem enrolação, o que fica no seu aparelho, o que vai para a nuvem e como apagar tudo.</p>
+        <h3>Sem cadastro</h3>
+        <p>O app não pede login, e-mail nem documento. Você pode informar um nome ou apelido, um pronome e uma faixa de idade para personalizar a experiência; tudo isso é opcional.</p>
+        <h3>O que fica no seu aparelho</h3>
+        <p>Tudo o que você registra fica guardado no seu aparelho: registros de energia e suas notas, check-ins, sintomas, dias difíceis, agendamentos, o diário com suas fotos, o PIN do diário, suas configurações e seus selos.</p>
+        <h3>Cópia de segurança na nuvem</h3>
+        <p>Para você não perder seu histórico se trocar de celular ou limpar o navegador, o app guarda sozinho uma cópia de segurança na nuvem sempre que você registra algo. Essa cópia fica ligada a um código de restauração aleatório, criado no seu aparelho, e não ao seu nome.</p>
+        <p>Entram na cópia: registros de energia e notas, check-ins, sintomas, dias difíceis, agendamentos e suas configurações (inclusive o nome ou apelido, se você informou, a frase pessoal e a lista de conforto).</p>
+        <p>Não entram: as fotos do diário e o PIN do diário. Os textos do diário só entram se você ligar a opção "Incluir meu diário no backup da nuvem". Em Configurações, o botão "O que entra no backup?" mostra a lista completa.</p>
+        <p>A cópia fica guardada no serviço Supabase. Ela não é criptografada de ponta a ponta: quem tem o seu código de restauração consegue restaurá-la, por isso guarde o código com cuidado. Nosso compromisso é não abrir backups individuais.</p>
+        <h3>Seu diário</h3>
+        <p>O diário é a parte mais íntima do app. Por padrão ele fica só no seu aparelho. O texto que você escreve nunca aparece no relatório em PDF nem nas estatísticas de uso. As fotos nunca saem do aparelho, a não ser no arquivo de backup que você mesma exporta.</p>
+        <h3>Estatísticas de uso</h3>
+        <p>Para entender como o app é usado e o que melhorar, ele envia registros de uso para o nosso banco de dados: quais telas foram abertas, que um check-in foi feito (com o nível de energia e o período do dia), o tipo de registro criado, que um sintoma foi marcado (qual e com que intensidade), que o modo dia difícil foi ativado e que uma página do diário foi criada.</p>
+        <p>Esses registros não levam os textos que você escreve. Eles vão acompanhados de um identificador aleatório do aparelho e do seu código de restauração, e não do seu nome.</p>
+        <h3>Lembretes</h3>
+        <p>Se você ativar os lembretes, guardamos o endereço técnico que permite enviar a notificação para o seu aparelho, junto com o seu código de restauração. Ao desativar os lembretes, esse registro é apagado.</p>
+        <h3>Feedback</h3>
+        <p>Se você enviar um feedback pelo formulário, o texto é guardado no nosso banco de dados para lermos sugestões e relatos de problema. O formulário não pede nome nem e-mail.</p>
+        <h3>Serviços de terceiros</h3>
+        <p>O app carrega as fontes do Google Fonts e alguns componentes visuais (ícones e gráficos) do serviço jsDelivr. Ao carregar esses arquivos, seu navegador se conecta a esses serviços, como em qualquer site. Não há publicidade nem redes de anúncios, e não vendemos nem compartilhamos seus dados.</p>
+        <h3>Relatórios</h3>
+        <p>O relatório em PDF e o relatório em texto são gerados no seu aparelho. Eles só saem dele se você decidir compartilhar.</p>
+        <h3>Como apagar seus dados</h3>
+        <p>Em Configurações, "Apagar todos os dados" remove do aparelho seus registros, check-ins, sintomas, dias difíceis, agendamentos e o diário. Em seguida, a cópia na nuvem é substituída pela versão vazia. Desinstalar o app ou limpar os dados do navegador também apaga o que está no aparelho.</p>
+        <p>Para pedir a exclusão completa do que está na nuvem (cópia de segurança, estatísticas de uso e lembretes), escreva para o e-mail abaixo informando o seu código de restauração.</p>
+        <h3>Seus direitos</h3>
+        <p>Você pode pedir, a qualquer momento, para saber quais dados seus estão guardados, corrigi-los ou apagá-los. Como o app registra informações ligadas à sua saúde e ao seu bem-estar, tratamos esses dados com cuidado redobrado.</p>
+        <h3>Versão de teste</h3>
+        <p>O Recarregue está em fase de testes. Algumas coisas podem mudar, e esta política será atualizada quando isso acontecer.</p>
+        <h3>Contato</h3>
+        <p>Dúvidas ou pedidos sobre privacidade: <strong style="color:var(--accent-lt)">apprecarregue@carlamancini.com.br</strong></p>
       </div>
     </div>`;
 }
@@ -5308,7 +5422,7 @@ const HELP = {
       { h: 'Backup automático na nuvem', p: 'Sempre que você registra algo, o app salva uma cópia na nuvem silenciosamente. Só você acessa — pelo seu código único. Nenhum dado sensível é identificável.' },
       { h: 'Exportar backup (arquivo local)', p: 'Baixa um arquivo com todos os seus dados. Guarde no Google Drive, iCloud ou onde preferir. Para restaurar, use "Importar backup" e selecione esse arquivo.' },
       { h: 'Código de restauração', p: 'É o seu código único, gerado só no seu aparelho. Ele serve para recuperar seu backup da nuvem em outro dispositivo. Guarde-o num lugar seguro — sem ele, não conseguimos ajudar a recuperar.' },
-      { h: 'Sem rastreio, sem surpresas', p: 'Não há publicidade, perfil criado ou dados compartilhados com terceiros. O controle é 100% seu — sempre foi e sempre vai ser.' },
+      { h: 'Sem publicidade, sem venda de dados', p: 'Não há anúncios e nada é vendido ou compartilhado com terceiros. O app registra estatísticas de uso sem o seu nome, para sabermos o que melhorar. Os detalhes estão na Política de Privacidade.' },
     ]
   },
   sintomas: {
@@ -5326,7 +5440,7 @@ const HELP = {
     title: 'Personalização',
     icon: '🎨',
     items: [
-      { h: 'Nome ou apelido', p: 'Usado para tornar o app mais pessoal. Fica só no seu aparelho — não é enviado para nenhum servidor.' },
+      { h: 'Nome ou apelido', p: 'Usado para tornar o app mais pessoal. Fica no seu aparelho e entra no backup junto com as outras configurações.' },
       { h: 'Tema escuro ou claro', p: 'Escolha o que é mais confortável para seus olhos. Tema escuro costuma ser mais suave para quem tem sensibilidade à luz.' },
       { h: 'Cor de destaque', p: 'Escolha qualquer cor no círculo, ou toque num dos atalhos rápidos. Ela muda o destaque do app inteiro — deixa a experiência mais sua.' },
     ]
@@ -5415,7 +5529,8 @@ const NAV=[
   {id:'sos',      icon:'🆘', label:'SOS',       cls:'sos-btn'},
   {id:'settings', icon:'⚙️', label:'Config',    cls:''},
 ];
-const TITLES={home:'Recarregue',register:'Registrar',mapa:'Mapa de Energia',sintomas:'Sintomas',diary:'📔 Diário',sos:'SOS',settings:'Configurações'};
+const TITLES={home:'Recarregue',register:'Registrar',mapa:'Mapa de Energia',sintomas:'Sintomas',diary:'Diário',sos:'SOS',settings:'Configurações'};
+const HDR_ICONS={home:'⚡',register:'🥄',mapa:'📊',sintomas:'🩺',diary:'📔',sos:'🫶',settings:'⚙️'};
 const CONTENT={home:homeHTML,register:registerHTML,mapa:mapaHTML,sintomas:renderSintomas,diary:diaryHTML,sos:sosHTML,settings:settingsHTML};
 
 function catInfoHTML(){
@@ -5547,6 +5662,7 @@ function renderOverlays(){
   else if(triggerSheetState) el.innerHTML=triggerSheetHTML();
   else if(sheetState)      el.innerHTML=categorySheetHTML();
   else if(showReport)      el.innerHTML=reportSheetHTML();
+  else if(showBackupInfo)   el.innerHTML=backupInfoHTML();
   else if(showBackupSheet)  el.innerHTML=backupSheetHTML();
   else if(addSintomaSheet)  el.innerHTML=addSintomaSheetHTML();
   else if(sintomaEvolSheet){el.innerHTML=sintomaEvolSheetHTML();initEvolChart();}
@@ -5562,14 +5678,14 @@ function render(){
   killCharts();
   document.getElementById('app').innerHTML=`
     <div class="hdr">
-      <span class="hdr-title">${TITLES[screen]}</span>
-      <div style="display:flex;align-items:center;gap:8px"><span class="beta-badge">beta</span><img src="icon.png" class="hdr-icon" style="width:28px;height:28px;border-radius:50%;object-fit:cover;cursor:pointer" onclick="go('home')" title="Ir para Hoje"></div>
+      <span class="hdr-title"><span class="ico-circle hdr-ico">${HDR_ICONS[screen]||'💜'}</span>${TITLES[screen]}</span>
+      <div style="display:flex;align-items:center;gap:8px"><span class="beta-badge">beta</span><img src="icon.png" class="hdr-icon" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:pointer" onclick="go('home')" title="Ir para Hoje"></div>
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.26.0 disponível!</strong>
+        <strong>✨ Versão 2.27.0 disponível!</strong>
         Novidade: Diário novo, com seu mês em sentimentos, lembranças e pote de pequenas vitórias. E ainda Mapa em abas, selos e check-in de arrastar.</div>
-      <div style="font-size:11px;font-weight:600;color:var(--warn-fg);display:flex;align-items:center;gap:5px">⚠️ Seus dados ficam só no seu aparelho — faça backup antes de atualizar.</div>
+      <div style="font-size:11px;font-weight:600;color:var(--warn-fg);display:flex;align-items:center;gap:5px">⚠️ Por segurança, faça um backup antes de atualizar.</div>
       ${_backupDoneForUpdate
         ? `<button class="update-banner-btn" onclick="dismissUpdate()">✅ Atualizar agora</button>`
         : `<button class="update-banner-btn" onclick="openBackupSheet()">📦 Fazer backup</button>
@@ -5588,7 +5704,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.26.0';
+const APP_VERSION = '2.27.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
