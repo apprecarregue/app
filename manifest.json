@@ -4,7 +4,7 @@
   "description": "Monitore seu gasto energético diário para TEA, TDAH e TAG",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0e0a1f",
+  "background_color": "#7906FF",
   "theme_color": "#7906FF",
   "orientation": "portrait-primary",
   "lang": "pt-BR",
