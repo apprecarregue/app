@@ -84,58 +84,55 @@ nav{
 
 .stage{position:relative;height:min(660px,80svh);display:flex;justify-content:center;align-items:flex-start;margin-bottom:0;}
 .stage::before{content:'';position:absolute;left:50%;top:7%;width:min(420px,84%);height:88%;border-radius:44px;transform:translateX(-46%) rotate(5deg);background:var(--violet);}
-.phone{position:relative;z-index:2;width:clamp(240px,23vw,300px);background:#14141a;border-radius:36px;padding:7px;border:1px solid #34343f;box-shadow:0 36px 70px rgba(0,0,0,.45),0 10px 22px rgba(0,0,0,.35);transform:rotate(-2deg);}
-.pilly{position:absolute;z-index:3;pointer-events:none;height:auto;display:block;}
-.pilly-hero{left:-12%;bottom:0;width:min(340px,72%);}
-.phone-inner{background:#0e0a1f;border-radius:30px;overflow:hidden;height:600px;display:flex;flex-direction:column;}
+.phone{position:relative;z-index:2;width:clamp(240px,23vw,300px);background:#2a1650;border-radius:36px;padding:7px;border:1px solid #46327a;box-shadow:0 22px 44px rgba(30,11,63,.22);transform:rotate(-2deg);}
+.phone-inner{background:#F6EFFE;border-radius:30px;overflow:hidden;height:600px;display:flex;flex-direction:column;}
 .phone-notch{height:26px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.phone-notch i{width:70px;height:7px;border-radius:99px;background:#000;}
-.phone-status{display:flex;justify-content:space-between;padding:0 18px 6px;font-size:11px;font-weight:700;color:#F0EDF8;}
-.phone-content{flex:1;display:flex;flex-direction:column;min-height:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;}
-.app-hdr{background:#1c1535;padding:9px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(139,92,246,.2);}
-.app-hdr-title{font-size:14px;font-weight:800;color:#F0EDF8;}
-.app-beta{padding:2px 7px;border-radius:99px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);font-size:8px;font-weight:700;color:#F59E0B;letter-spacing:.4px;}
-.app-main{flex:1;padding:9px;display:flex;flex-direction:column;gap:7px;overflow:hidden;}
-.app-card{background:#1c1535;border-radius:12px;padding:11px;border:1px solid rgba(139,92,246,.2);}
-.app-date{font-size:10px;color:#a99bd0;text-align:center;margin-bottom:6px;}
-.app-energy-row{display:flex;align-items:flex-end;justify-content:center;gap:6px;}
-.app-energy-num{font-size:48px;font-weight:800;line-height:1;color:#10B981;}
-.app-energy-total{font-size:15px;color:#a99bd0;margin-bottom:6px;}
-.app-bar{height:7px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden;margin:8px 0 4px;}
-.app-bar-fill{height:100%;width:67%;background:linear-gradient(90deg,#059669,#10B981);border-radius:99px;}
-.app-pct{font-size:9px;color:#a99bd0;text-align:center;margin-bottom:8px;}
-.app-spoons{display:flex;gap:3px;justify-content:center;}
-.app-spoons i{height:6px;width:13px;border-radius:99px;background:#10B981;}
-.app-spoons i.off{background:rgba(255,255,255,.1);}
-.app-sec{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#a99bd0;margin-bottom:6px;}
-.app-periods{display:flex;gap:5px;}
-.app-period{flex:1;background:#14102a;border-radius:9px;padding:8px 4px;text-align:center;border:1px solid rgba(139,92,246,.2);color:#a99bd0;font-size:9px;}
-.app-period svg{display:block;margin:0 auto 3px;}
-.app-period.done{border-color:rgba(16,185,129,.4);}
-.app-period.done b{display:block;font-size:15px;color:#10B981;margin-top:1px;}
-.app-period.active{border-color:#8B5CF6;background:rgba(139,92,246,.18);}
-.app-period.active b{display:block;color:#C4B5FD;font-size:9px;margin-top:2px;}
+.phone-notch i{width:70px;height:7px;border-radius:99px;background:#2a1650;}
+.phone-status{display:flex;justify-content:space-between;padding:0 18px 6px;font-size:11px;font-weight:700;color:#1E0B3F;}
+.phone-content{flex:1;display:flex;flex-direction:column;min-height:0;font-family:'Space Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;}
+.app-hdr{padding:4px 14px 8px;display:flex;align-items:center;justify-content:space-between;}
+.app-hdr-title{font-size:14px;font-weight:700;color:#1E0B3F;}
+.app-beta{padding:2px 8px;border-radius:99px;background:#FFE9B8;font-size:9px;font-weight:700;color:#7a4a00;}
+.app-main{flex:1;padding:4px 10px 8px;display:flex;flex-direction:column;gap:9px;overflow:hidden;}
+.app-hero{position:relative;background:linear-gradient(160deg,#7906FF,#5A00CC);border-radius:20px;padding:13px 14px;color:#fff;min-height:132px;margin-bottom:34px;}
+.app-hero small{display:block;font-size:10px;color:#e6d9ff;}
+.app-hero b{display:block;font-size:15px;font-weight:700;margin-top:2px;max-width:112px;line-height:1.2;}
+.app-ring{position:absolute;left:14px;bottom:12px;width:74px;height:74px;border-radius:50%;background:conic-gradient(#fff calc(var(--p)*1%),rgba(255,255,255,.22) 0);display:flex;align-items:center;justify-content:center;}
+.app-ring::before{content:'';position:absolute;inset:8px;border-radius:50%;background:#6a10e0;}
+.app-ring span{position:relative;font-size:22px;font-weight:800;line-height:1;}
+.app-ring em{position:absolute;bottom:13px;font-style:normal;font-size:8px;color:#e6d9ff;}
+.app-pilly{position:absolute;right:-6px;bottom:-34px;width:104px;height:auto;display:block;pointer-events:none;}
+.app-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.app-tile{border-radius:14px;padding:8px 6px;text-align:center;}
+.app-tile i{display:flex;width:26px;height:26px;border-radius:50%;background:#fff;margin:0 auto 4px;align-items:center;justify-content:center;font-style:normal;font-size:13px;}
+.app-tile b{display:block;font-size:16px;font-weight:800;color:#1E0B3F;line-height:1.1;}
+.app-tile small{display:block;font-size:8.5px;color:#46375f;}
+.app-tile.a{background:#E4D8FF;}.app-tile.b{background:#CFF5E7;}.app-tile.c{background:#FFE9B8;}
+.app-card{background:#fff;border-radius:16px;padding:10px 12px;}
+.app-sec{font-size:11px;font-weight:700;color:#46375f;margin-bottom:4px;}
 .app-entry{display:flex;align-items:center;gap:8px;padding:6px 0;}
-.app-entry+.app-entry{border-top:1px solid rgba(139,92,246,.12);}
-.app-entry-ico{width:22px;height:22px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.app-entry-txt{flex:1;min-width:0;font-size:10px;font-weight:600;color:#F0EDF8;}
-.app-entry-txt small{display:block;font-size:9px;font-weight:400;color:#a99bd0;}
-.app-entry-cost{font-size:11px;font-weight:800;}
-.app-bnav{display:flex;background:#1c1535;padding:7px 0 9px;border-top:1px solid rgba(139,92,246,.2);}
-.app-bnav span{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:8px;color:#a99bd0;}
-.app-bnav span.on{color:#A78BFA;}
-.app-bnav span.sos{color:#F87171;}
-.app-bnav svg{width:16px;height:16px;}
+.app-entry+.app-entry{border-top:1px solid rgba(30,11,63,.08);}
+.app-entry-ico{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;}
+.app-entry-txt{flex:1;min-width:0;font-size:11px;font-weight:600;color:#1E0B3F;}
+.app-entry-txt small{display:block;font-size:9px;font-weight:400;color:#5d4e7e;}
+.app-entry-cost{font-size:12px;font-weight:800;}
+.app-bnav{display:flex;background:#fff;padding:7px 0 9px;border-top:1px solid rgba(30,11,63,.08);}
+.app-bnav span{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:8px;color:#5d4e7e;}
+.app-bnav span i{font-style:normal;font-size:15px;line-height:1;filter:grayscale(1);opacity:.6;}
+.app-bnav span.on{color:#7906FF;font-weight:700;}
+.app-bnav span.on i{filter:none;opacity:1;}
+.pilly{position:absolute;z-index:3;pointer-events:none;height:auto;display:block;}
+.pilly-hero{left:-26%;bottom:-6px;width:min(300px,64%);}
 
 .float{position:absolute;z-index:4;background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:0 18px 36px rgba(0,0,0,.22),0 4px 10px rgba(0,0,0,.12);}
 .float .ft{font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:10px;}
 .float small{display:block;margin-top:8px;font-size:11px;color:var(--muted);}
-.float-week{right:-2%;bottom:200px;width:176px;}
+.float-week{right:-12%;bottom:110px;width:168px;}
 .week-bars{display:flex;align-items:flex-end;gap:5px;height:48px;}
 .week-bars i{flex:1;border-radius:4px 4px 2px 2px;background:var(--violet-lt);}
 .week-bars i.lo{background:#d9c6f7;}
 .week-bars i.hi{background:var(--violet);}
-.float-sos{right:-2%;top:110px;width:150px;text-align:center;}
+.float-sos{right:-12%;top:70px;width:140px;text-align:center;}
 .breath{position:relative;width:76px;height:76px;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;}
 .breath::before{content:'';position:absolute;inset:0;border-radius:50%;border:2.5px solid var(--violet);animation:breathe 16s linear infinite;}
 .breath span{position:relative;font-size:13px;font-weight:700;color:var(--royal);}
@@ -239,6 +236,46 @@ h2{font-size:clamp(32px,4.8vw,60px);font-weight:700;line-height:1.06;letter-spac
 .chips-ui span{padding:9px 14px;border-radius:99px;border:1px solid var(--line2);font-size:13.5px;color:var(--ink2);background:var(--bg-soft);}
 .chips-ui span.add{border-style:dashed;color:var(--royal);border-color:rgba(121,6,255,.55);background:transparent;font-weight:600;}
 .chips-ui span.sel{background:var(--violet);border-color:var(--violet);color:#fff;}
+.t-dia,.t-sin,.t-sel{grid-column:span 2;}
+.dial-ui{display:flex;align-items:center;gap:18px;}
+.dial{position:relative;flex-shrink:0;width:104px;height:104px;border-radius:50%;background:conic-gradient(var(--violet) 58%,rgba(121,6,255,.14) 0);display:flex;align-items:center;justify-content:center;}
+.dial::before{content:'';position:absolute;inset:11px;border-radius:50%;background:#fff;}
+.dial b{position:relative;font-size:32px;font-weight:800;color:var(--ink);line-height:1;}
+.dial small{position:absolute;bottom:22px;font-size:10px;color:var(--muted);}
+.faces{display:flex;gap:6px;}
+.faces span{flex:1;text-align:center;padding:8px 0;border-radius:12px;background:var(--bg-soft);font-size:20px;line-height:1;}
+.faces span.sel{background:#E4D8FF;outline:2px solid var(--violet);}
+.sens-ui{display:flex;flex-direction:column;gap:10px;flex:1;min-width:0;}
+.sens-row{display:grid;grid-template-columns:78px 1fr 22px;align-items:center;gap:8px;font-size:13px;color:var(--ink2);}
+.sens-bar{height:14px;border-radius:99px;background:rgba(121,6,255,.12);overflow:hidden;}
+.sens-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#B98AFF,#7906FF);}
+.sens-row em{font-style:normal;font-size:16px;line-height:1;}
+.bat-ui{position:relative;height:34px;border-radius:12px;border:2px solid var(--line2);background:var(--bg-soft);overflow:hidden;display:flex;align-items:center;padding:0 12px;font-size:13px;color:var(--ink2);}
+.bat-ui i{position:absolute;left:0;top:0;bottom:0;width:30%;background:#CFF5E7;}
+.bat-ui span{position:relative;}
+.pastel-chips span.s1{background:#E4D8FF;border-color:transparent;}
+.pastel-chips span.s2{background:#CFF5E7;border-color:transparent;}
+.pastel-chips span.s3{background:#FFE9B8;border-color:transparent;}
+.pastel-chips span.s4{background:#FFD9E3;border-color:transparent;}
+.mini-tabs{display:flex;gap:6px;margin-bottom:12px;}
+.mini-tabs span{flex:1;text-align:center;padding:7px 0;border-radius:99px;font-size:12px;font-weight:600;color:var(--muted);background:var(--bg-soft);}
+.mini-tabs span.on{background:var(--violet);color:#fff;}
+.vs-ui{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:14px;background:#CFF5E7;font-size:12.5px;color:#0b4d3f;margin-bottom:10px;}
+.sos-moon{position:relative;width:96px;height:96px;border-radius:50%;background:#EDE3FF;flex-shrink:0;}
+.sos-moon img{position:absolute;left:50%;bottom:-8px;width:80px;margin-left:-40px;height:auto;}
+.sos-btn{display:inline-block;margin-top:8px;padding:8px 14px;border-radius:99px;background:#fff;color:var(--royal);font-size:12.5px;font-weight:700;}
+.cal-mini{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
+.cal-mini span{aspect-ratio:1;border-radius:50%;background:var(--bg-soft);display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;}
+.cal-mini span.e1{background:#FFD9E3;}.cal-mini span.e2{background:#FFE9B8;}.cal-mini span.e3{background:#E4D8FF;}.cal-mini span.e4{background:#CFF5E7;}
+.sin-ui{display:flex;flex-direction:column;gap:8px;}
+.sin-row{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink2);}
+.sin-row span{width:84px;}
+.sin-row i{flex:1;height:12px;border-radius:99px;background:rgba(121,6,255,.12);overflow:hidden;position:relative;}
+.sin-row i::after{content:'';position:absolute;left:0;top:0;bottom:0;width:var(--w);border-radius:99px;background:#FFC857;}
+.badges-ui{display:flex;flex-wrap:wrap;gap:8px;}
+.badges-ui span{display:flex;flex-direction:column;align-items:center;gap:3px;width:calc(33.3% - 6px);padding:10px 4px;border-radius:14px;background:var(--bg-soft);font-size:11px;color:var(--ink2);text-align:center;}
+.badges-ui span i{display:flex;width:34px;height:34px;border-radius:50%;background:#fff;align-items:center;justify-content:center;font-style:normal;font-size:17px;}
+.badges-ui span.off{opacity:.45;filter:grayscale(1);}
 .bento-note{margin-top:18px;font-size:13px;color:var(--muted);}
 
 /* instalar */
@@ -368,14 +405,17 @@ footer .heart{width:14px;height:14px;fill:var(--violet-lt);vertical-align:-1px;}
   .split,.form-grid{grid-template-columns:1fr;}
   .bento{grid-template-columns:1fr 1fr;}
   .t-checkin,.t-reg,.t-trig{grid-column:span 2;grid-row:auto;}
-  .t-pat,.t-sos,.t-rec{grid-column:span 1;}
+  .t-pat,.t-sos,.t-rec,.t-dia,.t-sin{grid-column:span 1;}
+  .t-sel{grid-column:span 2;}
   .steps{grid-template-columns:1fr;}
   .sticky-cta{display:flex;}
   .nav-cta{display:none;}
 }
 @media(max-width:600px){
   .bento{grid-template-columns:1fr;}
-  .t-pat,.t-sos,.t-rec,.t-checkin,.t-reg,.t-trig{grid-column:span 1;}
+  .t-pat,.t-sos,.t-rec,.t-dia,.t-sin,.t-sel,.t-checkin,.t-reg,.t-trig{grid-column:span 1;}
+  .dial-ui{flex-direction:column;align-items:stretch;}
+  .dial{align-self:center;}
   .sl{grid-template-columns:96px 1fr 20px;gap:10px;font-size:13px;}
   .nav-badge{font-size:11px;padding:4px 10px;letter-spacing:.03em;}
   .spoon-grid{gap:6px;}
@@ -437,44 +477,41 @@ footer .heart{width:14px;height:14px;fill:var(--violet-lt);vertical-align:-1px;}
           <div class="phone-content">
             <div class="app-hdr">
               <div class="app-hdr-title">Recarregue</div>
-              <span class="app-beta">BETA</span>
+              <span class="app-beta">Beta</span>
             </div>
             <div class="app-main">
-              <div class="app-card">
-                <div class="app-date">Sexta-feira, 27 jun</div>
-                <div class="app-energy-row"><div class="app-energy-num" id="phoneNum">8</div><div class="app-energy-total">/ 12</div></div>
-                <div class="app-bar"><div class="app-bar-fill" id="phoneBar"></div></div>
-                <div class="app-pct">67% de energia restante</div>
-                <div class="app-spoons"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="off"></i><i class="off"></i><i class="off"></i><i class="off"></i></div>
+              <div class="app-hero">
+                <small>Sexta-feira, 27 jun</small>
+                <b>Sua energia de hoje</b>
+                <div class="app-ring" style="--p:67"><span id="phoneNum">8</span><em>de 12</em></div>
+                <img class="app-pilly" src="img/pilly-acena.webp" alt="" width="499" height="680">
               </div>
-              <div class="app-card">
-                <div class="app-sec">Check-ins de hoje</div>
-                <div class="app-periods">
-                  <div class="app-period done"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9d8fc4" stroke-width="2" stroke-linecap="round"><path d="M3 18h18M7 18a5 5 0 0 1 10 0M12 6v3M4.5 10.5l2 2M19.5 10.5l-2 2"/></svg>Manhã<b>7</b></div>
-                  <div class="app-period active"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C4B5FD" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/></svg>Tarde<b>Toque aqui</b></div>
-                  <div class="app-period"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9d8fc4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>Noite</div>
-                </div>
+              <div class="app-tiles">
+                <div class="app-tile a"><i>☀️</i><b>2</b><small>Check-ins</small></div>
+                <div class="app-tile b"><i>📝</i><b>5</b><small>Registros</small></div>
+                <div class="app-tile c"><i>💛</i><b>6</b><small>Dias de cuidado</small></div>
               </div>
               <div class="app-card">
                 <div class="app-sec">Registros de hoje</div>
                 <div class="app-entry">
-                  <div class="app-entry-ico" style="background:rgba(248,113,113,.2)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F87171" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+                  <div class="app-entry-ico" style="background:#FFD9E3">👥</div>
                   <div class="app-entry-txt">Reunião social<small>Intenso · 14h30</small></div>
-                  <div class="app-entry-cost" style="color:#F87171">+4.5</div>
+                  <div class="app-entry-cost" style="color:#c42a40">-3</div>
                 </div>
                 <div class="app-entry">
-                  <div class="app-entry-ico" style="background:rgba(52,211,153,.18)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14"/></svg></div>
+                  <div class="app-entry-ico" style="background:#CFF5E7">🌿</div>
                   <div class="app-entry-txt">Tempo sozinho<small>Normal · 12h00</small></div>
-                  <div class="app-entry-cost" style="color:#10B981">-2</div>
+                  <div class="app-entry-cost" style="color:#047a66">+2</div>
                 </div>
               </div>
             </div>
             <div class="app-bnav">
-              <span class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Hoje</span>
-              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Registrar</span>
-              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>Mapa</span>
-              <span class="sos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/></svg>SOS</span>
-              <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Config</span>
+              <span class="on"><i>🏠</i>Hoje</span>
+              <span><i>🥄</i>Registrar</span>
+              <span><i>📊</i>Mapa</span>
+              <span><i>📔</i>Diário</span>
+              <span><i>🆘</i>SOS</span>
+              <span><i>⚙️</i>Config</span>
             </div>
           </div>
         </div>
@@ -568,57 +605,86 @@ footer .heart{width:14px;height:14px;fill:var(--violet-lt);vertical-align:-1px;}
     <div class="bento sr-group">
       <article class="tile t-checkin">
         <h3>Check-in 3x ao dia</h3>
-        <p>Energia, humor, sensibilidade sensorial e bateria social, manhã, tarde e noite. Leva 30 segundos.</p>
+        <p>Manhã, tarde e noite, em poucos toques: gire o círculo da energia, arraste a sensibilidade, escolha uma carinha e, se quiser, conte tudo para a Pilly.</p>
         <div class="tile-ui" aria-hidden="true">
           <div class="tabs"><span>Manhã</span><span class="on">Tarde</span><span>Noite</span></div>
-          <div class="sliders">
-            <div class="sl"><span>Energia</span><div class="sl-bar"><i style="width:70%"></i></div><b>7</b></div>
-            <div class="sl"><span>Humor</span><div class="sl-bar"><i style="width:60%"></i></div><b>6</b></div>
-            <div class="sl"><span>Sensorial</span><div class="sl-bar"><i style="width:40%"></i></div><b>4</b></div>
-            <div class="sl"><span>Bateria social</span><div class="sl-bar"><i style="width:30%"></i></div><b>3</b></div>
+          <div class="dial-ui">
+            <div class="dial"><b>7</b><small>de 12</small></div>
+            <div class="sens-ui">
+              <div class="sens-row"><span>Barulho</span><div class="sens-bar"><i style="width:70%"></i></div><em>😣</em></div>
+              <div class="sens-row"><span>Luz</span><div class="sens-bar"><i style="width:35%"></i></div><em>🙂</em></div>
+              <div class="sens-row"><span>Toque</span><div class="sens-bar"><i style="width:20%"></i></div><em>😌</em></div>
+            </div>
           </div>
-          <div class="note-ui">Como foi sua tarde? (opcional)</div>
-          <div class="save-ui">Salvar check-in</div>
+          <div class="bat-ui"><i></i><span>Bateria social: 🔋 pouca, e tudo bem</span></div>
+          <div class="faces"><span>😞</span><span>🙁</span><span class="sel">😐</span><span>🙂</span><span>😄</span></div>
+          <div class="note-ui">Conta pra Pilly como foi sua tarde (opcional)</div>
         </div>
       </article>
 
       <article class="tile t-reg">
         <h3>Registre o que gasta e o que recarrega</h3>
-        <p>Reuniões, gatilhos, descanso, tempo sozinha: cada evento vai para o seu saldo de colheres em tempo real.</p>
+        <p>Reuniões, gatilhos, descanso, tempo sozinha: cada evento entra no seu saldo de colheres em tempo real.</p>
         <div class="tile-ui rows" aria-hidden="true">
-          <div class="row"><span>Reunião social<small>Intenso · 14h30</small></span><b class="cost">+4.5</b></div>
-          <div class="row"><span>Tempo sozinho<small>Normal · 12h00</small></span><b class="gain">-2</b></div>
+          <div class="row"><span>Reunião social<small>Intenso · 14h30</small></span><b class="cost">-3</b></div>
+          <div class="row"><span>Tempo sozinho<small>Normal · 12h00</small></span><b class="gain">+2</b></div>
         </div>
       </article>
 
       <article class="tile t-trig">
         <h3>Gatilhos personalizados</h3>
         <p>Algo que não está na lista? Crie seus próprios gatilhos, descreva a sensação e registre o impacto.</p>
-        <div class="tile-ui chips-ui" aria-hidden="true"><span>Luz fluorescente</span><span class="sel">Cheiro forte</span><span>Mudança de planos</span><span class="add">+ Criar gatilho</span></div>
+        <div class="tile-ui chips-ui pastel-chips" aria-hidden="true"><span class="s1">Luz fluorescente</span><span class="s2">Cheiro forte</span><span class="s3">Mudança de planos</span><span class="add">+ Criar gatilho</span></div>
       </article>
 
       <article class="tile t-pat">
-        <h3>Veja seus padrões ao longo do tempo</h3>
-        <p>Heatmap de energia, gráficos por período e relatório semanal, para você entender (e explicar) o que acontece.</p>
+        <h3>Veja seus padrões</h3>
+        <p>O Mapa tem três abas (Resumo, Padrões e Gráficos), compara com o período anterior, mostra o calendário do mês, o que mais gasta e o que mais recarrega. E dá para gerar um relatório em PDF.</p>
         <div class="tile-ui" aria-hidden="true">
+          <div class="mini-tabs"><span class="on">Resumo</span><span>Padrões</span><span>Gráficos</span></div>
+          <div class="vs-ui">📈 Comparado ao período anterior</div>
           <div class="heat-days"><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span><span>D</span></div>
           <div class="heat" id="heat"></div>
         </div>
       </article>
 
       <article class="tile t-sos">
-        <h3>Módulo SOS para crises</h3>
-        <p>Respiração box 4-4-4-4, grounding 5-4-3-2-1, Pomodoro adaptado e afirmações, tudo num toque.</p>
+        <h3>SOS para os dias difíceis</h3>
+        <p>Uma abertura noturna e calma, com a Pilly na lua. Respiração guiada, exercício 5-4-3-2-1, frases gentis e timer de foco, tudo num toque.</p>
         <div class="tile-ui sos-ui" aria-hidden="true">
-          <div class="breath"><span class="breath-txt">Inspire</span></div>
-          <ul class="sos-list"><li>Respiração</li><li>Grounding</li><li>Pomodoro</li></ul>
+          <div class="sos-moon"><img src="img/pilly-sentada.webp" alt="" width="502" height="680"></div>
+          <div><ul class="sos-list"><li>Respirar</li><li>Voltar ao presente</li><li>Uma frase gentil</li><li>Timer de foco</li></ul><span class="sos-btn">Respirar comigo</span></div>
         </div>
       </article>
 
       <article class="tile t-rec">
         <h3>Sugestões de recuperação</h3>
         <p>Quando a energia estiver baixa, o app sugere atividades de descanso adaptadas ao que você tem condição de fazer.</p>
-        <div class="tile-ui chips-ui" aria-hidden="true"><span class="sel">Luz baixa</span><span>Água e silêncio</span><span>Alongar</span><span>Música sem letra</span><span>Banho morno</span><span>Deitar de olhos fechados</span></div>
+        <div class="tile-ui chips-ui pastel-chips" aria-hidden="true"><span class="s2">Luz baixa</span><span class="s1">Água e silêncio</span><span class="s3">Alongar</span><span class="s4">Música sem letra</span><span class="s2">Banho morno</span><span class="s1">Deitar de olhos fechados</span></div>
+      </article>
+
+      <article class="tile t-dia">
+        <h3>Diário de sentimentos</h3>
+        <p>Escreva, escolha a carinha do dia e guarde memórias. Veja seu mês em sentimentos, reencontre um dia bom e junte suas vitórias no pote.</p>
+        <div class="tile-ui" aria-hidden="true">
+          <div class="cal-mini"><span class="e4">😄</span><span class="e3">🙂</span><span class="e2">😐</span><span class="e4">😄</span><span class="e1">😞</span><span class="e3">🙂</span><span class="e4">😄</span></div>
+        </div>
+      </article>
+
+      <article class="tile t-sin">
+        <h3>Sintomas</h3>
+        <p>Perceba como o corpo está: toque para marcar a intensidade de cada sintoma, no seu tempo e sem pressão.</p>
+        <div class="tile-ui sin-ui" aria-hidden="true">
+          <div class="sin-row"><span>Dor de cabeça</span><i style="--w:55%"></i></div>
+          <div class="sin-row"><span>Cansaço</span><i style="--w:80%"></i></div>
+          <div class="sin-row"><span>Tensão</span><i style="--w:30%"></i></div>
+        </div>
+      </article>
+
+      <article class="tile t-sel">
+        <h3>Selos e dias de cuidado</h3>
+        <p>Cada vez que você se cuida, o app comemora com você. Selos para conquistar e dias de cuidado que só somam, sem cobrança.</p>
+        <div class="tile-ui badges-ui" aria-hidden="true"><span><i>🌱</i>Primeiro passo</span><span><i>💛</i>Dias de cuidado</span><span><i>⭐</i>E muito mais</span></div>
       </article>
     </div>
     <p class="bento-note">Telas ilustrativas, com dados de exemplo. O app está em beta e pode mudar.</p>
@@ -630,12 +696,12 @@ footer .heart{width:14px;height:14px;fill:var(--violet-lt);vertical-align:-1px;}
   <div class="wrap">
     <div class="install-head">
       <h2 class="sr">Funciona como app nativo, sem precisar da <em class="it">loja</em></h2>
-      <p class="lead sr">O Recarregue é uma WebApp Progressiva (PWA). Você instala direto pelo navegador, aparece na sua tela inicial e funciona offline. Sem App Store, sem Play Store.</p>
+      <p class="lead sr">O Recarregue é uma WebApp Progressiva (PWA). Você instala direto pelo navegador, aparece na sua tela inicial e abre mesmo sem internet. Sem App Store, sem Play Store.</p>
     </div>
     <ol class="steps sr-group">
       <li class="step"><div class="step-n">1</div><h3>Abra no navegador</h3><p>Chrome, Safari ou Edge no celular</p></li>
       <li class="step"><div class="step-n">2</div><h3>Adicione à tela inicial</h3><p>Toque em "Compartilhar" ou no menu do navegador</p></li>
-      <li class="step"><div class="step-n">3</div><h3>Pronto para usar</h3><p>Abre igual a um app, funciona offline e sem atualizações manuais</p></li>
+      <li class="step"><div class="step-n">3</div><h3>Pronto para usar</h3><p>Abre igual a um app e se atualiza sozinho. Cópia na nuvem e avisos precisam de internet.</p></li>
     </ol>
   </div>
 </section>
@@ -650,11 +716,11 @@ footer .heart{width:14px;height:14px;fill:var(--violet-lt);vertical-align:-1px;}
       </div>
       <ul class="priv-list">
         <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Sem login para usar o app</span></li>
-        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Seus registros ficam no seu aparelho; o backup na nuvem é protegido pelo seu código de restauração</span></li>
-        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Diário íntimo: só vai para a nuvem se você ligar</span></li>
-        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Medimos o uso do app de forma pseudônima (sem nome nem e-mail) para melhorar o produto</span></li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Seus registros ficam no seu aparelho. O app pergunta na primeira vez se você quer uma cópia na nuvem; só envia sozinho se você aceitar, e dá para desligar em Configurações, na aba Dados</span></li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Fotos do diário nunca vão para a nuvem, e os textos do diário só entram na cópia se você escolher</span></li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>As estatísticas de uso levam só um identificador aleatório do aparelho, sem nome e sem código de restauração</span></li>
         <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Sem anúncios, sem perfil publicitário e sem venda de dados</span></li>
-        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Você pode apagar todos os seus registros quando quiser</span></li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span>Você pode apagar todos os seus registros do aparelho quando quiser</span></li>
       </ul>
     </div>
   </div>
@@ -768,7 +834,7 @@ footer .heart{width:14px;height:14px;fill:var(--violet-lt);vertical-align:-1px;}
       <button class="pol-close" onclick="closePolicy()" aria-label="Fechar">×</button>
     </div>
     <div class="pol-body">
-      <p class="pol-meta">Recarregue (webapp em beta) · Última atualização: 22/10/2026</p>
+      <p class="pol-meta">Recarregue (webapp em beta) · Última atualização: 16/11/2026</p>
 
       <h4>Quem é responsável</h4>
       <p>O Recarregue é desenvolvido por Carla Mancini. Dúvidas ou pedidos sobre seus dados: <a href="mailto:apprecarregue@carlamancini.com.br">apprecarregue@carlamancini.com.br</a>.</p>
@@ -783,14 +849,14 @@ footer .heart{width:14px;height:14px;fill:var(--violet-lt);vertical-align:-1px;}
       <h4>O que acontece no app</h4>
       <ul>
         <li>Seus registros de energia, humor e check-ins ficam no seu aparelho.</li>
-        <li>Há backup automático na nuvem a cada registro, protegido pelo seu código de restauração.</li>
-        <li>O diário íntimo só vai para a nuvem se você ligar essa opção em Configurações.</li>
-        <li>Medimos o uso do app de forma pseudônima (sem nome nem e-mail) para melhorar o produto.</li>
+        <li>Na primeira vez, o app pergunta se você quer guardar uma cópia de segurança na nuvem. Se você aceitar, a cópia é atualizada sozinha a cada registro e fica ligada a um código de restauração aleatório, sem o seu nome. Se não aceitar, nada é enviado, a não ser que você toque em "Salvar backup na nuvem". Dá para mudar essa escolha em Configurações, na aba Dados.</li>
+        <li>As fotos do diário nunca vão para a nuvem. Os textos do diário só entram na cópia se você escolher incluí-los.</li>
+        <li>Medimos o uso do app para melhorar o produto. Esses eventos levam apenas um identificador aleatório do aparelho: não levam o seu nome nem o seu código de restauração.</li>
         <li>Não usamos anúncios, não criamos perfil publicitário e não vendemos dados.</li>
       </ul>
 
       <h4>Seus direitos (LGPD)</h4>
-      <p>Você pode pedir confirmação do tratamento, acesso, correção, exclusão dos seus dados, e revogar o consentimento quando quiser. No app, você pode apagar todos os seus registros a qualquer momento. Para dados da inscrição (nome, e-mail), escreva para o e-mail acima.</p>
+      <p>Você pode pedir confirmação do tratamento, acesso, correção, exclusão dos seus dados, e revogar o consentimento quando quiser. No app, você pode apagar todos os seus registros do aparelho a qualquer momento. Se a cópia automática estiver ligada, a cópia na nuvem é substituída em seguida pela versão vazia. Para dados da inscrição (nome, e-mail), escreva para o e-mail acima.</p>
 
       <h4>Beta e mudanças</h4>
       <p>O Recarregue é um webapp em beta, em testes e sujeito a falhas. Esta política pode mudar conforme o app evolui; a data de atualização fica no topo.</p>
@@ -867,8 +933,6 @@ document.querySelectorAll('a[href^="#"]').forEach(a=>{
   if(ph)ph.animate([{opacity:0,transform:'translateY(60px) rotate(-2deg)'},{opacity:1,transform:'translateY(0) rotate(-2deg)'}],{duration:1100,delay:250,easing:ease,fill:'backwards'});
   document.querySelectorAll('[data-float]').forEach((el,i)=>el.animate(
     [{opacity:0,transform:'translateY(24px)'},{opacity:1,transform:'none'}],{duration:900,delay:700+i*160,easing:ease,fill:'backwards'}));
-  const bar=document.getElementById('phoneBar');
-  if(bar)bar.animate([{width:'0%'},{width:'67%'}],{duration:1100,delay:600,easing:ease,fill:'backwards'});
   const num=document.getElementById('phoneNum');
   if(num){const t0=performance.now()+600;(function tick(n){const p=Math.min(Math.max((n-t0)/900,0),1);num.textContent=Math.round((1-Math.pow(1-p,3))*8);if(p<1)requestAnimationFrame(tick);})(performance.now());}
 })();
