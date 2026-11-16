@@ -543,6 +543,11 @@ textarea.soft-input { resize: none; line-height: 1.5; min-height: 52px; max-heig
 .hdr-ico { background: var(--card); width: 40px; height: 40px; font-size: 20px; }
 span.beta-badge { background: var(--accent-bg); border: none; color: var(--accent-lt); text-transform: none; letter-spacing: 0; font-size: 11px; font-weight: 600; padding: 4px 10px; }
 .sec { font-size: 14px; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; }
+#overlays .onboard-overlay { justify-content: flex-start; overflow-y: auto; padding: 20px 20px 28px; padding-top: calc(20px + env(safe-area-inset-top, 0px)); }
+#overlays .onboard-card { margin: auto; }
+#overlays .onboard-title { font-size: 24px; }
+#overlays .onboard-sub { font-size: 14px; font-weight: 500; color: var(--text2); margin-bottom: 18px; }
+#overlays .onboard-body { line-height: 1.5; margin-bottom: 20px; text-align: center; }
 /* SOCIAL BATTERY — arrastável */
 .bat-wrap { display: flex; align-items: center; gap: 4px; margin: 10px 0; }
 .bat-bar { position: relative; flex: 1; height: 72px; border-radius: 24px; background: var(--card2); overflow: hidden; touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
@@ -1359,9 +1364,7 @@ function onboardSetEnergy(pts){
   db.settings.dailyPts=pts; save();
   document.querySelectorAll('.ob-energy-btn').forEach(b=>{
     const sel=parseInt(b.dataset.pts)===pts;
-    b.style.borderColor=sel?'var(--accent)':'var(--border)';
-    b.style.background=sel?'var(--accent-bg)':'transparent';
-    b.style.color=sel?'var(--accent-lt)':'var(--text2)';
+    b.classList.toggle('sel',sel); b.setAttribute('aria-pressed',sel);
   });
 }
 function setTheme(t){db.settings.theme=t;save();applyTheme();render();}
@@ -4859,83 +4862,78 @@ function backupInfoHTML(){
 
 function onboardingHTML(){
   const pr=db.settings.pronoun;
+  const line=(icon,text)=>`<div style="display:flex;align-items:center;gap:12px;background:var(--card);border-radius:18px;padding:12px 14px;margin-bottom:8px;text-align:left">
+      <span class="ico-circle" style="background:var(--accent-bg);width:40px;height:40px;font-size:20px">${icon}</span>
+      <span style="flex:1;font-size:13px;color:var(--text);line-height:1.45">${text}</span>
+    </div>`;
   const steps=[
-    // 1 — boas-vindas
-    {icon:'💜', title:'Seu espaço de autoconhecimento', sub:'Bem-vind@ ao Recarregue.', body:`
-      <p>Aqui você registra padrões de energia para se conhecer melhor — no seu ritmo, do seu jeito.</p>
-      <p style="margin-top:10px">Tudo que você anota fica <strong>no seu aparelho</strong>. Se você quiser, o app guarda também uma cópia de segurança na nuvem. Sem login, sem cadastro.</p>
-      <p style="margin-top:10px">E quando quiser, tem um <strong>📔 diário</strong> só seu para escrever como se sente e por quê.</p>
-      <div style="margin-top:14px;padding:10px 12px;border-radius:10px;background:rgba(139,92,246,.08);border:1px solid var(--border);font-size:11px;color:var(--muted);line-height:1.6">
-        🔒 Dados locais · Sem servidor · Apague quando quiser em Configurações
-      </div>
-    `, btn:'Continuar →'},
-    // 2 — perfil: nome + idade + pronomes
-    {icon:'👋', title:'Vamos nos conhecer', sub:'Tudo opcional — mude quando quiser.', body:`
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        <div style="flex:1">
-          <p style="font-size:12px;color:var(--muted);margin-bottom:5px">Nome ou apelido</p>
-          <input id="onboard-name" type="text" value="${db.settings.name||''}" placeholder="Ex: Carla" autocomplete="off" autocorrect="off" spellcheck="false"
-            style="width:100%;padding:11px 12px;background:var(--card2);border:1.5px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);font-family:inherit;outline:none;box-sizing:border-box"
-            oninput="db.settings.name=this.value.trim();save();this.style.borderColor='var(--accent)'">
+    {pose:'acena', title:'Boas-vindas ao Recarregue', sub:'Seu espaço para entender a própria energia.', body:`
+      ${line('⚡','Check-ins rápidos para notar como você está, no seu ritmo e do seu jeito.')}
+      ${line('📔','Um diário só seu, para guardar sentimentos, memórias e pequenas vitórias.')}
+      ${line('🔒','Sem login e sem cadastro. Seus registros ficam no seu aparelho, e você escolhe se quer uma cópia na nuvem.')}
+    `, btn:'Continuar'},
+    {pose:'aponta', title:'Vamos nos conhecer', sub:'Tudo aqui é opcional. Dá para mudar depois.', body:`
+      <div style="display:flex;gap:8px;margin-bottom:14px;text-align:left">
+        <div style="flex:1;min-width:0">
+          <label for="onboard-name" style="display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px">Nome ou apelido</label>
+          <input id="onboard-name" type="text" class="soft-input" style="background:var(--card)" value="${esc(db.settings.name||'')}" placeholder="Ex: Carla" autocomplete="off" autocorrect="off" spellcheck="false"
+            oninput="db.settings.name=this.value.trim();save()">
         </div>
-        <div style="width:80px">
-          <p style="font-size:12px;color:var(--muted);margin-bottom:5px">Idade</p>
-          <input id="onboard-age" type="number" min="1" max="120" value="${db.settings.age||''}" placeholder="Ex: 28"
-            style="width:100%;padding:11px 12px;background:var(--card2);border:1.5px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);font-family:inherit;outline:none;box-sizing:border-box"
-            oninput="const a=parseInt(this.value);if(a>0&&a<120){db.settings.age=a;save();}this.style.borderColor='var(--accent)'">
+        <div style="width:92px">
+          <label for="onboard-age" style="display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px">Idade</label>
+          <input id="onboard-age" type="number" inputmode="numeric" min="1" max="120" class="soft-input" style="background:var(--card)" value="${db.settings.age||''}" placeholder="Ex: 28"
+            oninput="const a=parseInt(this.value);if(a>0&&a<120){db.settings.age=a;save();}">
         </div>
       </div>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Como prefere ser chamad@?</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+      <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;text-align:left">Como prefere que o app fale com você?</div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
         ${[
-          {p:'ela', icon:'💜', label:'Ela',  ex:'esgotada'},
-          {p:'ele', icon:'💙', label:'Ele',  ex:'esgotado'},
-          {p:'elu', icon:'💚', label:'Elu',  ex:'esgotadu'},
-          {p:null,  icon:'🤍', label:'Não informar', ex:'sem adaptação'},
+          {p:'ela', icon:'💜', label:'Ela',  ex:'cansada'},
+          {p:'ele', icon:'💙', label:'Ele',  ex:'cansado'},
+          {p:'elu', icon:'💚', label:'Elu',  ex:'cansadu'},
+          {p:null,  icon:'🤍', label:'Prefiro não informar', ex:'sem adaptação'},
         ].map(o=>{
           const sel=pr===o.p;
-          return `<button onclick="onboardSetPronoun(${o.p===null?'null':`'${o.p}'`})" style="display:flex;align-items:center;gap:8px;padding:10px 11px;border-radius:12px;border:2px solid ${sel?'var(--accent)':'var(--border)'};background:${sel?'var(--accent-bg)':'var(--card2)'};cursor:pointer;font-family:inherit;text-align:left;width:100%">
-            <span style="font-size:18px">${o.icon}</span>
-            <div>
-              <div style="font-size:13px;font-weight:700;color:${sel?'var(--accent-lt)':'var(--text)'}">${o.label}${sel?' ✓':''}</div>
-              <div style="font-size:10px;color:var(--muted)">${o.ex}</div>
-            </div>
+          return `<button class="tap int-tile ${sel?'sel':''}" aria-pressed="${sel}" onclick="onboardSetPronoun(${o.p===null?'null':`'${o.p}'`})" style="flex-direction:row;justify-content:flex-start;gap:10px;padding:10px 12px;text-align:left;background:${sel?'var(--accent-bg)':'var(--card)'}">
+            <span class="ico-circle" style="background:var(--card2)">${o.icon}</span>
+            <span><span style="display:block;font-size:13px;font-weight:700;color:var(--text);line-height:1.2">${o.label}</span><span style="display:block;font-size:11px;font-weight:400;color:var(--muted)">${o.ex}</span></span>
           </button>`;
         }).join('')}
       </div>
-    `, btn:'Continuar →'},
-    // 4 — calibração de energia
-    {icon:'🥄', title:'Quantas colheres você tem?', sub:'Baseado na Teoria das Colheres.', body:`
-      <p style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:14px">Imagine que você acorda com um número fixo de colheres. Cada tarefa, barulho e interação custa algumas. Quando acabam — acabaram.</p>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Em dias normais, como é seu fôlego?</p>
-      <div style="display:flex;gap:8px">
-        ${[{pts:8,label:'Pouco',sub:'Dias custam caro'},{pts:12,label:'Médio',sub:'Padrão recomendado'},{pts:16,label:'Bastante',sub:'Alta capacidade'}].map(o=>`
-          <button class="ob-energy-btn" data-pts="${o.pts}" onclick="onboardSetEnergy(${o.pts})" style="flex:1;padding:10px 6px;border-radius:12px;border:1.5px solid ${db.settings.dailyPts===o.pts?'var(--accent)':'var(--border)'};background:${db.settings.dailyPts===o.pts?'var(--accent-bg)':'transparent'};cursor:pointer;transition:all .2s;font-family:inherit">
-            <div style="font-size:13px;font-weight:700;color:${db.settings.dailyPts===o.pts?'var(--accent-lt)':'var(--text)'}">${o.label}</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:3px">${o.sub}</div>
-            <div style="font-size:11px;color:${db.settings.dailyPts===o.pts?'var(--accent-lt)':'var(--muted)'};margin-top:2px">${o.pts} pts/dia</div>
-          </button>`).join('')}
+    `, btn:'Continuar'},
+    {pose:'acena', title:'Quantas colheres você tem?', sub:'A ideia vem da Teoria das Colheres.', body:`
+      <p style="font-size:14px;color:var(--text2);line-height:1.55;margin:0 0 14px">Imagine que você acorda com um número de colheres. Cada tarefa, barulho e conversa gasta algumas, e descansar devolve. Em um dia comum, como é o seu fôlego?</p>
+      <div style="display:flex;gap:10px">
+        ${[{pts:8,label:'Pouco',icon:'🥄'},{pts:12,label:'Médio',icon:'🥄'},{pts:16,label:'Bastante',icon:'🥄'}].map(o=>{const sel=db.settings.dailyPts===o.pts;return `
+          <button class="tap int-tile ob-energy-btn ${sel?'sel':''}" data-pts="${o.pts}" aria-pressed="${sel}" onclick="onboardSetEnergy(${o.pts})" style="background:var(--card)">
+            <span style="font-size:22px;font-weight:800;color:var(--text);line-height:1">${o.pts}</span>
+            <span style="font-size:13px;font-weight:700;color:var(--text)">${o.label}</span>
+            <span style="font-size:10px;font-weight:400;color:var(--muted)">colheres por dia</span>
+          </button>`;}).join('')}
       </div>
-      <p style="font-size:11px;color:var(--muted);margin-top:10px">Você pode ajustar isso depois em Configurações.</p>
-    `, btn:'Começar ✨'},
+      <p style="font-size:12px;color:var(--muted);margin:12px 0 0">Não existe resposta certa, e você pode ajustar depois em Configurações.</p>
+    `, btn:'Começar'},
   ];
 
-  const s=steps[onboardingStep-1];
-  const dots=[1,2,3].map(i=>`<span style="width:7px;height:7px;border-radius:50%;background:${i===onboardingStep?'var(--accent)':'var(--border)'};display:inline-block;margin:0 3px;transition:background .2s"></span>`).join('');
+  const st=steps[onboardingStep-1];
+  const dots=[1,2,3].map(i=>`<span style="width:${i===onboardingStep?22:8}px;height:8px;border-radius:99px;background:${i===onboardingStep?'var(--accent)':'var(--card)'};display:inline-block;margin:0 3px"></span>`).join('');
 
   return `
     <div class="onboard-overlay">
       <div class="onboard-card">
-        <div style="display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:8px">
-          ${onboardingStep>1?`<button onclick="onboardBack()" style="position:absolute;left:0;background:none;border:none;color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;padding:4px 8px;line-height:1;display:flex;align-items:center;gap:3px">← Voltar</button>`:''}
-          <div>${dots}</div>
+        <div style="display:flex;align-items:center;justify-content:center;position:relative;min-height:32px;margin-bottom:12px">
+          ${onboardingStep>1?`<button class="tap note-chip" onclick="onboardBack()" style="position:absolute;left:0;background:var(--card)">‹ Voltar</button>`:''}
+          <div aria-label="Passo ${onboardingStep} de 3">${dots}</div>
         </div>
-        <div class="onboard-icon">${s.icon}</div>
-        <div class="onboard-title">${s.title}</div>
-        <div class="onboard-sub">${s.sub}</div>
-        <div class="onboard-body">${s.body}</div>
-        <button id="onboard-next-btn" class="btn btn-p" onclick="onboardNext()" ${onboardReadSet.has(onboardingStep)?'':'disabled style="opacity:.4;pointer-events:none"'}>${s.btn}</button>
-        <div class="onboard-footer" style="margin-top:16px"><span class="beta-badge">Versão de teste</span></div>
+        <div style="position:relative;height:130px;border-radius:28px;background:linear-gradient(160deg,var(--accent),var(--accent-dk));margin:34px 0 70px">
+          <div class="res-in" style="position:absolute;left:50%;bottom:-58px;width:156px;margin-left:-78px">
+            <img class="pilly" src="img/pilly-${st.pose}.webp" alt="Pilly" style="width:100%;height:auto;display:block;filter:drop-shadow(0 8px 10px rgba(0,0,0,.18))">
+          </div>
+        </div>
+        <div class="onboard-title">${st.title}</div>
+        <div class="onboard-sub">${st.sub}</div>
+        <div class="onboard-body">${st.body}</div>
+        <button id="onboard-next-btn" class="btn btn-p" onclick="onboardNext()" ${onboardReadSet.has(onboardingStep)?'':'disabled style="opacity:.4;pointer-events:none"'}>${st.btn}</button>
       </div>
     </div>`;
 }
@@ -5588,25 +5586,22 @@ function catInfoHTML(){
 }
 
 function tourOverlayHTML(){
-  const nome=db.settings.name?` ${db.settings.name}`:'';
-  if(tourStep===1) return `
-    <div style="position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;padding:24px">
-      <div style="background:var(--card);border-radius:24px;padding:36px 24px;text-align:center;max-width:340px;width:100%">
-        <div style="font-size:52px;margin-bottom:16px">🗺️</div>
-        <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:12px">Vamos explorar ${g('juntas','juntos','juntes')}!</div>
-        <div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:28px">Em 6 passos você vai <strong style="color:var(--text)">usar de verdade</strong> — não só ver. Toque quando ${g('estiver','estiver','estiver')} ${g('pronta','pronto','prontx')}.</div>
-        <button onclick="tourNext()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit">Vamos lá →</button>
+  const nome=db.settings.name?`, ${esc(db.settings.name)}`:'';
+  const card=(pose,title,text,btn)=>`
+    <div class="backdrop" style="align-items:center;padding:20px">
+      <div style="background:var(--card);border-radius:28px;padding:20px 20px 22px;text-align:center;max-width:360px;width:100%">
+        <div style="position:relative;height:110px;border-radius:24px;background:linear-gradient(160deg,var(--accent),var(--accent-dk));margin:0 0 62px">
+          <div class="res-in" style="position:absolute;left:50%;bottom:-52px;width:140px;margin-left:-70px">
+            <img class="pilly" src="img/pilly-${pose}.webp" alt="Pilly" style="width:100%;height:auto;display:block;filter:drop-shadow(0 8px 10px rgba(0,0,0,.18))">
+          </div>
+        </div>
+        <div style="font-size:21px;font-weight:800;color:var(--text);line-height:1.25;margin-bottom:8px">${title}</div>
+        <div style="font-size:14px;color:var(--text2);line-height:1.55;margin-bottom:18px">${text}</div>
+        <button class="btn btn-p" onclick="tourNext()">${btn}</button>
       </div>
     </div>`;
-  if(tourStep===8) return `
-    <div style="position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;padding:24px">
-      <div style="background:var(--card);border-radius:24px;padding:36px 24px;text-align:center;max-width:340px;width:100%">
-        <div style="font-size:56px;margin-bottom:16px">🎉</div>
-        <div style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:12px">${g('Pronta','Pronto','Prontx')}${nome}!</div>
-        <div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:28px">O segredo é o hábito: 3 check-ins por dia + um registro quando algo acontece. O diário é para quando você quiser desabafar. Os padrões aparecem com o tempo. 💜</div>
-        <button onclick="tourNext()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit">Começar ✨</button>
-      </div>
-    </div>`;
+  if(tourStep===1) return card('aponta',`Vamos explorar ${g('juntas','juntos','juntes')}?`,'Em 6 passos curtos eu te mostro cada parte do app. Você pode pular quando quiser.','Vamos lá');
+  if(tourStep===8) return card('acena',`Tudo pronto${nome}!`,'Comece pelo check-in e registre quando algo te gastar ou te recarregar. O diário fica para quando você quiser. Com o tempo, os padrões aparecem.','Começar');
   return '';
 }
 
@@ -5614,20 +5609,20 @@ function tourGuideBarHTML(){
   const guideSteps={
     2:{num:'1 de 6', title:'Check-in ✅', text:`3× por dia você registra como está: energia, humor e bateria social. Leva menos de 2 minutos. Vamos fazer o de agora?`, cta:'Fazer check-in →', action:'checkin'},
     3:{num:'2 de 6', title:'Diário 📔', text:'Um cantinho só seu para escrever como se sente, o que sente e por quê. É opcional, fica só no seu aparelho e, com o tempo, aparece nos insights do Mapa. Ele fica aqui, na barra de baixo.', cta:'Próximo →'},
-    4:{num:'3 de 6', title:'Registrar ➕', text:'Aqui você marca o que drenou ou recarregou: reunião, barulho, descanso, música... Toque em uma categoria pra experimentar.', cta:'Próximo →'},
+    4:{num:'3 de 6', title:'Registrar 🥄', text:'Aqui você marca o que drenou ou recarregou: reunião, barulho, descanso, música... Toque em uma categoria pra experimentar.', cta:'Próximo →'},
     5:{num:'4 de 6', title:'Sintomas 🩺', text:'Registre sintomas físicos e emocionais separados do gasto de energia — dor, ansiedade, sobrecarga sensorial. Cada corpo é único.', cta:'Próximo →'},
     6:{num:'5 de 6', title:'Mapa de padrões 📊', text:'Com o tempo você verá quais atividades mais drenam, qual período pesa mais e suas tendências emocionais. Quanto mais registrar, mais claro fica.', cta:'Próximo →'},
     7:{num:'6 de 6', title:'SOS 🆘', text:'Para momentos de sobrecarga: respiração guiada, ancoragem nos sentidos e o CVV (188). Sempre aqui quando precisar.', cta:'Próximo →'},
   };
   const s=guideSteps[tourStep];
   if(!s) return '';
-  const dots=[2,3,4,5,6,7].map(i=>`<span style="width:6px;height:6px;border-radius:50%;background:${i===tourStep?'var(--accent)':'rgba(255,255,255,.2)'};display:inline-block;transition:background .2s"></span>`).join('');
+  const dots=[2,3,4,5,6,7].map(i=>`<span style="width:${i===tourStep?16:6}px;height:6px;border-radius:99px;background:${i===tourStep?'var(--accent)':'var(--card2)'};display:inline-block"></span>`).join('');
   const ctaOnclick=s.action==='checkin'?'openCheckin()':'tourNext()';
   return `
     <div style="position:fixed;bottom:72px;left:0;right:0;z-index:2000;padding:0 12px 6px">
-      <div style="background:var(--card);border:1.5px solid rgba(167,139,250,.45);border-radius:20px;padding:16px 18px 14px;box-shadow:0 -2px 28px rgba(0,0,0,.55)">
+      <div style="background:var(--card);border:2px solid var(--accent);border-radius:24px;padding:16px 18px 14px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <span style="font-size:11px;font-weight:700;color:var(--accent-lt);letter-spacing:.5px;text-transform:uppercase">Passo ${s.num}</span>
+          <span style="font-size:12px;font-weight:700;color:var(--accent-lt)">Passo ${s.num}</span>
           <div style="display:flex;gap:5px">${dots}</div>
         </div>
         <div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:6px">${s.title}</div>
@@ -5645,7 +5640,7 @@ function renderTourGuide(){
   const el=document.getElementById('tour-guide');
   if(!el) return;
   // Hide guide bar when any modal/sheet is open
-  const modalOpen=!!(checkinState||sheetState||helpSheet||showFeedback||showDiaryRegister||onboardingStep>0||showBackupSheet);
+  const modalOpen=!!(checkinState||sheetState||triggerSheetState||helpSheet||showFeedback||showPrivacy||showDiaryRegister||onboardingStep>0||showBackupSheet||showBackupInfo||showBadges||_badgeQueue.length);
   const active=tourStep>=2&&tourStep<=7&&!modalOpen;
   el.innerHTML=active?tourGuideBarHTML():'';
   // passo do Diário: destaca o card e leva até ele
@@ -5715,7 +5710,7 @@ function render(){
     </div>
     <div id="update-banner" class="update-banner" style="display:${_pendingUpdate?'flex':'none'};margin:12px 16px 0;flex-direction:column;gap:8px;align-items:stretch">
       <div class="update-banner-txt">
-        <strong>✨ Versão 2.28.0 disponível!</strong>
+        <strong>✨ Versão 2.29.0 disponível!</strong>
         Novidade: Diário novo, com seu mês em sentimentos, lembranças e pote de pequenas vitórias. E ainda Mapa em abas, selos e check-in de arrastar.</div>
       <div style="font-size:11px;font-weight:600;color:var(--warn-fg);display:flex;align-items:center;gap:5px">⚠️ Por segurança, faça um backup antes de atualizar.</div>
       ${_backupDoneForUpdate
@@ -5736,7 +5731,7 @@ function render(){
 }
 
 // ── VERSÃO / ATUALIZAÇÃO ─────────────────────────────────────────────────────
-const APP_VERSION = '2.28.0';
+const APP_VERSION = '2.29.0';
 const VERSION_KEY = 'recarregue_version';
 
 function checkAppUpdate(){
@@ -5770,6 +5765,7 @@ let PREVIEW_MODE = false;
 if(new URLSearchParams(location.search).get('preview')==='1'){
   PREVIEW_MODE = true;
   localStorage.removeItem('recarregue_v1_onboarded');
+  onboardingStep=1;
   localStorage.removeItem('recarregue_version');
   localStorage.removeItem('recarregue_visited_tabs');
   history.replaceState(null,'',location.pathname);
